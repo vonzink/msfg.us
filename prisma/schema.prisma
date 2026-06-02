@@ -1,0 +1,207 @@
+// MSFG.us data model — Postgres via Prisma.
+// System-of-record for leads/applications; GHL (Go High Level) is a
+// best-effort downstream sync. Table names are snake_case via @@map so the
+// physical schema stays idiomatic regardless of Prisma's model casing.
+
+// Prisma 7: connection URLs (DATABASE_URL / DIRECT_URL) live in
+// prisma.config.ts, NOT here. The datasource block only declares the provider;
+// the runtime client connects via a driver adapter (see src/lib/db.ts).
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+/// Loan-program category. `equity` content maps here as EQUITY.
+enum Category {
+  BUY
+  REFI
+  EQUITY
+}
+
+/// Apply-flow intent. Wizard sends lowercase buy/refi/cash; stored uppercase.
+enum Intent {
+  BUY
+  REFI
+  CASH
+}
+
+/// Rate-table segment (purchase vs refinance tab).
+enum RateSegment {
+  PURCHASE
+  REFINANCE
+}
+
+/// Downstream CRM sync state for leads/applications.
+enum SyncStatus {
+  PENDING
+  SYNCED
+  FAILED
+  SKIPPED
+}
+
+// ---------------------------------------------------------------------------
+// Marketing content (seeded from src/content/*)
+// ---------------------------------------------------------------------------
+
+/// A licensed loan officer shown in the /loan-officers directory.
+model LoanOfficer {
+  id           String   @id @default(cuid())
+  name         String
+  nmls         String   @unique
+  city         String
+  state        String
+  languages    String[]
+  specialties  String[]
+  ratingAvg    Float    @default(0)
+  ratingCount  Int      @default(0)
+  photoUrl     String?
+  scheduleUrl  String?
+  ghlContactId String?
+  sortOrder    Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("loan_officers")
+}
+
+/// A loan-program card (e.g. Conventional, FHA, HELOC) per category.
+model LoanProgram {
+  id        String   @id @default(cuid())
+  category  Category
+  name      String
+  blurb     String
+  bestFor   String?
+  badge     String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([category, name])
+  @@map("loan_programs")
+}
+
+/// A single row in the "today's rates" table.
+model RateRow {
+  id          String      @id @default(cuid())
+  segment     RateSegment
+  product     String
+  subLabel    String?
+  rate        Decimal     @db.Decimal(6, 3)
+  apr         Decimal     @db.Decimal(6, 3)
+  points      Decimal     @db.Decimal(6, 3)
+  applyIntent Intent
+  termMonths  Int         @default(360)
+  effectiveAt DateTime    @default(now())
+  sortOrder   Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@unique([segment, product, subLabel])
+  @@map("rate_rows")
+}
+
+/// A customer testimonial / review surfaced across the site.
+model Testimonial {
+  id        String   @id @default(cuid())
+  author    String
+  quote     String
+  context   String?
+  rating    Int      @default(5)
+  surface   String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("testimonials")
+}
+
+// ---------------------------------------------------------------------------
+// Lead pipeline
+// ---------------------------------------------------------------------------
+
+/// A captured lead. System-of-record; mirrored to GHL best-effort.
+model Lead {
+  id                String     @id @default(cuid())
+  firstName         String
+  lastName          String
+  email             String
+  phone             String
+  intent            Intent
+  source            String     @default("web")
+  location          String?
+  answers           Json
+  consentTcpa       Boolean    @default(false)
+  consentAt         DateTime?
+  ghlContactId      String?
+  ghlOpportunityId  String?
+  syncStatus        SyncStatus @default(PENDING)
+  syncAttempts      Int        @default(0)
+  syncError         String?
+  idempotencyKey    String     @unique
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([syncStatus])
+  @@map("leads")
+}
+
+/// A multi-step application (future LOS hand-off). Steps cascade-delete.
+model Application {
+  id               String            @id @default(cuid())
+  intent           Intent
+  status           String            @default("started")
+  contact          Json
+  leadId           String?
+  ghlOpportunityId String?
+  syncStatus       SyncStatus        @default(PENDING)
+  idempotencyKey   String            @unique
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  steps            ApplicationStep[]
+
+  @@map("applications")
+}
+
+/// An individual answered step within an Application.
+model ApplicationStep {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  stepKey       String
+  stepType      String
+  value         Json
+  orderIndex    Int
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([applicationId])
+  @@map("application_steps")
+}
+
+// ---------------------------------------------------------------------------
+// Inbound webhooks (Phase 3 scaffold)
+// ---------------------------------------------------------------------------
+
+/// An idempotent record of an inbound webhook delivery.
+model WebhookEvent {
+  id             String    @id @default(cuid())
+  provider       String
+  eventType      String?
+  externalId     String?
+  signatureOk    Boolean   @default(false)
+  idempotencyKey String    @unique
+  payload        Json
+  receivedAt     DateTime  @default(now())
+  processedAt    DateTime?
+
+  @@index([provider])
+  @@map("webhook_events")
+}
