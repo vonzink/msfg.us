@@ -16,7 +16,7 @@
  */
 import { NextResponse } from "next/server";
 import { verifyWebhook, verifyGhlWebhook } from "@/server/webhooks/verify";
-import { ghlInboundConfigured } from "@/lib/env";
+import { ghlInboundConfigured, serverEnv } from "@/lib/env";
 import {
   recordWebhookEvent,
   markWebhookProcessed,
@@ -76,9 +76,17 @@ function verifyForProvider(
     return { ok: result.ok, disabled: false };
   }
 
-  // Generic providers: HMAC-SHA256 with a per-provider secret (none wired yet,
-  // so this stays permissive off-production).
-  const ok = verifyWebhook({ provider, rawBody, signature: readSignature(req) });
+  // Generic providers: HMAC-SHA256 of the raw body against a shared secret.
+  // The `hmac` example provider uses GENERIC_WEBHOOK_SECRET; with no secret set
+  // verifyWebhook stays permissive off-production and rejects in production.
+  const secret =
+    provider === "hmac" ? serverEnv.GENERIC_WEBHOOK_SECRET : undefined;
+  const ok = verifyWebhook({
+    provider,
+    rawBody,
+    signature: readSignature(req),
+    secret,
+  });
   return { ok, disabled: false };
 }
 

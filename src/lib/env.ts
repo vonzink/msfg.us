@@ -100,6 +100,37 @@ const envSchema = z.object({
   // app.msfgco.com / dashboard.msfgco.com, whose access tokens lack `email`).
   // -------------------------------------------------------------------------
   LOS_API_BASE: z.string().url().optional(),
+
+  // -------------------------------------------------------------------------
+  // Public partner API (`/api/v1/public/*`) — OPTIONAL. This is the versioned,
+  // key-authenticated API for external integrators (distinct from the site's
+  // own same-origin internal endpoints, which remain key-free). Every var is
+  // optional so the API degrades gracefully with no config (see
+  // publicApiConfigured()): READ endpoints stay open + rate-limited; key-gated
+  // WRITE endpoints return 503 "Public API not enabled". Server-only.
+  // -------------------------------------------------------------------------
+  // Comma-separated API keys. Each entry is either a bare key (`<key>`) or a
+  // `keyId:key:secret` triple. The optional `secret` enables HMAC on WRITE
+  // endpoints (x-signature: sha256=HMAC-SHA256(secret, rawBody)). When unset
+  // (and no DB ApiKey rows exist) the public API is treated as NOT enabled.
+  MSFG_API_KEYS: z.string().min(1).optional(),
+  // Requests-per-minute for the in-memory token-bucket limiter, keyed by
+  // (apiKey || client IP). Default 60.
+  PUBLIC_API_RATE_RPM: z.coerce.number().int().positive().default(60),
+  // Comma-separated allowed CORS origins for the public API. Default "*"
+  // (reads are public). Set explicit origins to lock down browser callers.
+  PUBLIC_API_CORS_ORIGINS: z.string().min(1).default("*"),
+
+  // Generic HMAC webhook example secret (OPTIONAL). When set, the `hmac`
+  // provider at POST /api/v1/webhooks/hmac verifies x-signature against this
+  // shared secret (HMAC-SHA256 of the raw body); unset → that provider is a
+  // permissive-off-production no-op, matching the other generic providers.
+  GENERIC_WEBHOOK_SECRET: z.string().min(1).optional(),
+
+  // Sentry DSN (OPTIONAL, follow-up seam). The Sentry SDK is intentionally NOT
+  // installed yet to keep deps light; captureError() in src/lib/log.ts no-ops
+  // unless this is wired. Provided here so ops can configure it ahead of time.
+  SENTRY_DSN: z.string().min(1).optional(),
 });
 
 export type ServerEnv = z.infer<typeof envSchema>;
@@ -178,6 +209,19 @@ export function authConfigured(): boolean {
 /** True when the LOS hand-off is configured (base URL present). */
 export function losConfigured(): boolean {
   return Boolean(loadEnv().LOS_API_BASE);
+}
+
+/**
+ * True when the public partner API has at least one configured key source:
+ * env `MSFG_API_KEYS` is set. (DB-backed `ApiKey` rows are an additional,
+ * async source checked at request time in src/server/api/auth.ts — they can
+ * enable individual keys even when this returns false, but we keep this helper
+ * synchronous + env-only so server components and the WRITE-gate can call it
+ * cheaply.) When false: READ endpoints still work (open + rate-limited) and
+ * key-gated WRITE endpoints return 503 "Public API not enabled".
+ */
+export function publicApiConfigured(): boolean {
+  return Boolean(loadEnv().MSFG_API_KEYS);
 }
 
 /**

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Hanken_Grotesk } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 import { SITE } from "@/content/site";
 import { GhlChat } from "@/components/integrations/GhlChat";
@@ -47,6 +49,10 @@ export default function RootLayout({
             NEXT_PUBLIC_GHL_CHAT_WIDGET_ID is set). Distinct from the homepage
             AI assistant. */}
         <GhlChat />
+        {/* Vercel observability — both no-op outside Vercel/dev, so they're
+            safe to mount unconditionally. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

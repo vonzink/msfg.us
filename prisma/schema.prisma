@@ -257,3 +257,31 @@ model ChatMessage {
   @@index([chatSessionId])
   @@map("chat_messages")
 }
+
+// ---------------------------------------------------------------------------
+// Public partner API keys (Phase 5) — OPTIONAL, DB-backed alternative/addition
+// to env MSFG_API_KEYS. The validator (src/server/api/auth.ts) checks env keys
+// first, then these rows. Only the sha256 hash of the key is stored (never the
+// raw key). `secret` (when set) enables HMAC on write endpoints for this key.
+// ---------------------------------------------------------------------------
+
+/// An issued API key for the public partner API.
+model ApiKey {
+  id         String    @id @default(cuid())
+  /// Human-readable label (e.g. partner/integration name).
+  name       String
+  /// sha256(rawKey) as lowercase hex — the raw key is shown once at mint time.
+  keyHash    String    @unique
+  /// Optional per-key HMAC secret; presence enables x-signature enforcement.
+  secret     String?
+  /// Coarse scopes for future authorization (unused by current endpoints).
+  scopes     String[]
+  /// Soft on/off switch — inactive keys never authenticate.
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  /// Best-effort last-use timestamp, touched on a successful auth.
+  lastUsedAt DateTime?
+
+  @@index([active])
+  @@map("api_keys")
+}
