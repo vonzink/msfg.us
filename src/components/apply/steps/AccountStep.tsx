@@ -1,12 +1,209 @@
 "use client";
 
-import { useId } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
+import { cn } from "@/lib/cn";
+import { useAuth } from "@/lib/auth/useAuth";
+import { APP_URL } from "@/lib/auth/appLink";
+import type { Intent } from "@/content/flows";
+import type { LeadContact } from "@/lib/leads";
 
 /**
- * Final "account" step — a UI MOCK. The flow lands here to push account
- * creation / sign-in. Wire to MSFG's real auth + loan-origination system.
+ * Final "account" step.
+ *
+ * Two modes, chosen at runtime by whether Cognito SSO is configured (reported
+ * by `GET /api/v1/auth/me` → `configured`):
+ *
+ *  • CONFIGURED → real auth. If signed out, offer "Create account / Sign in"
+ *    which routes to `/auth/login?returnTo=/apply/<intent>` (Hosted UI). If
+ *    already signed in, show the signed-in email, fire the best-effort LOS
+ *    hand-off, and surface a "Continue in the MSFG app" deep link (shared
+ *    Cognito session → silent SSO at app.msfgco.com).
+ *
+ *  • NOT CONFIGURED → the original UI mock is preserved verbatim, so the site
+ *    builds/runs and the apply flow is unbroken with no auth set up.
  */
-export function AccountStep() {
+export function AccountStep({
+  intent,
+  contact,
+  answers,
+  location,
+  leadId,
+}: {
+  intent: Intent;
+  contact: LeadContact | null;
+  answers: Record<number, string>;
+  location?: string;
+  leadId: string | null;
+}) {
+  const auth = useAuth();
+
+  // While the session probe is in flight, show a neutral spinner so we never
+  // flash the wrong UI (mock vs. real).
+  if (auth.loading) {
+    return (
+      <div
+        className="flex min-h-[160px] items-center justify-center text-muted"
+        role="status"
+        aria-live="polite"
+      >
+        <Loader2 className="size-6 animate-spin" aria-hidden="true" />
+        <span className="sr-only">Checking your sign-in status…</span>
+      </div>
+    );
+  }
+
+  if (!auth.configured) {
+    return <AccountMock />;
+  }
+
+  if (auth.authenticated) {
+    return (
+      <SignedIn
+        email={auth.user?.email}
+        intent={intent}
+        contact={contact}
+        answers={answers}
+        location={location}
+        leadId={leadId}
+      />
+    );
+  }
+
+  return <SignInPrompt intent={intent} />;
+}
+
+/** Configured + signed-out: route to the Cognito Hosted UI. */
+function SignInPrompt({ intent }: { intent: Intent }) {
+  // returnTo is a same-origin relative path (validated again server-side).
+  const returnTo = `/apply/${intent}`;
+  const loginHref = `/auth/login?returnTo=${encodeURIComponent(returnTo)}`;
+
+  return (
+    <>
+      <p className="-mt-0.5 mb-7 text-[16px] text-muted">
+        Create your secure account (or sign in) to save your progress and finish
+        your application.
+      </p>
+
+      <a
+        href={loginHref}
+        className="mt-2 flex h-[66px] w-full items-center justify-center rounded-lg bg-green-600 text-[18px] font-bold text-white transition-[transform,background,box-shadow] duration-150 [box-shadow:0_3px_0_#0a3a2a,var(--shadow-3d)] hover:-translate-y-0.5 hover:bg-green-700 hover:[box-shadow:0_5px_0_#0a3a2a,var(--shadow-pop)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spring-3 active:translate-y-px"
+      >
+        Create account or sign in
+      </a>
+
+      <p className="mt-4 text-[13px] leading-relaxed text-muted">
+        You&apos;ll sign in with Mountain State Financial Group&apos;s secure
+        login. Your information is encrypted in transit.
+      </p>
+    </>
+  );
+}
+
+/**
+ * Configured + signed-in: confirm identity, fire the LOS hand-off once, then
+ * show the deep link into the MSFG app. The hand-off is best-effort — the CTA
+ * appears regardless of its outcome (the shared Cognito session is what lets
+ * the app pick the user up).
+ */
+function SignedIn({
+  email,
+  intent,
+  contact,
+  answers,
+  location,
+  leadId,
+}: {
+  email?: string;
+  intent: Intent;
+  contact: LeadContact | null;
+  answers: Record<number, string>;
+  location?: string;
+  leadId: string | null;
+}) {
+  const [handoff, setHandoff] = useState<"idle" | "sending" | "done">("idle");
+  const fired = useRef(false);
+
+  useEffect(() => {
+    // Fire exactly once on mount. Requires the captured contact (the form step
+    // always runs before this step). Failures are swallowed — never block.
+    if (fired.current) return;
+    fired.current = true;
+    if (!contact) {
+      setHandoff("done");
+      return;
+    }
+
+    setHandoff("sending");
+    const controller = new AbortController();
+    fetch("/api/v1/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      cache: "no-store",
+      signal: controller.signal,
+      body: JSON.stringify({
+        intent,
+        contact,
+        answers,
+        location,
+        leadId: leadId ?? undefined,
+      }),
+    })
+      .catch(() => {
+        /* best-effort; the CTA still appears */
+      })
+      .finally(() => setHandoff("done"));
+
+    return () => controller.abort();
+  }, [contact, intent, answers, location, leadId]);
+
+  return (
+    <>
+      <div className="mb-5 flex items-center justify-center gap-2.5 text-green-700">
+        <CheckCircle2 className="size-7" strokeWidth={2} aria-hidden="true" />
+        <span className="text-[17px] font-bold">You&apos;re signed in</span>
+      </div>
+
+      {email && (
+        <p className="-mt-1 mb-6 text-[16px] text-muted">
+          Signed in as <span className="font-semibold text-ink">{email}</span>
+        </p>
+      )}
+
+      <p className="mb-7 text-[16px] text-muted">
+        Your details are saved. Continue in the MSFG app to upload documents and
+        track your application — you&apos;re already signed in there.
+      </p>
+
+      <a
+        href={APP_URL}
+        className="mt-2 flex h-[66px] w-full items-center justify-center gap-2.5 rounded-lg bg-green-600 text-[18px] font-bold text-white transition-[transform,background,box-shadow] duration-150 [box-shadow:0_3px_0_#0a3a2a,var(--shadow-3d)] hover:-translate-y-0.5 hover:bg-green-700 hover:[box-shadow:0_5px_0_#0a3a2a,var(--shadow-pop)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spring-3 active:translate-y-px"
+      >
+        Continue in the MSFG app
+        <ArrowRight className="size-5" strokeWidth={2.2} aria-hidden="true" />
+      </a>
+
+      <div className="mt-4 min-h-[18px] text-[13px] text-muted" aria-live="polite">
+        {handoff === "sending" && "Saving your application…"}
+      </div>
+
+      <a
+        href="/auth/logout"
+        className="mt-1 inline-block text-[14px] font-semibold text-green-600 hover:underline"
+      >
+        Not you? Sign out
+      </a>
+    </>
+  );
+}
+
+/**
+ * The ORIGINAL account-step mock — preserved verbatim for the no-auth-config
+ * path so the site builds/runs and the flow is unbroken without Cognito.
+ */
+function AccountMock() {
   const emailId = useId();
   const pwId = useId();
 

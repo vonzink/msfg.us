@@ -151,6 +151,9 @@ model Lead {
   crmStatus         String?
   /// Pipeline-stage id GHL last reported for this lead's opportunity (inbound).
   crmStageId        String?
+  /// Cognito `sub` of the user, when the lead was captured (or later linked) in
+  /// a signed-in session. Null for anonymous leads / auth unconfigured.
+  cognitoSub        String?
   idempotencyKey    String     @unique
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
@@ -158,6 +161,7 @@ model Lead {
   @@index([syncStatus])
   @@index([ghlContactId])
   @@index([ghlOpportunityId])
+  @@index([cognitoSub])
   @@map("leads")
 }
 
@@ -168,6 +172,10 @@ model Application {
   status           String            @default("started")
   contact          Json
   leadId           String?
+  /// Cognito `sub` of the signed-in applicant who completed this application
+  /// (links the local record to the SSO identity / LOS user). Null for
+  /// applications captured before sign-in or with auth unconfigured.
+  cognitoSub       String?
   ghlOpportunityId String?
   syncStatus       SyncStatus        @default(PENDING)
   idempotencyKey   String            @unique
@@ -175,6 +183,7 @@ model Application {
   updatedAt        DateTime          @updatedAt
   steps            ApplicationStep[]
 
+  @@index([cognitoSub])
   @@map("applications")
 }
 

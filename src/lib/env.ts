@@ -13,6 +13,7 @@
  * server modules.)
  */
 import { z } from "zod";
+import { SITE } from "@/content/site";
 
 const envSchema = z.object({
   // Database (system-of-record).
@@ -58,6 +59,47 @@ const envSchema = z.object({
   // (hybrid setups); omit it to hit api.anthropic.com directly.
   ANTHROPIC_API_KEY: z.string().min(1).optional(),
   ANTHROPIC_BASE_URL: z.string().url().optional(),
+
+  // -------------------------------------------------------------------------
+  // AWS Cognito SSO (OPTIONAL — every var is optional so the site builds/runs
+  // with NO auth configured). Auth is treated as "configured" only when an app
+  // client id AND a Hosted UI domain are present (see authConfigured()). The
+  // user pool is shared with app.msfgco.com (region us-west-1, pool
+  // us-west-1_S6iE2uego) — defaults match so only the per-site client id +
+  // domain + callback URLs must be supplied. Server-only; never NEXT_PUBLIC_*.
+  // -------------------------------------------------------------------------
+  COGNITO_REGION: z.string().min(1).default("us-west-1"),
+  COGNITO_USER_POOL_ID: z.string().min(1).default("us-west-1_S6iE2uego"),
+  // Dedicated app client registered for msfg.us (user-supplied).
+  COGNITO_CLIENT_ID: z.string().min(1).optional(),
+  // Set only for a CONFIDENTIAL client → sent as HTTP Basic on the token
+  // endpoint (client_secret_basic). Omit for a public (PKCE-only) client.
+  COGNITO_CLIENT_SECRET: z.string().min(1).optional(),
+  // Hosted UI / managed login domain, e.g.
+  // https://<prefix>.auth.us-west-1.amazoncognito.com (no trailing slash).
+  COGNITO_HOSTED_UI_DOMAIN: z
+    .string()
+    .url()
+    .optional()
+    .transform((v) => (v ? v.replace(/\/+$/, "") : v)),
+  // Space-delimited OAuth scopes. `openid` is required to receive an id_token.
+  COGNITO_SCOPES: z.string().min(1).default("openid email profile"),
+  // OAuth redirect (callback) URI — MUST be registered as an Allowed callback
+  // URL on the Cognito app client. Defaults to ${SITE.url}/auth/callback.
+  AUTH_REDIRECT_URI: z.string().url().optional(),
+  // Post-logout redirect — MUST be registered as an Allowed sign-out URL on the
+  // app client. Defaults to ${SITE.url}.
+  AUTH_LOGOUT_REDIRECT_URI: z.string().url().optional(),
+
+  // -------------------------------------------------------------------------
+  // Loan Origination System (LOS) hand-off (OPTIONAL). When LOS_API_BASE is
+  // unset the hand-off is DISABLED (no network call) and the wizard still
+  // captures the lead/application exactly as before. The base is the full URL
+  // the application POST is sent to; the exact path is a one-line change in
+  // losClient.ts. Authenticated with the Cognito id_token as a Bearer (matches
+  // app.msfgco.com / dashboard.msfgco.com, whose access tokens lack `email`).
+  // -------------------------------------------------------------------------
+  LOS_API_BASE: z.string().url().optional(),
 });
 
 export type ServerEnv = z.infer<typeof envSchema>;
@@ -118,4 +160,49 @@ export function ghlInboundConfigured(): boolean {
  */
 export function aiConfigured(): boolean {
   return Boolean(loadEnv().ANTHROPIC_API_KEY);
+}
+
+/**
+ * True only when Cognito SSO has the minimum config to start an OIDC flow: a
+ * registered app client id AND a Hosted UI domain. When false, the auth route
+ * handlers return a clear "not configured" response and the apply wizard's
+ * account step stays the existing mock — the site builds/runs with no Cognito
+ * config. (A confidential client also needs COGNITO_CLIENT_SECRET, but that is
+ * validated at the token-exchange call site, not here.)
+ */
+export function authConfigured(): boolean {
+  const e = loadEnv();
+  return Boolean(e.COGNITO_CLIENT_ID && e.COGNITO_HOSTED_UI_DOMAIN);
+}
+
+/** True when the LOS hand-off is configured (base URL present). */
+export function losConfigured(): boolean {
+  return Boolean(loadEnv().LOS_API_BASE);
+}
+
+/**
+ * Resolved Cognito/auth config with derived defaults applied (issuer, JWKS URI,
+ * redirect/logout URIs). Throws (via the readable env error) only on access, so
+ * importing this module never fails the build. Call sites should guard with
+ * `authConfigured()` first. `SITE.url` is the canonical origin used for the
+ * redirect/logout defaults when the explicit env vars are unset.
+ */
+export function getCognitoConfig() {
+  const e = loadEnv();
+  const region = e.COGNITO_REGION;
+  const userPoolId = e.COGNITO_USER_POOL_ID;
+  return {
+    region,
+    userPoolId,
+    clientId: e.COGNITO_CLIENT_ID,
+    clientSecret: e.COGNITO_CLIENT_SECRET,
+    hostedUiDomain: e.COGNITO_HOSTED_UI_DOMAIN,
+    scopes: e.COGNITO_SCOPES,
+    redirectUri: e.AUTH_REDIRECT_URI ?? `${SITE.url}/auth/callback`,
+    logoutRedirectUri: e.AUTH_LOGOUT_REDIRECT_URI ?? SITE.url,
+    /** OIDC issuer — full Cognito IdP endpoint (matches Spring resource server). */
+    issuer: `https://cognito-idp.${region}.amazonaws.com/${userPoolId}`,
+    /** JWKS endpoint for id_token signature verification. */
+    jwksUri: `https://cognito-idp.${region}.amazonaws.com/${userPoolId}/.well-known/jwks.json`,
+  };
 }

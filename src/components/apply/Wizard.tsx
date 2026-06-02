@@ -23,6 +23,10 @@ export function Wizard({ intent }: { intent: Intent }) {
   const [idx, setIdx] = useState(0);
   /** Collected answers, keyed by step index (mirrors prototype `sel`). */
   const [answers, setAnswers] = useState<Record<number, string>>({});
+  /** Contact captured by the `form` step (needed for the LOS hand-off). */
+  const [contact, setContact] = useState<LeadContact | null>(null);
+  /** Lead id returned by the capture call (best-effort; may stay null). */
+  const [leadId, setLeadId] = useState<string | null>(null);
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -71,22 +75,33 @@ export function Wizard({ intent }: { intent: Intent }) {
    * advance to the `account` step regardless of success/failure.
    */
   const onFormDone = useCallback(
-    (contact: LeadContact) => {
+    (formContact: LeadContact) => {
       // Find the first `place` answer in the collected steps, if any.
       const placeIdx = steps.findIndex((s) => s.type === "place");
       const location = placeIdx >= 0 ? answers[placeIdx] : undefined;
 
+      setContact(formContact);
+
+      // Fire-and-forget lead capture. Capture the returned id (when it lands)
+      // so the account step can cross-reference it in the LOS hand-off, but
+      // NEVER block advancing on it.
       void submitLead({
         intent,
-        contact,
+        contact: formContact,
         answers,
         location: location || undefined,
+      }).then((res) => {
+        if (res.leadId) setLeadId(res.leadId);
       });
 
       next();
     },
     [answers, intent, next, steps],
   );
+
+  // Resolve the location answer once for the account step's hand-off.
+  const placeIdx = steps.findIndex((s) => s.type === "place");
+  const location = placeIdx >= 0 ? answers[placeIdx] : undefined;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -168,7 +183,15 @@ export function Wizard({ intent }: { intent: Intent }) {
 
           {step.type === "form" && <FormStep onDone={onFormDone} />}
 
-          {step.type === "account" && <AccountStep />}
+          {step.type === "account" && (
+            <AccountStep
+              intent={intent}
+              contact={contact}
+              answers={answers}
+              location={location || undefined}
+              leadId={leadId}
+            />
+          )}
         </div>
       </div>
 

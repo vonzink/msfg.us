@@ -66,3 +66,21 @@ export const applicationInputSchema = z.object({
   idempotencyKey: idempotencyKeySchema,
 });
 export type ApplicationInput = z.infer<typeof applicationInputSchema>;
+
+// ---------------------------------------------------------------------------
+// LOS hand-off contract — POST /api/v1/applications (auth-gated). Mirrors the
+// wizard answers/contact already captured for the lead; the server attaches
+// the Cognito sub + id_token (never sent by the client). All fields optional
+// except intent + contact so a minimal completion still forwards.
+// ---------------------------------------------------------------------------
+export const applicationHandoffSchema = z.object({
+  intent: intentSchema,
+  contact: contactSchema,
+  answers: z.record(z.string(), z.unknown()).default({}),
+  location: z.string().trim().min(1).optional(),
+  /** Local Lead id returned by POST /api/v1/leads, for cross-referencing. */
+  leadId: z.string().trim().min(1).optional(),
+  idempotencyKey: idempotencyKeySchema.optional(),
+  source: z.string().trim().min(1).optional(),
+});
+export type ApplicationHandoffInput = z.infer<typeof applicationHandoffSchema>;

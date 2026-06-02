@@ -3,6 +3,7 @@ import { ChevronDown, Phone } from "lucide-react";
 import { Mark } from "@/components/ui/Mark";
 import { Button } from "@/components/ui/Button";
 import { MobileDrawer } from "@/components/nav/MobileDrawer";
+import { NavAuthLink } from "@/components/nav/NavAuthLink";
 import { NAV } from "@/content/nav";
 import { SITE } from "@/content/site";
 
@@ -71,12 +72,7 @@ export function Nav() {
           >
             <Phone className="size-[19px]" strokeWidth={1.8} />
           </a>
-          <a
-            href="#"
-            className="hidden px-1.5 text-[15.5px] font-semibold text-white min-[981px]:inline"
-          >
-            Sign in
-          </a>
+          <NavAuthLink />
           <Button href="/apply/buy" size="sm">
             Get started
           </Button>

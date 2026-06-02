@@ -29,7 +29,7 @@ export type LeadPayload = {
  */
 export async function submitLead(
   input: Omit<LeadPayload, "consentTcpa" | "idempotencyKey" | "source">,
-): Promise<{ ok: boolean }> {
+): Promise<{ ok: boolean; leadId?: string }> {
   const body: LeadPayload = {
     ...input,
     consentTcpa: true,
@@ -47,8 +47,10 @@ export async function submitLead(
       console.error("[lead] submit failed:", res.status);
       return { ok: false };
     }
-    const data: unknown = await res.json().catch(() => null);
-    return { ok: Boolean(data && (data as { ok?: boolean }).ok) };
+    const data = (await res.json().catch(() => null)) as
+      | { ok?: boolean; leadId?: string }
+      | null;
+    return { ok: Boolean(data?.ok), leadId: data?.leadId };
   } catch (err) {
     console.error("[lead] submit error:", err);
     return { ok: false };
