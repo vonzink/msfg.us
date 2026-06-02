@@ -32,6 +32,14 @@ const envSchema = z.object({
 
   // Protects the internal retry-cron endpoint when set.
   CRON_SECRET: z.string().min(1).optional(),
+
+  // Anthropic / Claude API (optional — the homepage assistant degrades to a
+  // graceful "unavailable" path when ANTHROPIC_API_KEY is absent). The SDK
+  // reads ANTHROPIC_API_KEY itself; we validate its presence here only to gate
+  // the feature. ANTHROPIC_BASE_URL points the SDK at an internal gateway
+  // (hybrid setups); omit it to hit api.anthropic.com directly.
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_BASE_URL: z.string().url().optional(),
 });
 
 export type ServerEnv = z.infer<typeof envSchema>;
@@ -66,4 +74,13 @@ export const serverEnv: ServerEnv = new Proxy({} as ServerEnv, {
 export function ghlConfigured(): boolean {
   const e = loadEnv();
   return Boolean(e.GHL_API_TOKEN && e.GHL_LOCATION_ID);
+}
+
+/**
+ * True only when the Claude API key is present. When false, the homepage
+ * assistant returns a friendly "unavailable" path instead of calling the model,
+ * so the site builds/runs with no key configured.
+ */
+export function aiConfigured(): boolean {
+  return Boolean(loadEnv().ANTHROPIC_API_KEY);
 }

@@ -205,3 +205,38 @@ model WebhookEvent {
   @@index([provider])
   @@map("webhook_events")
 }
+
+// ---------------------------------------------------------------------------
+// AI assistant transcripts (chat recording — quality & compliance)
+// ---------------------------------------------------------------------------
+
+/// One homepage-assistant conversation. `leadId` links to a Lead if the chat
+/// captured one (via the capture_lead tool). Persistence is best-effort — the
+/// chat never blocks on a DB write.
+model ChatSession {
+  id        String        @id @default(cuid())
+  leadId    String?
+  metadata  Json?
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([leadId])
+  @@map("chat_sessions")
+}
+
+/// A single recorded turn within a ChatSession. `role` is "user" | "assistant"
+/// | "tool"; `toolName` is set on tool-call rows. `orderIndex` preserves order.
+model ChatMessage {
+  id            String      @id @default(cuid())
+  chatSessionId String
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
+  role          String
+  content       String      @db.Text
+  toolName      String?
+  orderIndex    Int
+  createdAt     DateTime    @default(now())
+
+  @@index([chatSessionId])
+  @@map("chat_messages")
+}
