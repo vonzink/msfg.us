@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Hanken_Grotesk } from "next/font/google";
 import "./globals.css";
 import { SITE } from "@/content/site";
+import { GhlChat } from "@/components/integrations/GhlChat";
 
 const hanken = Hanken_Grotesk({
   subsets: ["latin"],
@@ -40,7 +41,13 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={hanken.variable}>
-      <body className="min-h-screen">{children}</body>
+      <body className="min-h-screen">
+        {children}
+        {/* Site-wide LeadConnector live-agent chat (renders nothing unless
+            NEXT_PUBLIC_GHL_CHAT_WIDGET_ID is set). Distinct from the homepage
+            AI assistant. */}
+        <GhlChat />
+      </body>
     </html>
   );
 }

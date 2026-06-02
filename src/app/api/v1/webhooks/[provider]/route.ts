@@ -1,14 +1,22 @@
 /**
- * POST /api/v1/webhooks/:provider — generic inbound webhook sink (Phase 3
- * scaffold). Flow: read raw body → verify signature → dedupe via the event
- * log → dispatch to the provider handler → stamp processedAt.
+ * POST /api/v1/webhooks/:provider — inbound webhook sink. Flow: read the RAW
+ * body → verify signature → dedupe via the event log → dispatch to the
+ * provider handler → stamp processedAt.
  *
- * Contract: respond 200 fast for any KNOWN provider (so senders don't retry
- * needlessly), 401 on a bad signature, 404 for unknown providers. Handlers are
- * currently no-ops; the persistence + dedupe plumbing is what's live now.
+ * Contract:
+ *   • 404 — unknown provider.
+ *   • 401 — known provider, signature present but INVALID.
+ *   • 200 — accepted (handled, deduped, skipped, or recorded-after-DB-blip).
+ *
+ * GHL (`provider === "ghl"`) is live two-way sync, verified via
+ * `verifyGhlWebhook` (HMAC shared-secret OR RSA/Ed25519 public-key, mode chosen
+ * by env). When GHL inbound is DISABLED (no verification configured) the
+ * delivery is acknowledged 200 but NOT processed — so the site is safe with no
+ * GHL credentials. Other providers use the generic HMAC path.
  */
 import { NextResponse } from "next/server";
-import { verifyWebhook } from "@/server/webhooks/verify";
+import { verifyWebhook, verifyGhlWebhook } from "@/server/webhooks/verify";
+import { ghlInboundConfigured } from "@/lib/env";
 import {
   recordWebhookEvent,
   markWebhookProcessed,
@@ -19,7 +27,7 @@ import { getWebhookHandler } from "@/server/webhooks/registry";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Common header names providers use to carry a signature. */
+/** Common header names providers use to carry a signature (generic path). */
 function readSignature(req: Request): string | null {
   return (
     req.headers.get("x-wh-signature") ??
@@ -42,6 +50,38 @@ function readIdempotencyKey(
   );
 }
 
+/** Result of the per-provider verification step. */
+interface VerifyOutcome {
+  /** Signature verified (or permissive dev path). */
+  ok: boolean;
+  /** Provider recognized but inbound is disabled — accept (200) but skip. */
+  disabled: boolean;
+}
+
+/** Verify the inbound request for `provider`, branching GHL onto its modes. */
+function verifyForProvider(
+  provider: string,
+  req: Request,
+  rawBody: string,
+): VerifyOutcome {
+  if (provider === "ghl") {
+    // GHL inbound disabled (no verification configured) → accept but skip.
+    if (!ghlInboundConfigured()) return { ok: false, disabled: true };
+
+    const result = verifyGhlWebhook(rawBody, {
+      ghlSignature: req.headers.get("x-ghl-signature"),
+      whSignature: req.headers.get("x-wh-signature"),
+      hmacSignature: readSignature(req),
+    });
+    return { ok: result.ok, disabled: false };
+  }
+
+  // Generic providers: HMAC-SHA256 with a per-provider secret (none wired yet,
+  // so this stays permissive off-production).
+  const ok = verifyWebhook({ provider, rawBody, signature: readSignature(req) });
+  return { ok, disabled: false };
+}
+
 export async function POST(
   req: Request,
   ctx: { params: Promise<{ provider: string }> },
@@ -56,12 +96,21 @@ export async function POST(
     );
   }
 
+  // Read the RAW body once — required for any signature scheme.
   const rawBody = await req.text();
-  const signature = readSignature(req);
 
-  // Per-provider secret comes from env, e.g. GHL_WEBHOOK_SECRET. None wired
-  // yet; verifyWebhook stays permissive off-production.
-  const signatureOk = verifyWebhook({ provider, rawBody, signature });
+  const { ok: signatureOk, disabled } = verifyForProvider(
+    provider,
+    req,
+    rawBody,
+  );
+
+  // Inbound disabled for this provider: acknowledge so the sender stops
+  // retrying, but run no side effects and persist nothing.
+  if (disabled) {
+    return NextResponse.json({ ok: true, skipped: "inbound disabled" });
+  }
+
   if (!signatureOk) {
     return NextResponse.json(
       { ok: false, error: "Invalid signature" },
@@ -95,8 +144,8 @@ export async function POST(
 
     // Only run side effects for a first-seen delivery.
     if (isNew) {
-      await handler({ provider, eventType, payload });
-      await markWebhookProcessed(event.id);
+      const result = await handler({ provider, eventType, payload });
+      await markWebhookProcessed(event.id, result.externalId ?? null);
     }
 
     return NextResponse.json({ ok: true, deduped: !isNew });

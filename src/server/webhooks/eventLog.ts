@@ -59,11 +59,21 @@ export async function recordWebhookEvent(
   return { event, isNew: true };
 }
 
-/** Stamp processedAt once a (new) event has been handled. */
-export async function markWebhookProcessed(id: string): Promise<void> {
+/**
+ * Stamp processedAt once a (new) event has been handled. Optionally backfills
+ * the provider-side `externalId` the handler resolved (e.g. the GHL
+ * opportunity/contact id), for traceability.
+ */
+export async function markWebhookProcessed(
+  id: string,
+  externalId?: string | null,
+): Promise<void> {
   const db = getDb();
   await db.webhookEvent.update({
     where: { id },
-    data: { processedAt: new Date() },
+    data: {
+      processedAt: new Date(),
+      ...(externalId ? { externalId } : {}),
+    },
   });
 }

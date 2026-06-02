@@ -1,9 +1,12 @@
 /**
- * Webhook handler registry (Phase 3 scaffold).
+ * Webhook handler registry.
  *
- * Maps a provider slug → handler. Currently every provider is a no-op that
- * acknowledges receipt without side effects (`handled: false`). Add real
- * handlers here as integrations come online; the route stays unchanged.
+ * Maps a provider slug → handler. `ghl` is live (CRM → site two-way sync);
+ * register other providers here as they come online — the route is unchanged.
+ *
+ * The handler is loaded via a lazy dynamic `import()` so this module (and the
+ * route that imports it) stays free of a transitive pull on the DB client /
+ * env until an event for that provider actually arrives.
  */
 
 export interface WebhookHandlerInput {
@@ -22,15 +25,18 @@ export type WebhookHandler = (
   input: WebhookHandlerInput,
 ) => Promise<WebhookHandlerResult>;
 
-/** No-op handler: acknowledges the event but does nothing with it yet. */
-const noopHandler: WebhookHandler = async () => ({ handled: false });
+/** GHL inbound: find the matching Lead and mirror the CRM status back. */
+const ghlHandler: WebhookHandler = async (input) => {
+  const { handleGhlWebhook } = await import("@/server/webhooks/ghlHandler");
+  return handleGhlWebhook(input);
+};
 
 /**
  * Known providers. Listing a provider here marks it as "recognized" so the
  * route can 200 it quickly; unknown providers are rejected by the route.
  */
 export const webhookRegistry: Record<string, WebhookHandler> = {
-  ghl: noopHandler,
+  ghl: ghlHandler,
 };
 
 /** Look up a handler; undefined means the provider is unknown. */

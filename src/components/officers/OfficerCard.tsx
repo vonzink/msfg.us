@@ -1,5 +1,6 @@
 import { MapPin, Languages, Star } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { ScheduleCallButton } from "@/components/integrations/ScheduleCallButton";
 import { officerInitials, type Officer } from "@/content/officers";
 import { SITE } from "@/content/site";
 
@@ -73,14 +74,16 @@ export function OfficerCard({ officer }: { officer: Officer }) {
 
       {/* Actions */}
       <div className="mt-0.5 flex gap-2">
-        <Button
-          href={officer.scheduleHref}
+        <ScheduleCallButton
+          calendarId={officer.calendarId}
+          fallbackHref={officer.scheduleHref}
+          dialogLabel={`Schedule a call with ${name}`}
           size="sm"
           className="flex-1"
           aria-label={`Schedule a call with ${name}`}
         >
           Schedule
-        </Button>
+        </ScheduleCallButton>
         <Button
           href={officer.textHref ?? "#"}
           variant="ghost"

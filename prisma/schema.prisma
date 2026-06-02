@@ -145,11 +145,19 @@ model Lead {
   syncStatus        SyncStatus @default(PENDING)
   syncAttempts      Int        @default(0)
   syncError         String?
+  /// Last CRM-side status mirrored back via an inbound GHL webhook (e.g. an
+  /// opportunity pipeline status like "open"/"won"/"lost", or a contact
+  /// lifecycle label). Null until GHL pushes an update for this lead.
+  crmStatus         String?
+  /// Pipeline-stage id GHL last reported for this lead's opportunity (inbound).
+  crmStageId        String?
   idempotencyKey    String     @unique
   createdAt         DateTime   @default(now())
   updatedAt         DateTime   @updatedAt
 
   @@index([syncStatus])
+  @@index([ghlContactId])
+  @@index([ghlOpportunityId])
   @@map("leads")
 }
 

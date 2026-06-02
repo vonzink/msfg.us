@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/Button";
+import { ScheduleCallButton } from "@/components/integrations/ScheduleCallButton";
 
 /** Dark emerald CTA band with a radial glow. Reused on every marketing page. */
 export function CtaBand({
@@ -29,9 +30,17 @@ export function CtaBand({
           <Button href={primaryHref} size="lg">
             {primaryLabel}
           </Button>
-          <Button href={secondaryHref} variant="ghostDark" size="lg">
+          {/* Opens the default GHL booking calendar in a modal when configured
+              (NEXT_PUBLIC_GHL_CALENDAR_ID); otherwise links to secondaryHref. */}
+          <ScheduleCallButton
+            fallbackHref={secondaryHref}
+            dialogLabel="Talk to a loan officer"
+            variant="ghostDark"
+            size="lg"
+            aria-label={secondaryLabel}
+          >
             {secondaryLabel}
-          </Button>
+          </ScheduleCallButton>
         </div>
       </div>
     </section>

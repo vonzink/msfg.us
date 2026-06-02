@@ -30,8 +30,16 @@ export type Officer = {
   specialties: string[];
   /** Aggregate review rating. [PLACEHOLDER] */
   rating: OfficerRating;
-  /** "Schedule" action target (the apply wizard). */
+  /** "Schedule" action target (the apply wizard) — fallback when no calendar. */
   scheduleHref: string;
+  /**
+   * Optional per-officer GoHighLevel booking calendar id. When set, the
+   * "Schedule" action opens this officer's calendar in a modal instead of the
+   * apply wizard; otherwise it falls back to NEXT_PUBLIC_GHL_CALENDAR_ID, then
+   * to `scheduleHref`. [PLACEHOLDER] — populate with each officer's real GHL
+   * calendar id before launch.
+   */
+  calendarId?: string;
   /** Optional "Text" action target (sms:/tel:); omitted = placeholder link. */
   textHref?: string;
 };

@@ -30,6 +30,24 @@ const envSchema = z.object({
   GHL_PIPELINE_ID: z.string().min(1).optional(),
   GHL_STAGE_ID: z.string().min(1).optional(),
 
+  // Inbound GHL webhooks (two-way sync) — verification is OPTIONAL and
+  // mode-selected by which of these is set. Inbound is DISABLED (deliveries
+  // accepted but not processed) when none of the three is configured:
+  //   • GHL_WEBHOOK_SECRET        → HMAC-SHA256 of the raw body (custom/
+  //     automation webhooks that sign with a shared secret).
+  //   • GHL_WEBHOOK_PUBLIC_KEY    → override the built-in marketplace public
+  //     key used to verify GHL's RSA (X-WH-Signature) / Ed25519
+  //     (X-GHL-Signature) signatures. Leave unset to use the documented
+  //     GHL public keys baked into the verifier.
+  //   • GHL_WEBHOOK_PUBLIC_KEY_VERIFY → set "true" to require public-key
+  //     verification using the built-in GHL keys even without an override key.
+  GHL_WEBHOOK_SECRET: z.string().min(1).optional(),
+  GHL_WEBHOOK_PUBLIC_KEY: z.string().min(1).optional(),
+  GHL_WEBHOOK_PUBLIC_KEY_VERIFY: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((v) => v === "true"),
+
   // Protects the internal retry-cron endpoint when set.
   CRON_SECRET: z.string().min(1).optional(),
 
@@ -74,6 +92,23 @@ export const serverEnv: ServerEnv = new Proxy({} as ServerEnv, {
 export function ghlConfigured(): boolean {
   const e = loadEnv();
   return Boolean(e.GHL_API_TOKEN && e.GHL_LOCATION_ID);
+}
+
+/**
+ * True when inbound GHL webhook verification is enabled. We process inbound
+ * deliveries only when at least one verification mode is configured: an HMAC
+ * shared secret, a public-key override, or the explicit "verify with built-in
+ * GHL keys" flag. With none set, inbound is treated as DISABLED — the route
+ * acknowledges the delivery (200) but runs no side effects, so the site is
+ * safe by default with no GHL credentials.
+ */
+export function ghlInboundConfigured(): boolean {
+  const e = loadEnv();
+  return Boolean(
+    e.GHL_WEBHOOK_SECRET ||
+      e.GHL_WEBHOOK_PUBLIC_KEY ||
+      e.GHL_WEBHOOK_PUBLIC_KEY_VERIFY,
+  );
 }
 
 /**

@@ -30,6 +30,15 @@ export class GhlError extends Error {
 
 const TIMEOUT_MS = 8_000;
 
+/** Shared auth headers for every GHL request. */
+function ghlHeaders(): Record<string, string> {
+  return {
+    Authorization: `Bearer ${serverEnv.GHL_API_TOKEN}`,
+    Version: serverEnv.GHL_API_VERSION,
+    Accept: "application/json",
+  };
+}
+
 /** POST JSON to a GHL endpoint with auth + a hard timeout. */
 async function ghlPost<T>(path: string, payload: unknown): Promise<T> {
   const controller = new AbortController();
@@ -37,13 +46,41 @@ async function ghlPost<T>(path: string, payload: unknown): Promise<T> {
   try {
     const res = await fetch(`${serverEnv.GHL_API_BASE}${path}`, {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${serverEnv.GHL_API_TOKEN}`,
-        Version: serverEnv.GHL_API_VERSION,
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
+      headers: { ...ghlHeaders(), "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      throw new GhlError(
+        `GHL ${path} responded ${res.status}`,
+        res.status,
+        body.slice(0, 500),
+      );
+    }
+    return (await res.json()) as T;
+  } catch (err) {
+    if (err instanceof GhlError) throw err;
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new GhlError(`GHL ${path} timed out after ${TIMEOUT_MS}ms`);
+    }
+    throw new GhlError(
+      `GHL ${path} request failed: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** GET JSON from a GHL endpoint with auth + a hard timeout. */
+async function ghlGet<T>(path: string): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  try {
+    const res = await fetch(`${serverEnv.GHL_API_BASE}${path}`, {
+      method: "GET",
+      headers: ghlHeaders(),
       signal: controller.signal,
     });
 
@@ -76,6 +113,40 @@ interface UpsertContactResponse {
 interface CreateOpportunityResponse {
   opportunity?: { id?: string };
   id?: string;
+}
+
+/** Subset of a GHL opportunity we consume for inbound mapping. */
+export interface GhlOpportunity {
+  id: string;
+  contactId?: string;
+  /** Pipeline status: "open" | "won" | "lost" | "abandoned" (free-form). */
+  status?: string;
+  /** Pipeline stage id the opportunity currently sits in. */
+  pipelineStageId?: string;
+  name?: string;
+}
+interface GetOpportunityResponse {
+  opportunity?: GhlOpportunity;
+}
+
+/**
+ * Fetch a single opportunity by id (inbound webhook hydration). Returns null
+ * when GHL is unconfigured or the opportunity can't be read. Never throws on a
+ * read failure — inbound handlers degrade to whatever the webhook payload
+ * already carried.
+ */
+export async function getOpportunity(
+  opportunityId: string,
+): Promise<GhlOpportunity | null> {
+  if (!ghlConfigured()) return null;
+  try {
+    const data = await ghlGet<GetOpportunityResponse>(
+      `/opportunities/${encodeURIComponent(opportunityId)}`,
+    );
+    return data.opportunity ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export const ghlClient: CrmClient = {
