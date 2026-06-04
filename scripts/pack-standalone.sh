@@ -24,7 +24,7 @@ cp -R .next/static "$SA/.next/static"
 [ -d public ] && cp -R public "$SA/public"
 
 echo "▶ Ensuring server runtime deps are present"
-for pkg in @prisma/adapter-pg @prisma/driver-adapter-utils jose zod; do
+for pkg in @prisma/adapter-pg @prisma/driver-adapter-utils jose zod openai; do
   if [ ! -d "$SA/node_modules/$pkg" ] && [ -d "node_modules/$pkg" ]; then
     mkdir -p "$SA/node_modules/$(dirname "$pkg")"
     cp -R "node_modules/$pkg" "$SA/node_modules/$pkg"

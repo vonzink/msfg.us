@@ -5,15 +5,15 @@
  * the model never invents figures.
  *
  * Exports:
- *  - TOOLS:   Anthropic.Tool[] schemas passed to the Messages API.
+ *  - TOOLS:   OpenAI function-tool schemas passed to chat.completions.
  *  - runTool(name, input): executes one tool call and returns a TEXT string
- *    (what we hand back as the tool_result content). Inputs arrive already
- *    parsed by the SDK — we treat them as objects, never string-match JSON.
+ *    (what we hand back as the tool message content). The route JSON-parses the
+ *    model's `arguments` string into an object before calling this.
  *
  * Tools must never throw: a thrown executor would break the loop. Each catches
  * and returns a short error string the model can recover from.
  */
-import type Anthropic from "@anthropic-ai/sdk";
+import type OpenAI from "openai";
 import { randomUUID } from "node:crypto";
 import { monthlyPayment, formatUSD } from "@/lib/finance";
 import { RATE_DATA, RATES_PRINCIPAL, type RateTab } from "@/content/rates";
@@ -22,127 +22,145 @@ import { captureLead } from "@/server/leads/leadService";
 import type { LeadInput } from "@/validation/lead";
 
 // ---------------------------------------------------------------------------
-// Tool schemas
+// Tool schemas (OpenAI function-calling format)
 // ---------------------------------------------------------------------------
 
-export const TOOLS: Anthropic.Tool[] = [
+export const TOOLS: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
-    name: "calculate_payment",
-    description:
-      "Estimate a monthly principal & interest (P&I) mortgage payment. Use for any 'what would my payment be' question for a purchase, a rate/term refinance, or a cash-out. Derives the loan principal from the purpose, then amortizes it. Returns an estimate only — not a commitment to lend.",
-    input_schema: {
-      type: "object",
-      properties: {
-        purpose: {
-          type: "string",
-          enum: ["buy", "refi", "cash"],
-          description:
-            "buy = purchase, refi = rate/term refinance, cash = cash-out refinance.",
+    type: "function",
+    function: {
+      name: "calculate_payment",
+      description:
+        "Estimate a monthly principal & interest (P&I) mortgage payment. Use for any 'what would my payment be' question for a purchase, a rate/term refinance, or a cash-out. Derives the loan principal from the purpose, then amortizes it. Returns an estimate only — not a commitment to lend.",
+      parameters: {
+        type: "object",
+        properties: {
+          purpose: {
+            type: "string",
+            enum: ["buy", "refi", "cash"],
+            description:
+              "buy = purchase, refi = rate/term refinance, cash = cash-out refinance.",
+          },
+          homePrice: {
+            type: "number",
+            description: "Purchase price in dollars (buy only).",
+          },
+          downPaymentPct: {
+            type: "number",
+            description:
+              "Down payment as a percent of price, e.g. 10 for 10% (buy only). Defaults to 20 if omitted.",
+          },
+          loanBalance: {
+            type: "number",
+            description: "Current loan balance in dollars (refi and cash-out).",
+          },
+          cashOut: {
+            type: "number",
+            description: "Additional cash taken out in dollars (cash-out only).",
+          },
+          homeValue: {
+            type: "number",
+            description:
+              "Estimated home value in dollars (cash-out only) — caps the new loan to avoid exceeding the home's value.",
+          },
+          annualRatePct: {
+            type: "number",
+            description:
+              "Annual interest rate as a percent, e.g. 6.5 for 6.5%. If unknown, omit and an indicative rate is assumed.",
+          },
+          termMonths: {
+            type: "number",
+            description: "Loan term in months. Defaults to 360 (30 years).",
+          },
         },
-        homePrice: {
-          type: "number",
-          description: "Purchase price in dollars (buy only).",
-        },
-        downPaymentPct: {
-          type: "number",
-          description:
-            "Down payment as a percent of price, e.g. 10 for 10% (buy only). Defaults to 20 if omitted.",
-        },
-        loanBalance: {
-          type: "number",
-          description:
-            "Current loan balance in dollars (refi and cash-out).",
-        },
-        cashOut: {
-          type: "number",
-          description: "Additional cash taken out in dollars (cash-out only).",
-        },
-        homeValue: {
-          type: "number",
-          description:
-            "Estimated home value in dollars (cash-out only) — caps the new loan to avoid exceeding the home's value.",
-        },
-        annualRatePct: {
-          type: "number",
-          description:
-            "Annual interest rate as a percent, e.g. 6.5 for 6.5%. If unknown, omit and an indicative rate is assumed.",
-        },
-        termMonths: {
-          type: "number",
-          description: "Loan term in months. Defaults to 360 (30 years).",
-        },
+        required: ["purpose"],
       },
-      required: ["purpose"],
     },
   },
   {
-    name: "lookup_rates",
-    description:
-      "Look up MSFG's current indicative mortgage rates. Returns the rate table (product, rate, APR, and an estimated monthly P&I on a $300k loan) for purchase or refinance. Rates are indicative placeholders that depend on credit, property, and a full application — not a commitment to lend.",
-    input_schema: {
-      type: "object",
-      properties: {
-        segment: {
-          type: "string",
-          enum: ["purchase", "refinance"],
-          description:
-            "Which rate set to show. Omit to return both purchase and refinance.",
+    type: "function",
+    function: {
+      name: "lookup_rates",
+      description:
+        "Look up MSFG's current indicative mortgage rates. Returns the rate table (product, rate, APR, and an estimated monthly P&I on a $300k loan) for purchase or refinance. Rates are indicative placeholders that depend on credit, property, and a full application — not a commitment to lend.",
+      parameters: {
+        type: "object",
+        properties: {
+          segment: {
+            type: "string",
+            enum: ["purchase", "refinance"],
+            description:
+              "Which rate set to show. Omit to return both purchase and refinance.",
+          },
         },
+        required: [],
       },
-      required: [],
     },
   },
   {
-    name: "explain_program",
-    description:
-      "Explain a mortgage loan program (e.g. Conventional, FHA, VA, USDA, Jumbo, ARM, HELOC, cash-out) in plain English, including who it's best for. Informational only; eligibility requires a full application. Provide a program name and/or a category to scope the answer.",
-    input_schema: {
-      type: "object",
-      properties: {
-        program: {
-          type: "string",
-          description:
-            "Program name to explain, e.g. 'FHA', 'VA', 'HELOC', 'Conventional', 'cash-out'. Matched loosely.",
+    type: "function",
+    function: {
+      name: "explain_program",
+      description:
+        "Explain a mortgage loan program (e.g. Conventional, FHA, VA, USDA, Jumbo, ARM, HELOC, cash-out) in plain English, including who it's best for. Informational only; eligibility requires a full application. Provide a program name and/or a category to scope the answer.",
+      parameters: {
+        type: "object",
+        properties: {
+          program: {
+            type: "string",
+            description:
+              "Program name to explain, e.g. 'FHA', 'VA', 'HELOC', 'Conventional', 'cash-out'. Matched loosely.",
+          },
+          category: {
+            type: "string",
+            enum: ["buy", "refi", "equity"],
+            description:
+              "Scope to a category: buy (purchase), refi (refinance), or equity (home equity). Used to list programs when no specific program is named.",
+          },
         },
-        category: {
-          type: "string",
-          enum: ["buy", "refi", "equity"],
-          description:
-            "Scope to a category: buy (purchase), refi (refinance), or equity (home equity). Used to list programs when no specific program is named.",
-        },
+        required: [],
       },
-      required: [],
     },
   },
   {
-    name: "capture_lead",
-    description:
-      "Save the user's contact info so a licensed MSFG loan officer can follow up. ONLY call this when the user has agreed to be contacted (consentTcpa true) and has given their name, email, and phone. If consent is missing, do not call this — ask for consent first.",
-    input_schema: {
-      type: "object",
-      properties: {
-        firstName: { type: "string", description: "User's first name." },
-        lastName: { type: "string", description: "User's last name." },
-        email: { type: "string", description: "User's email address." },
-        phone: { type: "string", description: "User's phone number." },
-        intent: {
-          type: "string",
-          enum: ["buy", "refi", "cash"],
-          description:
-            "What they want to do: buy a home, refinance, or take cash out.",
+    type: "function",
+    function: {
+      name: "capture_lead",
+      description:
+        "Save the user's contact info so a licensed MSFG loan officer can follow up. ONLY call this when the user has agreed to be contacted (consentTcpa true) and has given their name, email, and phone. If consent is missing, do not call this — ask for consent first.",
+      parameters: {
+        type: "object",
+        properties: {
+          firstName: { type: "string", description: "User's first name." },
+          lastName: { type: "string", description: "User's last name." },
+          email: { type: "string", description: "User's email address." },
+          phone: { type: "string", description: "User's phone number." },
+          intent: {
+            type: "string",
+            enum: ["buy", "refi", "cash"],
+            description:
+              "What they want to do: buy a home, refinance, or take cash out.",
+          },
+          notes: {
+            type: "string",
+            description:
+              "Short, relevant context for the loan officer (goals, timeline). Never include any fair-lending–prohibited information.",
+          },
+          consentTcpa: {
+            type: "boolean",
+            description:
+              "True only if the user explicitly agreed MSFG may contact them by phone, text, and email (including automated technology).",
+          },
         },
-        notes: {
-          type: "string",
-          description:
-            "Short, relevant context for the loan officer (goals, timeline). Never include any fair-lending–prohibited information.",
-        },
-        consentTcpa: {
-          type: "boolean",
-          description:
-            "True only if the user explicitly agreed MSFG may contact them by phone, text, and email (including automated technology).",
-        },
+        required: [
+          "firstName",
+          "lastName",
+          "email",
+          "phone",
+          "intent",
+          "consentTcpa",
+        ],
       },
-      required: ["firstName", "lastName", "email", "phone", "intent", "consentTcpa"],
     },
   },
 ];
@@ -307,9 +325,7 @@ function runExplainProgram(input: unknown): string {
   // 2) Category scope → list that category's programs.
   if (categoryKey && CATS[categoryKey]) {
     const cfg = CATS[categoryKey];
-    const body = cfg.opts
-      .map((p) => describeProgram(p))
-      .join("\n");
+    const body = cfg.opts.map((p) => describeProgram(p)).join("\n");
     return [
       `${cfg.optsTitle}:`,
       body,
@@ -372,9 +388,9 @@ async function runCaptureLead(input: unknown): Promise<string> {
 }
 
 /**
- * Execute one tool call by name. Returns the text we hand back as the
- * tool_result content. Always resolves (never rejects) so the agentic loop
- * keeps running even if a tool hits an unexpected error.
+ * Execute one tool call by name. Returns the text we hand back as the tool
+ * message content. Always resolves (never rejects) so the agentic loop keeps
+ * running even if a tool hits an unexpected error.
  */
 export async function runTool(name: string, input: unknown): Promise<string> {
   try {

@@ -52,13 +52,14 @@ const envSchema = z.object({
   // Protects the internal retry-cron endpoint when set.
   CRON_SECRET: z.string().min(1).optional(),
 
-  // Anthropic / Claude API (optional — the homepage assistant degrades to a
-  // graceful "unavailable" path when ANTHROPIC_API_KEY is absent). The SDK
-  // reads ANTHROPIC_API_KEY itself; we validate its presence here only to gate
-  // the feature. ANTHROPIC_BASE_URL points the SDK at an internal gateway
-  // (hybrid setups); omit it to hit api.anthropic.com directly.
-  ANTHROPIC_API_KEY: z.string().min(1).optional(),
-  ANTHROPIC_BASE_URL: z.string().url().optional(),
+  // DeepSeek (OpenAI-compatible) — powers the "Ask MSFG AI" assistant. Optional:
+  // the homepage assistant degrades to a graceful "unavailable" path when
+  // DEEPSEEK_API_KEY is absent. DEEPSEEK_BASE_URL / DEEPSEEK_MODEL let you point
+  // at any OpenAI-compatible endpoint (DeepSeek by default). Tool calling needs
+  // the `deepseek-chat` model — `deepseek-reasoner` does NOT support functions.
+  DEEPSEEK_API_KEY: z.string().min(1).optional(),
+  DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
+  DEEPSEEK_MODEL: z.string().min(1).default("deepseek-chat"),
 
   // -------------------------------------------------------------------------
   // AWS Cognito SSO (OPTIONAL — every var is optional so the site builds/runs
@@ -192,12 +193,12 @@ export function ghlInboundConfigured(): boolean {
 }
 
 /**
- * True only when the Claude API key is present. When false, the homepage
+ * True only when the DeepSeek API key is present. When false, the homepage
  * assistant returns a friendly "unavailable" path instead of calling the model,
  * so the site builds/runs with no key configured.
  */
 export function aiConfigured(): boolean {
-  return Boolean(loadEnv().ANTHROPIC_API_KEY);
+  return Boolean(loadEnv().DEEPSEEK_API_KEY);
 }
 
 /**

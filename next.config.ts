@@ -19,6 +19,7 @@ const nextConfig: NextConfig = {
       "./node_modules/@prisma/driver-adapter-utils/**",
       "./node_modules/jose/**",
       "./node_modules/zod/**",
+      "./node_modules/openai/**",
     ],
   },
 };

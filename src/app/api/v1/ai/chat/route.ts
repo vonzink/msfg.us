@@ -1,31 +1,30 @@
 /**
- * POST /api/v1/ai/chat — streaming MSFG AI assistant (Claude API).
+ * POST /api/v1/ai/chat — streaming MSFG AI assistant (DeepSeek, OpenAI-compatible).
  *
  * Body: { sessionId?: string, messages: Array<{role:"user"|"assistant", content:string}> }
  *
  * Behavior:
- *  - If the assistant isn't configured (no ANTHROPIC_API_KEY) → 200 SSE stream
+ *  - If the assistant isn't configured (no DEEPSEEK_API_KEY) → 200 SSE stream
  *    with a single friendly "unavailable" text + done, so the UI degrades.
- *  - Otherwise run a MANUAL agentic tool loop: stream each model turn, get
- *    finalMessage(), execute any tool_use blocks server-side, append the
- *    assistant turn + tool_result turn, and loop until stop_reason="end_turn".
- *  - Streams Server-Sent Events to the client:
- *      data: {"type":"text","value":"..."}   text deltas (thinking ignored)
- *      data: {"type":"tool","name":"..."}     a tool started executing
- *      data: {"type":"session","sessionId":"..."}  recording session id
- *      data: {"type":"done"}                   end of turn
- *      data: {"type":"error"}                  failure
+ *  - Otherwise run a MANUAL agentic tool loop: stream each model turn, collect
+ *    text + tool calls, execute any tool calls server-side, append the assistant
+ *    turn + tool result turns, and loop until the model answers without tools.
+ *  - Streams Server-Sent Events to the client (provider-agnostic protocol):
+ *      data: {"type":"text","value":"..."}        text deltas
+ *      data: {"type":"tool","name":"..."}         a tool started executing
+ *      data: {"type":"session","sessionId":"..."} recording session id
+ *      data: {"type":"done"}                       end of turn
+ *      data: {"type":"error"}                      failure
  *  - Records the transcript (user msg + assistant text + tool names) best-effort.
  *
  * Node runtime (Prisma + SDK), never statically cached.
  */
-import type Anthropic from "@anthropic-ai/sdk";
-import { AnthropicError } from "@anthropic-ai/sdk";
+import OpenAI from "openai";
 import { aiConfigured } from "@/lib/env";
 import { SITE } from "@/content/site";
 import { SYSTEM_PROMPT } from "@/server/ai/prompt";
 import { TOOLS, runTool } from "@/server/ai/tools";
-import { getAnthropic, AI_MODEL, AI_MAX_TOKENS } from "@/server/ai/client";
+import { getAiClient, aiModel, AI_MAX_TOKENS } from "@/server/ai/client";
 import {
   createChatSession,
   appendMessage,
@@ -80,6 +79,9 @@ function staticStream(text: string): ReadableStream<Uint8Array> {
   });
 }
 
+/** Accumulator for a streamed tool call (assembled across delta chunks). */
+type PendingToolCall = { id: string; name: string; args: string };
+
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -101,14 +103,13 @@ export async function POST(req: Request) {
     return new Response(staticStream(UNAVAILABLE_TEXT), { headers: SSE_HEADERS });
   }
 
-  const client = getAnthropic();
+  const client = getAiClient();
 
-  // Build the conversation for the API. The SDK accepts string content for
-  // simple turns; we promote to block arrays as the tool loop appends.
-  const convo: Anthropic.MessageParam[] = messages.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
+  // Build the conversation: system prompt first, then the client history.
+  const convo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "system", content: SYSTEM_PROMPT },
+    ...messages.map((m) => ({ role: m.role, content: m.content })),
+  ];
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -135,75 +136,86 @@ export async function POST(req: Request) {
       if (lastUser) await record("user", lastUser.content);
 
       try {
-        // System prompt as a single cacheable text block (stable prefix).
-        const system: Anthropic.TextBlockParam[] = [
-          {
-            type: "text",
-            text: SYSTEM_PROMPT,
-            cache_control: { type: "ephemeral" },
-          },
-        ];
-
         // Manual agentic loop. Bounded to avoid any unbounded tool cycling.
         const MAX_TURNS = 8;
         for (let turn = 0; turn < MAX_TURNS; turn++) {
-          const modelStream = client.messages.stream({
-            model: AI_MODEL,
+          const completion = await client.chat.completions.create({
+            model: aiModel(),
             max_tokens: AI_MAX_TOKENS,
-            thinking: { type: "adaptive" },
-            system,
-            tools: TOOLS,
             messages: convo,
+            tools: TOOLS,
+            stream: true,
           });
 
-          // Stream TEXT deltas only — ignore thinking deltas.
-          modelStream.on("text", (delta) => {
-            if (delta) controller.enqueue(sse({ type: "text", value: delta }));
-          });
+          let assistantText = "";
+          const pending = new Map<number, PendingToolCall>();
 
-          const finalMessage = await modelStream.finalMessage();
+          for await (const chunk of completion) {
+            const choice = chunk.choices[0];
+            if (!choice) continue;
+            const delta = choice.delta;
+            if (delta?.content) {
+              assistantText += delta.content;
+              controller.enqueue(sse({ type: "text", value: delta.content }));
+            }
+            for (const tc of delta?.tool_calls ?? []) {
+              const cur = pending.get(tc.index) ?? { id: "", name: "", args: "" };
+              if (tc.id) cur.id = tc.id;
+              if (tc.function?.name) cur.name = tc.function.name;
+              if (tc.function?.arguments) cur.args += tc.function.arguments;
+              pending.set(tc.index, cur);
+            }
+          }
 
-          // Persist any assistant text from this turn.
-          const assistantText = finalMessage.content
-            .filter((b): b is Anthropic.TextBlock => b.type === "text")
-            .map((b) => b.text)
-            .join("");
+          // Persist any assistant text produced this turn.
           if (assistantText.trim()) await record("assistant", assistantText);
 
-          // Done — model produced a normal end-of-turn answer.
-          if (finalMessage.stop_reason !== "tool_use") break;
+          // No tool calls → the model answered; we're done.
+          if (pending.size === 0) break;
 
-          // Append the assistant turn (full content preserves tool_use blocks).
-          convo.push({ role: "assistant", content: finalMessage.content });
+          const toolCalls = [...pending.entries()]
+            .sort(([a], [b]) => a - b)
+            .map(([, c]) => c)
+            .filter((c) => c.id && c.name);
 
-          // Execute each tool_use block server-side, in order.
-          const toolUses = finalMessage.content.filter(
-            (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
-          );
-          const toolResults: Anthropic.ToolResultBlockParam[] = [];
-          for (const tu of toolUses) {
-            controller.enqueue(sse({ type: "tool", name: tu.name }));
-            const result = await runTool(tu.name, tu.input);
-            await record("tool", result, tu.name);
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: tu.id,
+          // Append the assistant turn carrying the tool calls (required so the
+          // following tool results have matching tool_call_ids).
+          convo.push({
+            role: "assistant",
+            content: assistantText || null,
+            tool_calls: toolCalls.map((c) => ({
+              id: c.id,
+              type: "function",
+              function: { name: c.name, arguments: c.args || "{}" },
+            })),
+          });
+
+          // Execute each tool call server-side, in order, and append results.
+          for (const c of toolCalls) {
+            controller.enqueue(sse({ type: "tool", name: c.name }));
+            let parsed: unknown = {};
+            try {
+              parsed = c.args ? JSON.parse(c.args) : {};
+            } catch {
+              parsed = {};
+            }
+            const result = await runTool(c.name, parsed);
+            await record("tool", result, c.name);
+            convo.push({
+              role: "tool",
+              tool_call_id: c.id,
               content: result,
             });
           }
-
-          // Feed results back as the next user turn and loop.
-          convo.push({ role: "user", content: toolResults });
         }
 
         controller.enqueue(sse({ type: "done" }));
       } catch (err) {
-        // Typed SDK errors are logged with status; client just sees a friendly
-        // error + a final text fallback so the bubble isn't left empty.
-        if (err instanceof AnthropicError) {
-          const status =
-            "status" in err ? (err as { status?: number }).status : undefined;
-          console.error(`[ai/chat] Anthropic error${status ? ` ${status}` : ""}:`, err.message);
+        if (err instanceof OpenAI.APIError) {
+          console.error(
+            `[ai/chat] DeepSeek API error${err.status ? ` ${err.status}` : ""}:`,
+            err.message,
+          );
         } else {
           console.error("[ai/chat] stream error:", err);
         }
