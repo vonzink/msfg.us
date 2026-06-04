@@ -4,6 +4,21 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+# Platform direction — multi-tenant (READ FIRST)
+
+This codebase is becoming a **multi-tenant platform** for many mortgage companies (hybrid: shared multi-tenant *and* dedicated single-tenant deployments from one codebase). **MSFG is tenant #1.** Full design: `docs/superpowers/specs/2026-06-04-multi-tenant-platform-design.md`. Build it foundation-first; MSFG stays live throughout.
+
+**Invariants (do not violate):**
+- **Tenant-aware always.** Every request resolves a tenant (by host, or pinned via `TENANT_SLUG` in dedicated mode). Every tenant-owned row carries `tenantId`; queries are tenant-scoped (Prisma extension) — never read/write across tenants.
+- **No global singletons for config, secrets, or providers.** Branding, copy, AI provider+model, and integration creds come from **per-tenant config**, not module-level `SITE`/env. A new company = **config + seed, never code.**
+- **Secrets:** per-tenant secrets are **AES-256-GCM envelope-encrypted in the DB** behind the `SecretStore` interface (master key `TENANT_SECRETS_KEY` in env). Only bootstrap secrets (`DATABASE_URL`, the KEK) live in env. Never log plaintext secrets; decrypt at point of use.
+- **Pluggable AI:** all model calls go through the `AiProvider` interface — OpenAI/DeepSeek (OpenAI-compatible adapter) and Claude (Anthropic adapter), selected per tenant. Don't import a vendor SDK directly in a route.
+- **Pluggable integrations** behind interfaces in `src/server/integrations/` (CRM/auth/LOS), tenant-configured.
+- **Portable deploy:** must run on **Vercel** (native) *and* **Docker/AWS** (`output: standalone`). 12-factor: all runtime config via env + tenant DB. No host-specific APIs in app code.
+- **External data:** inbound public API (`/api/v1/public/*`) is tenant-scoped by API key; outbound **webhook subscriptions** deliver signed domain events to companies' external systems.
+
+The MSFG-specific conventions below remain the **defaults for tenant #1** and the design-system rules.
+
 # MSFG.us — conventions
 
 Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Prisma 7 / Postgres. Path alias `@/*` → `src/*`. **Visual source of truth:** `design-reference/design_handoff_msfg_site/` (read `PAGES.md` + the relevant `prototype/*` files; match high fidelity).
