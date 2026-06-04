@@ -140,7 +140,14 @@ let cached: ServerEnv | null = null;
 /** Parse + cache env on first use. Throws a readable error if invalid. */
 function loadEnv(): ServerEnv {
   if (cached) return cached;
-  const parsed = envSchema.safeParse(process.env);
+  // Treat empty-string vars as unset. Deploy platforms (Vercel, containers,
+  // shells) commonly pass an "unset" optional var as "", which would otherwise
+  // fail the optional `.min(1)` checks and 500 every env-reading route.
+  const raw: Record<string, string> = {};
+  for (const [k, v] of Object.entries(process.env)) {
+    if (typeof v === "string" && v !== "") raw[k] = v;
+  }
+  const parsed = envSchema.safeParse(raw);
   if (!parsed.success) {
     const issues = parsed.error.issues
       .map((i) => `  - ${i.path.join(".") || "(root)"}: ${i.message}`)
