@@ -35,8 +35,9 @@ We are converting it into a **multi-tenant platform** before building more, so t
 ### 3. Branding / theming (runtime)
 - Design tokens move from build-time CSS `@theme` to **runtime CSS variables** injected per tenant (a `<TenantTheme>` server component sets `--color-*`, radii, etc. on `:root` from the resolved tenant config). MSFG's current values are the **default fallback**. Logo/wordmark/copy come from tenant config. The design-system primitives and utility names are unchanged — only the *source* of the values changes.
 
-### 4. Pluggable AI providers
+### 4. Pluggable AI providers + RAG grounding
 - `AiProvider` interface (streaming chat + tool-calling) with adapters: **`OpenAICompatibleProvider`** (OpenAI, DeepSeek, and any compatible endpoint — differ only by baseURL/model/key) and **`AnthropicProvider`** (Claude — different wire format). `getAiProvider(tenant)` selects from tenant config. The system prompt, tools, guardrails, transcript recording, and the widget's SSE protocol stay shared/provider-agnostic. (Generalizes the current OpenAI-compatible layer and re-adds Claude.)
+- **Grounding / RAG (the assistant's "brain"):** answers are grounded by a **`KnowledgeRetriever`** interface — for each question, retrieve relevant mortgage-knowledge passages, then either inject them as context before generation **or** expose retrieval as a `search_knowledge` tool. **Tenant-aware:** a shared mortgage corpus + per-tenant documents (a company's guidelines/programs/overlays). The retriever is an **adapter** — a dedicated external RAG service (HTTP) *or* a built-in `pgvector` store in Postgres — selected per tenant. The chat route stays **provider- *and* retriever-agnostic**, so a dedicated mortgage-RAG system (being built separately) plugs in here without touching the route. This is its own future phase (slots after the provider abstraction).
 
 ### 5. Pluggable integrations
 - `CrmClient` (GHL today), auth (Cognito today), and the LOS client are already behind interfaces. They become **tenant-configured** — `getIntegrations(tenant)` builds clients from the tenant's settings + decrypted secrets — instead of reading global env.
@@ -74,4 +75,4 @@ We are converting it into a **multi-tenant platform** before building more, so t
 - Cross-tenant leakage is the top risk → the Prisma scoping extension + tests are mandatory, not optional.
 - Runtime theming must avoid FOUC/CLS (inject CSS vars server-side before paint).
 - Outbound webhook delivery needs idempotency + retry caps + a dead-letter view (delivery log).
-- Deferred: admin UI, onboarding, billing, per-tenant analytics, **2FA/passkeys (WebAuthn)**, KMS-backed secrets.
+- Deferred: the **RAG knowledge layer** (`KnowledgeRetriever` — shared mortgage corpus + per-tenant docs; external RAG service or built-in pgvector; its own phase), admin UI, onboarding, billing, per-tenant analytics, **2FA/passkeys (WebAuthn)**, KMS-backed secrets.
