@@ -1,6 +1,32 @@
-# MSFG.us — Deployment runbook (staging → apex)
+# MSFG.us — Deployment runbook
 
-Deploy target: **Vercel** (GitHub-connected) · data/auth in **AWS** · **staging-first**, then cut over to the apex `msfg.us`.
+> **ACTIVE DEPLOYMENT: self-hosted on the EC2** (`52.203.186.217`, same box as the LOS backend). The Vercel sections further down are an alternative, kept for reference.
+
+## Self-hosted (EC2 + pm2 + nginx) — the live setup
+
+The site runs as a **standalone Next.js bundle** under **pm2** (`msfg-web`, `127.0.0.1:3007`), reverse-proxied by **nginx** (`/etc/nginx/sites-available/msfg.us` → `server_name staging.msfg.us msfg.us www.msfg.us`), connected to the dedicated **`msfg_web`** database on the shared RDS. pm2 resurrects it on reboot.
+
+**Build happens locally, never on the box** (a Next build needs ~1.5–2 GB and would risk OOM-killing the live apps). The standalone bundle is shipped and just *run*.
+
+### Redeploy (one command)
+```bash
+scripts/deploy-ec2.sh                                # staging: build → rsync → pm2 reload
+scripts/deploy-ec2.sh https://msfg.us production     # production cutover
+```
+Builds locally (`scripts/pack-standalone.sh`), rsyncs to `~/apps/msfg.us/` (preserving the server `.env`), zero-downtime-reloads pm2.
+
+### Server config
+- Runtime env lives in `~/apps/msfg.us/.env` (chmod 600, never committed): `PORT=3007`, `HOSTNAME=127.0.0.1`, `DATABASE_URL`/`DIRECT_URL` (the `msfg_web` URLs — `sslmode=no-verify` for the app, `sslmode=require` for migrations), `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SITE_ENV=staging`. Add integration secrets here (`ANTHROPIC_API_KEY`, GHL, Cognito, `MSFG_API_KEYS`, `CRON_SECRET`) then `pm2 restart msfg-web --update-env`.
+- Migrations run from a machine that can reach the RDS (e.g. locally): `npm run db:migrate` / `npm run db:deploy`. The `msfg_web` role needs `CREATEDB` only for `migrate dev` (re-grant temporarily; deploys use `migrate deploy`).
+
+### Go-live (DNS + HTTPS)
+1. **DNS (GoDaddy):** `staging.msfg.us` A-record → `52.203.186.217`. Site then loads over HTTP.
+2. **HTTPS:** once DNS resolves, on the box: `sudo certbot --nginx -d staging.msfg.us` (adds the TLS block + auto-renew). At apex cutover add `-d msfg.us -d www.msfg.us`, set `NEXT_PUBLIC_SITE_ENV=production`, and redeploy.
+3. **GHL retry cron** (once GHL is configured): `*/15 * * * * curl -s -X POST http://127.0.0.1:3007/api/internal/retry-ghl >/dev/null 2>&1`.
+
+---
+
+## Alternative: Vercel (GitHub-connected)
 
 Everything is env-driven and degrades gracefully — you can deploy with a subset of credentials and light up each integration as its env vars are added. The app builds and runs with no secrets at all.
 
