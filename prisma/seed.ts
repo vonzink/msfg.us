@@ -9,6 +9,7 @@
  * Run via the Prisma 7 driver adapter (see src/lib/db.ts) so it works against
  * the same Postgres connection the app uses.
  */
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
