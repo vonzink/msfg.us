@@ -28,7 +28,7 @@ export default async function LoanOfficersPage() {
       >
         <div className="wrap">
           <span className="mb-3.5 inline-flex items-center gap-2.5 text-mint">
-            <Mark size={18} /> Loan officers
+            <Mark size={18} label={config.brand.shortName} /> Loan officers
           </span>
           <h1 className="m-0 text-[clamp(34px,4.6vw,54px)] font-extrabold tracking-[-0.035em]">
             Meet your <span className="text-mint">local experts</span>

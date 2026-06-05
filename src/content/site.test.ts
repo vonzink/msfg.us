@@ -26,6 +26,7 @@ describe("TenantConfigSchema", () => {
         shortName: "Acme",
         legalName: "Acme Lending, LLC",
         foundedYear: 2010,
+        assistantName: "Acme AI",
         logos: { horizontal: "/a.svg", white: "/a-w.svg", mark: "/a-m.svg" },
       },
       contact: {
@@ -75,5 +76,24 @@ describe("TenantConfigSchema", () => {
 
   it("derives the TCPA consent identical to today's for DEFAULT", () => {
     expect(buildConsentTcpa(DEFAULT_TENANT_CONFIG)).toBe(EXPECTED_CONSENT_TCPA);
+  });
+
+  it("defaults the assistant name to MSFG AI", () => {
+    expect(DEFAULT_TENANT_CONFIG.brand.assistantName).toBe("MSFG AI");
+  });
+
+  it("names the configured assistant in the legal strip (swap-proof)", () => {
+    const swapped = {
+      ...DEFAULT_TENANT_CONFIG,
+      brand: {
+        ...DEFAULT_TENANT_CONFIG.brand,
+        shortName: "Acme",
+        assistantName: "Acme Assistant",
+      },
+    };
+    const strip = buildLegalStrip(swapped);
+    expect(strip).toContain("Acme Assistant provides general information");
+    // Proves the strip names the assistant field, not a "<shortName> AI" derivation.
+    expect(strip).not.toContain("Acme AI");
   });
 });

@@ -25,6 +25,9 @@ const BrandSchema = z.object({
   shortName: z.string(),
   legalName: z.string(),
   foundedYear: z.number().int(),
+  /** Display name of the tenant's AI assistant (e.g. "MSFG AI"). Named where
+   *  the assistant is referenced in UI + the derived legal strip. */
+  assistantName: z.string(),
   logos: z.object({
     horizontal: z.string(),
     white: z.string(),
@@ -156,6 +159,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     shortName: "MSFG",
     legalName: "Mountain State Financial Group, LLC",
     foundedYear: 1998,
+    assistantName: "MSFG AI",
     logos: {
       horizontal: "/brand/msfg-horizontal.svg",
       white: "/brand/msfg-white.svg",
@@ -265,7 +269,7 @@ export function statesLine(c: TenantConfig): string {
 
 /** Full footer legal strip. Identical to the pre-Phase-B LEGAL_STRIP for MSFG. */
 export function buildLegalStrip(c: TenantConfig): string {
-  return `${c.brand.legalName}. NMLS #${c.contact.nmls} [PLACEHOLDER]. Equal Housing Lender. Licensed in ${statesLine(c)}. Loans subject to credit and property approval. Rates and terms subject to change without notice. ${c.brand.shortName} AI provides general information and estimates only and is not a commitment to lend. © ${c.brand.foundedYear}–2026 ${c.brand.shortName}, LLC.`;
+  return `${c.brand.legalName}. NMLS #${c.contact.nmls} [PLACEHOLDER]. Equal Housing Lender. Licensed in ${statesLine(c)}. Loans subject to credit and property approval. Rates and terms subject to change without notice. ${c.brand.assistantName} provides general information and estimates only and is not a commitment to lend. © ${c.brand.foundedYear}–2026 ${c.brand.shortName}, LLC.`;
 }
 
 /** Short marketing/automated-contact consent microcopy (TCPA). */

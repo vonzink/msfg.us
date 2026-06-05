@@ -38,6 +38,8 @@ export default async function ApplyIntentPage({
       phoneHref={config.contact.phoneHref}
       phoneDisplay={config.contact.phoneDisplay}
       consentTcpa={buildConsentTcpa(config)}
+      assistantName={config.brand.assistantName}
+      shortName={config.brand.shortName}
     />
   );
 }

@@ -8,7 +8,7 @@ export async function Hero() {
     <section id="top" className="hero-bg px-0 pb-[72px] pt-10 text-white">
       <div className="wrap flex flex-col items-center text-center">
         <span className="mb-4 inline-flex">
-          <Mark size={64} glow />
+          <Mark size={64} glow label={config.brand.shortName} />
         </span>
         <h1 className="m-0 max-w-[18ch] text-balance text-[clamp(32px,4.4vw,54px)] font-extrabold leading-[1.04] tracking-[-0.035em] text-mint">
           Expert Mortgage Guidance from Seasoned Professionals
@@ -17,7 +17,10 @@ export async function Hero() {
           Personal, transparent home financing across seven states.
         </p>
 
-        <AiWidget />
+        <AiWidget
+          assistantName={config.brand.assistantName}
+          shortName={config.brand.shortName}
+        />
 
         <dl className="mt-7 flex justify-center gap-12 max-[980px]:gap-9">
           {config.marketing?.stats.map((s) => (

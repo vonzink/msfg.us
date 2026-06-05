@@ -1,12 +1,13 @@
 import { Button } from "@/components/ui/Button";
 import { ScheduleCallButton } from "@/components/integrations/ScheduleCallButton";
+import { getTenantConfig } from "@/server/tenant/config";
 
 /** Dark emerald CTA band with a radial glow. Reused on every marketing page. */
-export function CtaBand({
+export async function CtaBand({
   title = "Ready when you are.",
   lead = "Ask a question, run a number, or start your application — all in one conversation.",
   primaryHref = "/apply/buy",
-  primaryLabel = "Start with MSFG AI",
+  primaryLabel,
   secondaryHref = "/buy",
   secondaryLabel = "Talk to a loan officer",
 }: {
@@ -17,6 +18,9 @@ export function CtaBand({
   secondaryHref?: string;
   secondaryLabel?: string;
 }) {
+  const config = await getTenantConfig();
+  // Defaults to the tenant's assistant name; callers may still override.
+  const primary = primaryLabel ?? `Start with ${config.brand.assistantName}`;
   return (
     <section className="cta-glow bg-green-800 py-[90px] text-center text-white">
       <div className="wrap relative">
@@ -28,7 +32,7 @@ export function CtaBand({
         </p>
         <div className="flex flex-wrap justify-center gap-3">
           <Button href={primaryHref} size="lg">
-            {primaryLabel}
+            {primary}
           </Button>
           {/* Opens the default GHL booking calendar in a modal when configured
               (NEXT_PUBLIC_GHL_CALENDAR_ID); otherwise links to secondaryHref. */}

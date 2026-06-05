@@ -9,10 +9,15 @@ export function Mark({
   size = 30,
   glow = false,
   className,
+  label,
 }: {
   size?: number;
   glow?: boolean;
   className?: string;
+  /** Accessible name for the glyph — the tenant short name. Threaded from a
+   *  server parent (or a client parent's prop) so the mark is never hardcoded
+   *  to a single brand. */
+  label: string;
 }) {
   return (
     <span
@@ -36,7 +41,7 @@ export function Mark({
         height={size}
         viewBox="0 0 40 40"
         role="img"
-        aria-label="MSFG"
+        aria-label={label}
         style={{ position: "relative" }}
       >
         <defs>

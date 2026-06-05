@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ChevronDown, Phone } from "lucide-react";
-import { Mark } from "@/components/ui/Mark";
 import { Button } from "@/components/ui/Button";
 import { MobileDrawer } from "@/components/nav/MobileDrawer";
 import { NavAuthLink } from "@/components/nav/NavAuthLink";
@@ -22,7 +21,14 @@ export async function Nav() {
           aria-label={`${config.brand.shortName} home`}
           className="mr-[18px] flex items-center gap-2.5"
         >
-          <Mark size={30} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={config.brand.logos.mark}
+            alt=""
+            width={30}
+            height={30}
+            className="size-[30px]"
+          />
           <span className="text-[23px] font-extrabold tracking-[-0.03em] text-white">
             {config.brand.shortName}
           </span>

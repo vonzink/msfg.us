@@ -90,6 +90,7 @@ const sig = crypto.createHmac("sha256", YOUR_SECRET)
 // send header:  x-signature: sha256=<sig>`;
 
 export default async function DevelopersPage() {
+  const config = await getTenantConfig();
   const origin = await getTenantOrigin();
   const BASE = `${origin}/api/v1/public`;
   const OPENAPI_URL = `${BASE}/openapi.json`;
@@ -100,13 +101,13 @@ export default async function DevelopersPage() {
       <section className="hero-bg px-0 pb-[60px] pt-14 text-center text-white">
         <div className="wrap">
           <span className="mb-3.5 inline-flex items-center gap-2.5 text-mint">
-            <Mark size={18} />
+            <Mark size={18} label={config.brand.shortName} />
             <span className="text-[13px] font-semibold tracking-[0.02em]">
               Developers
             </span>
           </span>
           <h1 className="m-0 text-[clamp(34px,4.6vw,54px)] font-extrabold tracking-[-0.035em]">
-            The MSFG <span className="text-mint">public API</span>
+            The {config.brand.shortName} <span className="text-mint">public API</span>
           </h1>
           <p className="mx-auto mt-4 max-w-[58ch] text-[18px] text-on-dark-2">
             A versioned, key-authenticated, rate-limited API for partners.
