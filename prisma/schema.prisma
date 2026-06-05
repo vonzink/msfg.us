@@ -15,6 +15,27 @@ generator client {
 }
 
 // ---------------------------------------------------------------------------
+// Multi-tenancy
+// ---------------------------------------------------------------------------
+
+/// A tenant (mortgage company) on the platform. MSFG is tenant #1
+/// (slug "msfg", deterministic id "tenant_msfg"). Every tenant-owned row
+/// carries a `tenantId`; queries are auto-scoped by the tenant Prisma
+/// extension (see src/server/tenant/scoping.ts). Resolved per request from
+/// TENANT_SLUG (dedicated mode) or the request host (shared mode).
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  domains   String[] @default([])
+  status    String   @default("active")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("tenants")
+}
+
+// ---------------------------------------------------------------------------
 // Enums
 // ---------------------------------------------------------------------------
 
@@ -53,8 +74,9 @@ enum SyncStatus {
 /// A licensed loan officer shown in the /loan-officers directory.
 model LoanOfficer {
   id           String   @id @default(cuid())
+  tenantId     String
   name         String
-  nmls         String   @unique
+  nmls         String
   city         String
   state        String
   languages    String[]
@@ -69,12 +91,15 @@ model LoanOfficer {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
+  @@unique([tenantId, nmls])
+  @@index([tenantId])
   @@map("loan_officers")
 }
 
 /// A loan-program card (e.g. Conventional, FHA, HELOC) per category.
 model LoanProgram {
   id        String   @id @default(cuid())
+  tenantId  String
   category  Category
   name      String
   blurb     String
@@ -84,13 +109,15 @@ model LoanProgram {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([category, name])
+  @@unique([tenantId, category, name])
+  @@index([tenantId])
   @@map("loan_programs")
 }
 
 /// A single row in the "today's rates" table.
 model RateRow {
   id          String      @id @default(cuid())
+  tenantId    String
   segment     RateSegment
   product     String
   subLabel    String?
@@ -104,13 +131,15 @@ model RateRow {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  @@unique([segment, product, subLabel])
+  @@unique([tenantId, segment, product, subLabel])
+  @@index([tenantId])
   @@map("rate_rows")
 }
 
 /// A customer testimonial / review surfaced across the site.
 model Testimonial {
   id        String   @id @default(cuid())
+  tenantId  String
   author    String
   quote     String
   context   String?
@@ -120,6 +149,7 @@ model Testimonial {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([tenantId])
   @@map("testimonials")
 }
 
@@ -129,35 +159,38 @@ model Testimonial {
 
 /// A captured lead. System-of-record; mirrored to GHL best-effort.
 model Lead {
-  id                String     @id @default(cuid())
-  firstName         String
-  lastName          String
-  email             String
-  phone             String
-  intent            Intent
-  source            String     @default("web")
-  location          String?
-  answers           Json
-  consentTcpa       Boolean    @default(false)
-  consentAt         DateTime?
-  ghlContactId      String?
-  ghlOpportunityId  String?
-  syncStatus        SyncStatus @default(PENDING)
-  syncAttempts      Int        @default(0)
-  syncError         String?
+  id               String     @id @default(cuid())
+  tenantId         String
+  firstName        String
+  lastName         String
+  email            String
+  phone            String
+  intent           Intent
+  source           String     @default("web")
+  location         String?
+  answers          Json
+  consentTcpa      Boolean    @default(false)
+  consentAt        DateTime?
+  ghlContactId     String?
+  ghlOpportunityId String?
+  syncStatus       SyncStatus @default(PENDING)
+  syncAttempts     Int        @default(0)
+  syncError        String?
   /// Last CRM-side status mirrored back via an inbound GHL webhook (e.g. an
   /// opportunity pipeline status like "open"/"won"/"lost", or a contact
   /// lifecycle label). Null until GHL pushes an update for this lead.
-  crmStatus         String?
+  crmStatus        String?
   /// Pipeline-stage id GHL last reported for this lead's opportunity (inbound).
-  crmStageId        String?
+  crmStageId       String?
   /// Cognito `sub` of the user, when the lead was captured (or later linked) in
   /// a signed-in session. Null for anonymous leads / auth unconfigured.
-  cognitoSub        String?
-  idempotencyKey    String     @unique
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  cognitoSub       String?
+  idempotencyKey   String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId])
   @@index([syncStatus])
   @@index([ghlContactId])
   @@index([ghlOpportunityId])
@@ -168,6 +201,7 @@ model Lead {
 /// A multi-step application (future LOS hand-off). Steps cascade-delete.
 model Application {
   id               String            @id @default(cuid())
+  tenantId         String
   intent           Intent
   status           String            @default("started")
   contact          Json
@@ -178,11 +212,13 @@ model Application {
   cognitoSub       String?
   ghlOpportunityId String?
   syncStatus       SyncStatus        @default(PENDING)
-  idempotencyKey   String            @unique
+  idempotencyKey   String
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   steps            ApplicationStep[]
 
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId])
   @@index([cognitoSub])
   @@map("applications")
 }
@@ -190,6 +226,7 @@ model Application {
 /// An individual answered step within an Application.
 model ApplicationStep {
   id            String      @id @default(cuid())
+  tenantId      String
   applicationId String
   application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
   stepKey       String
@@ -199,6 +236,7 @@ model ApplicationStep {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
+  @@index([tenantId])
   @@index([applicationId])
   @@map("application_steps")
 }
@@ -210,6 +248,7 @@ model ApplicationStep {
 /// An idempotent record of an inbound webhook delivery.
 model WebhookEvent {
   id             String    @id @default(cuid())
+  tenantId       String
   provider       String
   eventType      String?
   externalId     String?
@@ -219,6 +258,7 @@ model WebhookEvent {
   receivedAt     DateTime  @default(now())
   processedAt    DateTime?
 
+  @@index([tenantId])
   @@index([provider])
   @@map("webhook_events")
 }
@@ -232,12 +272,14 @@ model WebhookEvent {
 /// chat never blocks on a DB write.
 model ChatSession {
   id        String        @id @default(cuid())
+  tenantId  String
   leadId    String?
   metadata  Json?
   messages  ChatMessage[]
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
 
+  @@index([tenantId])
   @@index([leadId])
   @@map("chat_sessions")
 }
@@ -246,6 +288,7 @@ model ChatSession {
 /// | "tool"; `toolName` is set on tool-call rows. `orderIndex` preserves order.
 model ChatMessage {
   id            String      @id @default(cuid())
+  tenantId      String
   chatSessionId String
   chatSession   ChatSession @relation(fields: [chatSessionId], references: [id], onDelete: Cascade)
   role          String
@@ -254,6 +297,7 @@ model ChatMessage {
   orderIndex    Int
   createdAt     DateTime    @default(now())
 
+  @@index([tenantId])
   @@index([chatSessionId])
   @@map("chat_messages")
 }
@@ -268,6 +312,7 @@ model ChatMessage {
 /// An issued API key for the public partner API.
 model ApiKey {
   id         String    @id @default(cuid())
+  tenantId   String
   /// Human-readable label (e.g. partner/integration name).
   name       String
   /// sha256(rawKey) as lowercase hex — the raw key is shown once at mint time.
@@ -282,6 +327,7 @@ model ApiKey {
   /// Best-effort last-use timestamp, touched on a successful auth.
   lastUsedAt DateTime?
 
+  @@index([tenantId])
   @@index([active])
   @@map("api_keys")
 }
