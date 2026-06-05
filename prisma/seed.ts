@@ -24,6 +24,11 @@ if (!connectionString) {
 const adapter = new PrismaPg({ connectionString });
 const prisma = new PrismaClient({ adapter });
 
+// MSFG is tenant #1 — deterministic id shared with the migration backfill and
+// the runtime resolver (src/server/tenant/resolve.ts). The seed runs outside a
+// request (no tenant context), so it stamps tenantId explicitly on every row.
+const TENANT_ID = "tenant_msfg";
+
 /** content CategoryKey → Prisma Category enum. */
 const CATEGORY_ENUM: Record<CategoryKey, "BUY" | "REFI" | "EQUITY"> = {
   buy: "BUY",
@@ -53,7 +58,7 @@ async function seedOfficers() {
   let i = 0;
   for (const o of OFFICERS) {
     await prisma.loanOfficer.upsert({
-      where: { nmls: o.nmls },
+      where: { tenantId_nmls: { tenantId: TENANT_ID, nmls: o.nmls } },
       update: {
         name: o.name,
         city: o.city,
@@ -67,6 +72,7 @@ async function seedOfficers() {
         active: true,
       },
       create: {
+        tenantId: TENANT_ID,
         name: o.name,
         nmls: o.nmls,
         city: o.city,
@@ -93,10 +99,15 @@ async function seedPrograms() {
     for (const opt of cat.opts) {
       await prisma.loanProgram.upsert({
         where: {
-          category_name: { category: CATEGORY_ENUM[key], name: opt.title },
+          tenantId_category_name: {
+            tenantId: TENANT_ID,
+            category: CATEGORY_ENUM[key],
+            name: opt.title,
+          },
         },
         update: { blurb: opt.desc, bestFor: opt.audience, sortOrder: i },
         create: {
+          tenantId: TENANT_ID,
           category: CATEGORY_ENUM[key],
           name: opt.title,
           blurb: opt.desc,
@@ -119,7 +130,8 @@ async function seedRates() {
     for (const r of rows) {
       await prisma.rateRow.upsert({
         where: {
-          segment_product_subLabel: {
+          tenantId_segment_product_subLabel: {
+            tenantId: TENANT_ID,
             segment: SEGMENT_ENUM[tab],
             product: r.product,
             subLabel: r.subLabel,
@@ -134,6 +146,7 @@ async function seedRates() {
           sortOrder: i,
         },
         create: {
+          tenantId: TENANT_ID,
           segment: SEGMENT_ENUM[tab],
           product: r.product,
           subLabel: r.subLabel,
@@ -185,17 +198,27 @@ const TESTIMONIALS = [
 
 async function seedTestimonials() {
   for (const t of TESTIMONIALS) {
-    // No natural unique key on Testimonial; dedupe on (author, sortOrder) by
-    // clearing the placeholder set first, then recreating. Safe & idempotent.
+    // No natural unique key on Testimonial; dedupe on (tenantId, author,
+    // sortOrder) by clearing this tenant's placeholder set first, then
+    // recreating. Safe & idempotent.
     await prisma.testimonial.deleteMany({
-      where: { author: t.author, sortOrder: t.sortOrder },
+      where: { tenantId: TENANT_ID, author: t.author, sortOrder: t.sortOrder },
     });
-    await prisma.testimonial.create({ data: t });
+    await prisma.testimonial.create({ data: { tenantId: TENANT_ID, ...t } });
   }
   return TESTIMONIALS.length;
 }
 
+async function seedTenant() {
+  await prisma.tenant.upsert({
+    where: { slug: "msfg" },
+    update: {},
+    create: { id: TENANT_ID, slug: "msfg", name: "Mountain State Financial Group" },
+  });
+}
+
 async function main() {
+  await seedTenant();
   const officers = await seedOfficers();
   const programs = await seedPrograms();
   const rates = await seedRates();

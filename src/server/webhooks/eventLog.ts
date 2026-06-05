@@ -7,8 +7,8 @@
  * run side effects when `isNew` is true.
  */
 import crypto from "node:crypto";
-import type { WebhookEvent } from "@prisma/client";
-import { getDb } from "@/lib/db";
+import type { Prisma, WebhookEvent } from "@prisma/client";
+import { getTenantDb } from "@/lib/db";
 
 export interface RecordWebhookInput {
   provider: string;
@@ -39,22 +39,28 @@ export function deriveWebhookKey(provider: string, rawBody: string): string {
 export async function recordWebhookEvent(
   input: RecordWebhookInput,
 ): Promise<RecordWebhookResult> {
-  const db = getDb();
+  const db = await getTenantDb();
 
-  const existing = await db.webhookEvent.findUnique({
+  // findFirst (not findUnique): the scoping extension adds tenantId to the
+  // where, so the selector is an AND filter rather than a bare unique key.
+  // idempotencyKey remains globally unique, so this still returns the one row.
+  const existing = await db.webhookEvent.findFirst({
     where: { idempotencyKey: input.idempotencyKey },
   });
   if (existing) return { event: existing, isNew: false };
 
+  // tenantId is injected by the scoping extension at runtime; type the payload
+  // minus tenantId (full field-checking) and cast at the create boundary.
+  const data: Omit<Prisma.WebhookEventCreateInput, "tenantId"> = {
+    provider: input.provider,
+    eventType: input.eventType ?? null,
+    externalId: input.externalId ?? null,
+    signatureOk: input.signatureOk,
+    idempotencyKey: input.idempotencyKey,
+    payload: (input.payload ?? {}) as object,
+  };
   const event = await db.webhookEvent.create({
-    data: {
-      provider: input.provider,
-      eventType: input.eventType ?? null,
-      externalId: input.externalId ?? null,
-      signatureOk: input.signatureOk,
-      idempotencyKey: input.idempotencyKey,
-      payload: (input.payload ?? {}) as object,
-    },
+    data: data as Prisma.WebhookEventCreateInput,
   });
   return { event, isNew: true };
 }
@@ -68,7 +74,7 @@ export async function markWebhookProcessed(
   id: string,
   externalId?: string | null,
 ): Promise<void> {
-  const db = getDb();
+  const db = await getTenantDb();
   await db.webhookEvent.update({
     where: { id },
     data: {

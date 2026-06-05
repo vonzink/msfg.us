@@ -10,8 +10,8 @@
  * `dispatchToGhl` is exported separately so the retry cron can re-run it
  * against rows stuck in PENDING/FAILED.
  */
-import type { Lead } from "@prisma/client";
-import { getDb } from "@/lib/db";
+import type { Lead, Prisma } from "@prisma/client";
+import { getTenantDb } from "@/lib/db";
 import type { LeadInput } from "@/validation/lead";
 import type { CrmClient } from "@/server/integrations/types";
 import { ghlClient } from "@/server/integrations/ghl/ghlClient";
@@ -45,7 +45,7 @@ export async function dispatchToGhl(
   lead: Lead,
   crm: CrmClient = ghlClient,
 ): Promise<Lead> {
-  const db = getDb();
+  const db = await getTenantDb();
   try {
     const contact = await crm.upsertContact(leadToContactInput(lead));
 
@@ -96,33 +96,39 @@ export async function captureLead(
   input: LeadInput,
   crm: CrmClient = ghlClient,
 ): Promise<CaptureResult> {
-  const db = getDb();
+  const db = await getTenantDb();
   const consentAt = input.consentTcpa ? new Date() : null;
 
   // Idempotent: if a row with this key exists, reuse it (no second create,
-  // no duplicate CRM push). `existing` distinguishes the two paths.
-  const existing = await db.lead.findUnique({
+  // no duplicate CRM push). `existing` distinguishes the two paths. The scoping
+  // extension adds tenantId to the where, so this resolves the per-tenant
+  // composite unique (tenantId, idempotencyKey); findFirst (not findUnique)
+  // because the scoped where is an AND filter, not a bare unique selector.
+  const existing = await db.lead.findFirst({
     where: { idempotencyKey: input.idempotencyKey },
   });
 
+  // tenantId is injected by the scoping extension at runtime; type the payload
+  // as the create input minus tenantId (full field-checking) and cast at the
+  // boundary so Prisma's static "tenantId required" is satisfied.
+  const data: Omit<Prisma.LeadCreateInput, "tenantId"> = {
+    firstName: input.contact.firstName,
+    lastName: input.contact.lastName,
+    email: input.contact.email,
+    phone: input.contact.phone,
+    intent: toIntentEnum(input.intent),
+    source: input.source,
+    location: input.location ?? null,
+    answers: input.answers as object,
+    consentTcpa: input.consentTcpa,
+    consentAt,
+    idempotencyKey: input.idempotencyKey,
+    syncStatus: "PENDING",
+  };
+
   let lead =
     existing ??
-    (await db.lead.create({
-      data: {
-        firstName: input.contact.firstName,
-        lastName: input.contact.lastName,
-        email: input.contact.email,
-        phone: input.contact.phone,
-        intent: toIntentEnum(input.intent),
-        source: input.source,
-        location: input.location ?? null,
-        answers: input.answers as object,
-        consentTcpa: input.consentTcpa,
-        consentAt,
-        idempotencyKey: input.idempotencyKey,
-        syncStatus: "PENDING",
-      },
-    }));
+    (await db.lead.create({ data: data as Prisma.LeadCreateInput }));
 
   // Dispatch only when there's something to do: a brand-new lead, or an
   // existing one that hasn't successfully synced yet. Already-SYNCED/SKIPPED

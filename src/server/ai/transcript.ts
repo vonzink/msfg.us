@@ -6,11 +6,20 @@
  * chat. The chat route awaits these only to sequence orderIndex correctly; a
  * rejection is impossible because each catch returns instead of throwing.
  *
- * Server-only — imports the Prisma client via getDb().
+ * Server-only — imports the tenant-scoped Prisma client via getTenantDb().
  */
-import { getDb } from "@/lib/db";
+import type { Prisma } from "@prisma/client";
+import { getTenantDb } from "@/lib/db";
 
 export type TranscriptRole = "user" | "assistant" | "tool";
+
+// The tenant-scoping extension injects `tenantId` into every create at runtime
+// (see src/server/tenant/scoping.ts). Prisma's generated create types can't see
+// that, so they still require tenantId statically — we type each create payload
+// as the create input MINUS tenantId (keeps full field-checking on the fields we
+// pass) and cast at the call boundary.
+type ChatSessionData = Omit<Prisma.ChatSessionCreateInput, "tenantId">;
+type ChatMessageData = Omit<Prisma.ChatMessageUncheckedCreateInput, "tenantId">;
 
 /**
  * Create a ChatSession row and return its id, or null if persistence failed /
@@ -21,9 +30,12 @@ export async function createChatSession(
   metadata?: Record<string, unknown>,
 ): Promise<string | null> {
   try {
-    const db = getDb();
+    const db = await getTenantDb();
+    const data: ChatSessionData = {
+      metadata: metadata ? (metadata as object) : undefined,
+    };
     const session = await db.chatSession.create({
-      data: { metadata: metadata ? (metadata as object) : undefined },
+      data: data as Prisma.ChatSessionCreateInput,
     });
     return session.id;
   } catch (err) {
@@ -46,15 +58,16 @@ export async function appendMessage(
 ): Promise<void> {
   if (!sessionId) return;
   try {
-    const db = getDb();
+    const db = await getTenantDb();
+    const data: ChatMessageData = {
+      chatSessionId: sessionId,
+      role,
+      content,
+      orderIndex,
+      toolName: toolName ?? null,
+    };
     await db.chatMessage.create({
-      data: {
-        chatSessionId: sessionId,
-        role,
-        content,
-        orderIndex,
-        toolName: toolName ?? null,
-      },
+      data: data as Prisma.ChatMessageUncheckedCreateInput,
     });
   } catch (err) {
     console.error("[ai/transcript] appendMessage failed:", err);
@@ -71,7 +84,7 @@ export async function linkLeadToSession(
 ): Promise<void> {
   if (!sessionId) return;
   try {
-    const db = getDb();
+    const db = await getTenantDb();
     await db.chatSession.update({
       where: { id: sessionId },
       data: { leadId },

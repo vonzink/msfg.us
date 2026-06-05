@@ -16,7 +16,7 @@
  * contacts that never originated on the website.
  */
 import type { Lead, Prisma } from "@prisma/client";
-import { getDb } from "@/lib/db";
+import { getTenantDb } from "@/lib/db";
 import { parseGhlWebhook } from "@/server/integrations/ghl/mappers";
 import { getOpportunity } from "@/server/integrations/ghl/ghlClient";
 import type {
@@ -30,7 +30,7 @@ async function findLead(opts: {
   contactId?: string;
   email?: string;
 }): Promise<Lead | null> {
-  const db = getDb();
+  const db = await getTenantDb();
 
   if (opts.opportunityId) {
     const byOpp = await db.lead.findFirst({
@@ -61,7 +61,7 @@ async function findLead(opts: {
 export async function handleGhlWebhook(
   input: WebhookHandlerInput,
 ): Promise<WebhookHandlerResult> {
-  const db = getDb();
+  const db = await getTenantDb();
   const event = parseGhlWebhook(input.eventType, input.payload);
 
   // If an opportunity event arrived thin (id only), hydrate status/stage/
