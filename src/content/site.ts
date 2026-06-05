@@ -117,11 +117,22 @@ const FamilyCardSchema = z.object({
 });
 const FooterFamilySchema = z.object({ rest: z.string(), desc: z.string() });
 
+/** A customer testimonial shown in the apply flow (ChoiceStep "Review"). */
+const TestimonialSchema = z.object({
+  /** Customer display names, e.g. "Drew & Anya". */
+  names: z.string(),
+  /** Star rating, 1–5. */
+  rating: z.number().int().min(1).max(5),
+});
+export type Testimonial = z.infer<typeof TestimonialSchema>;
+
 const MarketingSchema = z.object({
   tagline: z.string(),
   stats: z.array(StatSchema),
   familyOfCompanies: z.array(FamilyCardSchema),
   footerFamily: z.array(FooterFamilySchema),
+  /** Apply-flow social proof. Empty array → no testimonial is shown. */
+  testimonials: z.array(TestimonialSchema),
 });
 
 const FeaturesSchema = z.object({
@@ -254,6 +265,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
       },
       { rest: "Inspect", desc: "Free repair estimates and 24-hour report turnarounds." },
     ],
+    testimonials: [{ names: "Drew & Anya", rating: 5 }],
   },
   features: { showFamily: true, ghlChat: true, aiAssistant: true },
 };
@@ -275,6 +287,15 @@ export function buildLegalStrip(c: TenantConfig): string {
 /** Short marketing/automated-contact consent microcopy (TCPA). */
 export function buildConsentTcpa(c: TenantConfig): string {
   return `By submitting, you agree that ${c.brand.shortName} and its affiliates may contact you about your inquiry by phone, text, and email — including via automated technology — at the number and address provided. Consent is not a condition of any purchase. Message and data rates may apply.`;
+}
+
+/**
+ * Apply-flow testimonial caption, e.g. "Drew & Anya, MSFG customers". The brand
+ * token is sourced from `shortName` (the customer names stay tenant content), so
+ * a config swap renames the brand without touching the names.
+ */
+export function buildTestimonialCaption(c: TenantConfig, t: Testimonial): string {
+  return `${t.names}, ${c.brand.shortName} customers`;
 }
 
 // ---------------------------------------------------------------------------

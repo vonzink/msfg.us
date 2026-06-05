@@ -6,7 +6,7 @@ import { ChevronLeft, Phone } from "lucide-react";
 import { Mark } from "@/components/ui/Mark";
 import { FLOW, type Intent } from "@/content/flows";
 import { submitLead, type LeadContact } from "@/lib/leads";
-import { ChoiceStep } from "./steps/ChoiceStep";
+import { ChoiceStep, type TestimonialDisplay } from "./steps/ChoiceStep";
 import { BinaryStep } from "./steps/BinaryStep";
 import { PlaceStep } from "./steps/PlaceStep";
 import { FormStep } from "./steps/FormStep";
@@ -22,6 +22,7 @@ export function Wizard({
   consentTcpa,
   assistantName,
   shortName,
+  testimonial,
 }: {
   intent: Intent;
   phoneHref: string;
@@ -29,6 +30,8 @@ export function Wizard({
   consentTcpa: string;
   assistantName: string;
   shortName: string;
+  /** Per-tenant testimonial for the ChoiceStep Review (undefined → hidden). */
+  testimonial?: TestimonialDisplay;
 }) {
   const router = useRouter();
   const steps = FLOW[intent];
@@ -170,6 +173,7 @@ export function Wizard({
               options={step.opts}
               sub={step.sub}
               review={step.review}
+              testimonial={testimonial}
               selected={answers[idx]}
               onPick={pick}
             />
@@ -205,6 +209,7 @@ export function Wizard({
               answers={answers}
               location={location || undefined}
               leadId={leadId}
+              shortName={shortName}
             />
           )}
         </div>

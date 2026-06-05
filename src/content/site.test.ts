@@ -4,6 +4,7 @@ import {
   DEFAULT_TENANT_CONFIG,
   buildLegalStrip,
   buildConsentTcpa,
+  buildTestimonialCaption,
   statesLine,
 } from "./site";
 
@@ -95,5 +96,37 @@ describe("TenantConfigSchema", () => {
     expect(strip).toContain("Acme Assistant provides general information");
     // Proves the strip names the assistant field, not a "<shortName> AI" derivation.
     expect(strip).not.toContain("Acme AI");
+  });
+});
+
+// The apply-flow testimonial caption MSFG renders today (ChoiceStep "Review").
+const EXPECTED_TESTIMONIAL_CAPTION = "Drew & Anya, MSFG customers";
+
+describe("testimonials", () => {
+  it("seeds MSFG's testimonial in DEFAULT", () => {
+    expect(DEFAULT_TENANT_CONFIG.marketing?.testimonials).toEqual([
+      { names: "Drew & Anya", rating: 5 },
+    ]);
+  });
+
+  it("derives the testimonial caption identical to today's for DEFAULT", () => {
+    const t = DEFAULT_TENANT_CONFIG.marketing!.testimonials[0];
+    expect(buildTestimonialCaption(DEFAULT_TENANT_CONFIG, t)).toBe(
+      EXPECTED_TESTIMONIAL_CAPTION,
+    );
+  });
+
+  it("names the configured brand in the caption, keeping the customer names (swap-proof)", () => {
+    const swapped = {
+      ...DEFAULT_TENANT_CONFIG,
+      brand: { ...DEFAULT_TENANT_CONFIG.brand, shortName: "Acme" },
+    };
+    const caption = buildTestimonialCaption(swapped, {
+      names: "Sam & Lee",
+      rating: 4,
+    });
+    expect(caption).toBe("Sam & Lee, Acme customers");
+    // Brand token comes from shortName, not a hardcoded "MSFG".
+    expect(caption).not.toContain("MSFG");
   });
 });

@@ -4,21 +4,27 @@ import { cn } from "@/lib/cn";
 import type { ChoiceOption } from "@/content/flows";
 import { StepIcon } from "./icons";
 
-/** 5★ customer testimonial shown under the "What type of home?" options. */
-function Review() {
+/** Display props for the apply-flow testimonial (derived per-tenant, server-side). */
+export type TestimonialDisplay = {
+  /** Pre-composed caption, e.g. "Drew & Anya, MSFG customers". */
+  caption: string;
+  /** Star rating, 1–5. */
+  rating: number;
+};
+
+/** Star customer testimonial shown under the options when the tenant has one. */
+function Review({ caption, rating }: TestimonialDisplay) {
   return (
     <div className="mt-9 flex items-center gap-3 text-left">
       <div className="size-11 shrink-0 rounded-full border border-line bg-paper-2" />
       <div>
         <div
           className="text-sm tracking-[2px] text-[#F4B740]"
-          aria-label="5 out of 5 stars"
+          aria-label={`${rating} out of 5 stars`}
         >
-          ★★★★★
+          {"★".repeat(rating)}
         </div>
-        <div className="text-[13px] font-semibold text-muted">
-          Drew &amp; Anya, MSFG customers
-        </div>
+        <div className="text-[13px] font-semibold text-muted">{caption}</div>
       </div>
     </div>
   );
@@ -28,12 +34,15 @@ export function ChoiceStep({
   options,
   sub,
   review,
+  testimonial,
   selected,
   onPick,
 }: {
   options: ChoiceOption[];
   sub?: string;
   review?: boolean;
+  /** Per-tenant testimonial; the Review only renders when this is present. */
+  testimonial?: TestimonialDisplay;
   /** Currently selected option label for this step, if any. */
   selected?: string;
   /** Called on click; parent stores the value and auto-advances. */
@@ -74,7 +83,7 @@ export function ChoiceStep({
       </div>
 
       {sub && <div className="mt-7 text-[16px] text-muted">{sub}</div>}
-      {review && <Review />}
+      {review && testimonial && <Review {...testimonial} />}
     </>
   );
 }

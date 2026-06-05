@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { Wizard } from "@/components/apply/Wizard";
 import { FLOW, INTENTS, type Intent } from "@/content/flows";
 import { getTenantConfig } from "@/server/tenant/config";
-import { buildConsentTcpa } from "@/content/site";
+import { buildConsentTcpa, buildTestimonialCaption } from "@/content/site";
 
 /** Pre-render buy / refi / cash at build time. */
 export function generateStaticParams() {
@@ -32,6 +32,14 @@ export default async function ApplyIntentPage({
   if (!isIntent(intent) || !FLOW[intent]) notFound();
 
   const config = await getTenantConfig();
+
+  // Derive the first testimonial server-side (client steps receive strings via
+  // props — never the server-only config). Absent → the Review is hidden.
+  const t = config.marketing?.testimonials?.[0];
+  const testimonial = t
+    ? { caption: buildTestimonialCaption(config, t), rating: t.rating }
+    : undefined;
+
   return (
     <Wizard
       intent={intent}
@@ -40,6 +48,7 @@ export default async function ApplyIntentPage({
       consentTcpa={buildConsentTcpa(config)}
       assistantName={config.brand.assistantName}
       shortName={config.brand.shortName}
+      testimonial={testimonial}
     />
   );
 }
