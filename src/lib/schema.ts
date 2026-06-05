@@ -1,26 +1,26 @@
-import { SITE } from "@/content/site";
+import type { TenantConfig } from "@/content/site";
 
 /** schema.org structured data for the company (homepage). */
-export function localBusinessSchema() {
+export function localBusinessSchema(config: TenantConfig, origin: string) {
   return {
     "@context": "https://schema.org",
     "@type": "FinancialService",
-    "@id": `${SITE.url}#org`,
-    name: SITE.legalName,
-    alternateName: "MSFG",
-    url: SITE.url,
-    telephone: SITE.phoneDisplay,
-    email: SITE.email,
+    "@id": `${origin}#org`,
+    name: config.brand.legalName,
+    alternateName: config.brand.shortName,
+    url: origin,
+    telephone: config.contact.phoneDisplay,
+    email: config.contact.email,
     description:
       "AI-first, transparent home financing — expert mortgage guidance from seasoned, licensed loan officers across seven states.",
-    areaServed: SITE.states.map((s) => ({
+    areaServed: config.legal.states.map((s) => ({
       "@type": "State",
       name: s.name,
     })),
     identifier: {
       "@type": "PropertyValue",
       propertyID: "NMLS",
-      value: SITE.nmls,
+      value: config.contact.nmls,
     },
     knowsLanguage: ["en", "es", "hi", "ko"],
   };
