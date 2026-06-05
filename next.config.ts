@@ -20,6 +20,7 @@ const nextConfig: NextConfig = {
       "./node_modules/jose/**",
       "./node_modules/zod/**",
       "./node_modules/openai/**",
+      "./node_modules/@anthropic-ai/sdk/**",   // ← Task 5
     ],
   },
 };
