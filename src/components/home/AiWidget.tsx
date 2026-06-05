@@ -15,6 +15,7 @@ import { Mark } from "@/components/ui/Mark";
 import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/lib/cn";
 import { AI_PILLS } from "@/content/ai-script";
+import type { BrainAnswer } from "@/server/ai/brain/types";
 
 const PILL_ICONS: Record<string, React.ReactNode> = {
   "Start my pre-approval": <ArrowRight className="size-[18px]" strokeWidth={1.8} />,
@@ -37,21 +38,70 @@ const INTENTS = [
   { label: "Get cash from my home", href: "/apply/cash", icon: <Banknote className="size-[26px]" strokeWidth={1.8} /> },
 ];
 
-/** A turn in the live transcript. Assistant text streams in token-by-token. */
+/** A turn in the transcript. Brain answers carry the full compliance payload. */
 type ChatTurn =
   | { role: "user"; text: string }
-  | { role: "assistant"; text: string };
+  | { role: "answer"; data: BrainAnswer }
+  | { role: "error"; text: string };
 
-/** Wire format for one SSE event from /api/v1/ai/chat. */
-type ChatEvent =
-  | { type: "text"; value: string }
-  | { type: "tool"; name: string }
-  | { type: "session"; sessionId: string }
-  | { type: "done" }
-  | { type: "error" };
+/** Stable per-visitor id for the brain (persisted in sessionStorage). */
+function getVisitorSessionId(): string {
+  if (typeof window === "undefined") return "";
+  const KEY = "msfg.ai.sessionId";
+  let id = window.sessionStorage.getItem(KEY);
+  if (!id) {
+    id = window.crypto?.randomUUID?.() ?? `s_${Date.now()}_${Math.round(Math.random() * 1e9)}`;
+    window.sessionStorage.setItem(KEY, id);
+  }
+  return id;
+}
 
-/** Homepage hero card. Defaults to Classic (3 intent buttons); the AI-mode
- *  toggle reveals a REAL streaming assistant backed by /api/v1/ai/chat. */
+/** Render a citation line, skipping null fields and sanitizing newlines. */
+function citationLine(c: BrainAnswer["citations"][number]): string {
+  return [
+    c.sourceName,
+    c.section,
+    c.pageNumber ? `p. ${c.pageNumber}` : null,
+    c.effectiveDate ? `eff. ${c.effectiveDate}` : null,
+  ]
+    .filter(Boolean)
+    .map((s) => String(s).replace(/\s*\n\s*/g, " ").trim())
+    .join(" · ");
+}
+
+function AnswerBubble({ data }: { data: BrainAnswer }) {
+  return (
+    <div className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-left">
+      <p className="whitespace-pre-wrap text-[15px] leading-normal text-ink">{data.answer}</p>
+
+      {data.citations.length > 0 && (
+        <div className="mt-2 border-t border-line pt-2 text-[12px] text-[#6b756d]">
+          <span className="font-semibold">Sources:</span>
+          <ul className="mt-1 space-y-0.5">
+            {data.citations.map((c, i) => (
+              <li key={i}>{citationLine(c)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Disclaimer is rendered with EVERY answer (compliance — not optional). */}
+      <p className="mt-2 text-[11.5px] leading-snug text-[#6b756d]">{data.disclaimer}</p>
+
+      {data.humanEscalationRequired && (
+        <Link
+          href="/loan-officers"
+          className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-700 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-green-800"
+        >
+          Talk to a licensed loan officer <ArrowRight className="size-[15px]" strokeWidth={1.9} />
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/** Homepage hero card. Defaults to Classic (3 intent buttons); the AI-mode toggle
+ *  reveals the assistant backed by the Mortgage Brain (/api/v1/ai/ask). */
 export function AiWidget({
   assistantName,
   shortName,
@@ -62,112 +112,60 @@ export function AiWidget({
   const [aiMode, setAiMode] = useState(false);
   const [convo, setConvo] = useState<ChatTurn[]>([]);
   const [typing, setTyping] = useState(false);
-  const [streaming, setStreaming] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [value, setValue] = useState("");
-  const sessionIdRef = useRef<string | null>(null);
+  const conversationIdRef = useRef<string | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollRef.current)
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [convo, typing]);
 
-  /** Send a user message, stream the assistant reply into the transcript. */
+  /** Send a question to the brain; render the verbatim answer. */
   const send = async (userText: string) => {
     const text = userText.trim();
-    if (!text || streaming) return;
-
-    // Build the full history (the API is stateless — send everything).
-    const history = [
-      ...convo.map((t) => ({ role: t.role, content: t.text })),
-      { role: "user" as const, content: text },
-    ];
+    if (!text || busy) return;
 
     setConvo((c) => [...c, { role: "user", text }]);
     setValue("");
     setTyping(true);
-    setStreaming(true);
-
-    let assistantStarted = false;
-    /** Append streamed text into the (last) assistant bubble. */
-    const pushDelta = (delta: string) => {
-      setConvo((c) => {
-        if (!assistantStarted) return c; // guarded below
-        const next = [...c];
-        const last = next[next.length - 1];
-        if (last && last.role === "assistant") {
-          next[next.length - 1] = { role: "assistant", text: last.text + delta };
-        }
-        return next;
-      });
-    };
+    setBusy(true);
 
     try {
-      const res = await fetch("/api/v1/ai/chat", {
+      const res = await fetch("/api/v1/ai/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sessionId: sessionIdRef.current ?? undefined,
-          messages: history,
+          sessionId: getVisitorSessionId(),
+          conversationId: conversationIdRef.current,
+          question: text,
         }),
       });
 
-      if (!res.ok || !res.body) {
-        throw new Error(`chat request failed: ${res.status}`);
+      const data = (await res.json()) as BrainAnswer | { error?: string; kind?: string };
+
+      if (!res.ok || !("answer" in data) || typeof data.answer !== "string") {
+        const msg =
+          "error" in data && data.error
+            ? data.error
+            : "Sorry — I hit a problem. Please try again, or talk to a loan officer.";
+        setConvo((c) => [...c, { role: "error", text: msg }]);
+        return;
       }
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      const handle = (evt: ChatEvent) => {
-        if (evt.type === "session") {
-          sessionIdRef.current = evt.sessionId;
-          return;
-        }
-        if (evt.type === "text") {
-          // First token: drop the typing dots and open the assistant bubble.
-          if (!assistantStarted) {
-            assistantStarted = true;
-            setTyping(false);
-            setConvo((c) => [...c, { role: "assistant", text: "" }]);
-          }
-          pushDelta(evt.value);
-        }
-        // "tool", "done", "error" need no transcript mutation here.
-      };
-
-      // Parse the SSE byte stream line-by-line (data: {json}\n\n).
-      for (;;) {
-        const { done, value: chunk } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(chunk, { stream: true });
-        const frames = buffer.split("\n\n");
-        buffer = frames.pop() ?? "";
-        for (const frame of frames) {
-          const line = frame.trim();
-          if (!line.startsWith("data:")) continue;
-          const json = line.slice(5).trim();
-          if (!json) continue;
-          try {
-            handle(JSON.parse(json) as ChatEvent);
-          } catch {
-            // Ignore malformed frames; keep streaming.
-          }
-        }
-      }
+      if (data.conversationId) conversationIdRef.current = data.conversationId;
+      setConvo((c) => [...c, { role: "answer", data }]);
     } catch {
-      setTyping(false);
       setConvo((c) => [
         ...c,
         {
-          role: "assistant",
-          text: "Sorry — I hit a problem reaching the assistant. Please try again, or talk to a loan officer.",
+          role: "error",
+          text: "Sorry — I couldn't reach the assistant. Please try again, or talk to a loan officer.",
         },
       ]);
     } finally {
       setTyping(false);
-      setStreaming(false);
+      setBusy(false);
     }
   };
 
@@ -182,23 +180,32 @@ export function AiWidget({
           ref={scrollRef}
           className="flex max-h-[360px] flex-col gap-3.5 overflow-y-auto p-[18px] text-left"
         >
-          {convo.map((m, i) =>
-            m.role === "user" ? (
-              <div
-                key={i}
-                className="max-w-[82%] self-end rounded-2xl rounded-br-[5px] bg-green-700 px-4 py-3 text-[15px] leading-normal text-white"
-              >
-                {m.text}
-              </div>
-            ) : (
-              <div
-                key={i}
-                className="max-w-[82%] self-start whitespace-pre-wrap rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-[15px] leading-normal text-ink"
-              >
-                {m.text}
-              </div>
-            ),
-          )}
+          {convo.map((m, i) => {
+            if (m.role === "user") {
+              return (
+                <div
+                  key={i}
+                  className="max-w-[82%] self-end rounded-2xl rounded-br-[5px] bg-green-700 px-4 py-3 text-[15px] leading-normal text-white"
+                >
+                  {m.text}
+                </div>
+              );
+            }
+            if (m.role === "error") {
+              return (
+                <div
+                  key={i}
+                  className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-[15px] leading-normal text-ink"
+                >
+                  {m.text}{" "}
+                  <Link href="/loan-officers" className="font-semibold text-green-700 underline-offset-2 hover:underline">
+                    Talk to a loan officer
+                  </Link>
+                </div>
+              );
+            }
+            return <AnswerBubble key={i} data={m.data} />;
+          })}
           {typing && (
             <div className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3">
               <span className="inline-flex gap-1">
@@ -224,7 +231,7 @@ export function AiWidget({
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onSend()}
               aria-label={`Ask ${assistantName}`}
-              disabled={streaming}
+              disabled={busy}
             />
             <button
               type="button"
@@ -237,12 +244,10 @@ export function AiWidget({
               type="button"
               onClick={onSend}
               aria-label="Send"
-              disabled={streaming}
+              disabled={busy}
               className={cn(
                 "flex size-[38px] shrink-0 items-center justify-center rounded-full transition-colors",
-                value.trim() && !streaming
-                  ? "bg-spring text-[#04130c]"
-                  : "bg-paper-2 text-[#9aa39c]",
+                value.trim() && !busy ? "bg-spring text-[#04130c]" : "bg-paper-2 text-[#9aa39c]",
               )}
             >
               <ArrowUp className="size-[18px]" strokeWidth={2} />
@@ -254,7 +259,7 @@ export function AiWidget({
                 key={p}
                 type="button"
                 onClick={() => void send(PILL_PROMPTS[p] ?? p)}
-                disabled={streaming}
+                disabled={busy}
                 className="inline-flex h-10 items-center gap-2 rounded-full border border-line bg-white px-4 text-[14.5px] font-semibold text-ink transition-[border-color,background,transform] duration-150 hover:-translate-y-px hover:border-spring hover:bg-spring-soft disabled:opacity-60"
               >
                 {PILL_ICONS[p]} {p}
@@ -264,8 +269,8 @@ export function AiWidget({
           {/* Recording / privacy disclosure + always-visible human handoff. */}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3.5 pt-1">
             <p className="text-[12px] leading-snug text-[#6b756d]">
-              {assistantName} can make mistakes and may be recorded for quality
-              &amp; compliance. Not a commitment to lend.
+              {assistantName} can make mistakes and may be recorded for quality &amp; compliance. Not a
+              commitment to lend.
             </p>
             <Link
               href="/loan-officers"
