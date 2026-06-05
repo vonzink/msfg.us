@@ -137,6 +137,11 @@ const envSchema = z.object({
   // installed yet to keep deps light; captureError() in src/lib/log.ts no-ops
   // unless this is wired. Provided here so ops can configure it ahead of time.
   SENTRY_DSN: z.string().min(1).optional(),
+
+  // Per-tenant secret envelope key (OPTIONAL — app boots without it; the
+  // EnvelopeAesSecretStore throws only when seal/open is actually called).
+  // Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+  TENANT_SECRETS_KEY: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof envSchema>;
