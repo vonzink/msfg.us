@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, Phone } from "lucide-react";
 import { Mark } from "@/components/ui/Mark";
-import { SITE } from "@/content/site";
 import { FLOW, type Intent } from "@/content/flows";
 import { submitLead, type LeadContact } from "@/lib/leads";
 import { ChoiceStep } from "./steps/ChoiceStep";
@@ -16,7 +15,17 @@ import { AccountStep } from "./steps/AccountStep";
 /** Auto-advance delay after a choice/binary selection (prototype: 260ms). */
 const AUTO_ADVANCE_MS = 260;
 
-export function Wizard({ intent }: { intent: Intent }) {
+export function Wizard({
+  intent,
+  phoneHref,
+  phoneDisplay,
+  consentTcpa,
+}: {
+  intent: Intent;
+  phoneHref: string;
+  phoneDisplay: string;
+  consentTcpa: string;
+}) {
   const router = useRouter();
   const steps = FLOW[intent];
 
@@ -118,13 +127,13 @@ export function Wizard({ intent }: { intent: Intent }) {
               <ChevronLeft className="size-5" strokeWidth={1.8} />
             </button>
             <a
-              href={SITE.phoneHref}
+              href={phoneHref}
               className="ml-auto flex items-center gap-2.5 text-[16px] font-bold text-ink"
             >
               <span className="flex size-9 items-center justify-center rounded-full bg-spring-soft text-green-600">
                 <Phone className="size-[18px]" strokeWidth={1.8} />
               </span>
-              Call anytime {SITE.phoneDisplay}
+              Call anytime {phoneDisplay}
             </a>
           </div>
 
@@ -181,7 +190,9 @@ export function Wizard({ intent }: { intent: Intent }) {
             />
           )}
 
-          {step.type === "form" && <FormStep onDone={onFormDone} />}
+          {step.type === "form" && (
+            <FormStep onDone={onFormDone} consentTcpa={consentTcpa} />
+          )}
 
           {step.type === "account" && (
             <AccountStep
