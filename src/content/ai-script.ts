@@ -1,8 +1,8 @@
 /**
  * Quick-prompt pill labels for the homepage AI widget. (The live assistant is
- * the streaming DeepSeek-powered route at /api/v1/ai/chat; these are just the
- * suggestion chips. The assistant never pretends to be a person and always
- * offers a human handoff.)
+ * the Mortgage Brain, proxied via /api/v1/ai/ask, which renders source-grounded
+ * answers verbatim; these are just the suggestion chips. The assistant never
+ * pretends to be a person and always offers a human handoff.)
  */
 
 export type AiReply = { lead: string; bullets?: string[]; tail?: string };
