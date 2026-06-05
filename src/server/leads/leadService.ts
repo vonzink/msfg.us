@@ -46,15 +46,22 @@ export async function dispatchToGhl(
   crm: CrmClient = ghlClient,
 ): Promise<Lead> {
   const db = await getTenantDb();
+
+  // The scoped client BANS `update` (its unique where can't be tenant-guarded),
+  // so we updateMany (tenant-scoped where) then re-read the row to return it.
+  // The row is one we just wrote inside this tenant, so the re-read is non-null.
+  async function patchLead(data: Prisma.LeadUpdateManyMutationInput): Promise<Lead> {
+    await db.lead.updateMany({ where: { id: lead.id }, data });
+    const updated = await db.lead.findFirst({ where: { id: lead.id } });
+    return updated ?? lead;
+  }
+
   try {
     const contact = await crm.upsertContact(leadToContactInput(lead));
 
     // Not configured → nothing to sync; mark SKIPPED so the cron ignores it.
     if (contact.skipped) {
-      return db.lead.update({
-        where: { id: lead.id },
-        data: { syncStatus: "SKIPPED" },
-      });
+      return patchLead({ syncStatus: "SKIPPED" });
     }
 
     if (!contact.id) {
@@ -65,24 +72,18 @@ export async function dispatchToGhl(
       leadToOpportunityInput(lead, contact.id),
     );
 
-    return db.lead.update({
-      where: { id: lead.id },
-      data: {
-        ghlContactId: contact.id,
-        ghlOpportunityId: opportunity.id ?? null,
-        syncStatus: "SYNCED",
-        syncError: null,
-      },
+    return patchLead({
+      ghlContactId: contact.id,
+      ghlOpportunityId: opportunity.id ?? null,
+      syncStatus: "SYNCED",
+      syncError: null,
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return db.lead.update({
-      where: { id: lead.id },
-      data: {
-        syncStatus: "FAILED",
-        syncAttempts: { increment: 1 },
-        syncError: message.slice(0, 1000),
-      },
+    return patchLead({
+      syncStatus: "FAILED",
+      syncAttempts: { increment: 1 },
+      syncError: message.slice(0, 1000),
     });
   }
 }

@@ -75,7 +75,9 @@ export async function markWebhookProcessed(
   externalId?: string | null,
 ): Promise<void> {
   const db = await getTenantDb();
-  await db.webhookEvent.update({
+  // Scoped client BANS `update` (its unique where can't be tenant-guarded);
+  // updateMany carries a tenant-scoped where and we don't need the row back.
+  await db.webhookEvent.updateMany({
     where: { id },
     data: {
       processedAt: new Date(),
