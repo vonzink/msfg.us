@@ -35,12 +35,13 @@ These refine the approved design after pinning exact Next 16 / repo facts. All a
 - `src/server/cms/cache.ts` — tag helpers (`configTag`) + `revalidateCmsTag` wrapper.
 - `src/server/cms/config-form.ts` — pure config merge helper (`mergeConfig`).
 - `src/server/cms/config-form.test.ts` — merge tests.
-- `src/server/admin/access.ts` — `getAdminContext`, `requireRole`, `roleSatisfies`, allowlist helpers.
-- `src/server/admin/access.test.ts` — pure-helper tests (`roleSatisfies`, allowlist).
+- `src/server/admin/roles.ts` — pure helpers (`roleSatisfies`, bootstrap-email allowlist).
+- `src/server/admin/roles.test.ts` — pure-helper tests.
+- `src/server/admin/access.ts` — `getAdminContext`, `requireRole` (service; imports `./roles`).
 - `src/components/admin/fields/TextField.tsx`, `TextAreaField.tsx`, `SwitchField.tsx` — reusable client form fields.
 - `src/app/admin/layout.tsx` — admin chrome + auth guard.
 - `src/app/admin/page.tsx` — dashboard.
-- `src/app/admin/no-access/page.tsx` — 403 page.
+- `src/app/no-access/page.tsx` — 403 page (outside `admin/` to avoid the guard redirect loop).
 - `src/app/admin/config/page.tsx` — config editor (server).
 - `src/app/admin/config/ConfigEditor.tsx` — config form (client).
 - `src/app/admin/config/actions.ts` — server actions.
@@ -612,18 +613,20 @@ export function configTag(tenantId: string): string {
 }
 
 /**
- * Invalidate a CMS cache tag. Wrapped in one place so the call site is isolated
- * if Next's `revalidateTag` signature changes (e.g. a future profile argument).
+ * Invalidate a CMS cache tag. In THIS Next build `revalidateTag` REQUIRES a
+ * cache-profile arg; `"max"` = stale-while-revalidate (publish marks the tag
+ * stale; the next request re-fetches). The single-arg form is deprecated and
+ * fails `tsc`. Wrapped here so the signature is isolated to one call site.
  */
 export function revalidateCmsTag(tag: string): void {
-  revalidateTag(tag);
+  revalidateTag(tag, "max");
 }
 ```
 
 - [ ] **Step 2: Typecheck**
 
 Run: `npx tsc --noEmit`
-Expected: PASS. (If `revalidateTag` reports a required second argument in this Next build, change only this file to `revalidateTag(tag, "max")` per `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidateTag.md`.)
+Expected: PASS. (`revalidateTag` requires the second cache-profile arg in this Next build — encoded as `revalidateTag(tag, "max")` above; the single-arg form is deprecated and errors. Ref: `node_modules/next/dist/docs/01-app/03-api-reference/04-functions/revalidateTag.md`.)
 
 - [ ] **Step 3: Commit**
 
@@ -1816,7 +1819,7 @@ Expected: all PASS.
 2. Click **Save draft** → status "Draft saved."
 3. Click **Preview** (opens `/` with Draft Mode) → the browser tab shows the draft (view source: `<title>` reflects the draft title). Open `/` in a *different* browser/incognito → still the OLD published title (draft is private to you).
 4. Back in the editor, click **Publish** → status "Published. Live within seconds."
-5. Reload `/` in incognito → new title is now live (cache busted via `revalidateTag`).
+5. Reload `/` in incognito → new title is live (the `configTag` entry was busted via `revalidateTag(tag, "max")`). **NOTE:** `"max"` is stale-while-revalidate — the FIRST request immediately after publish may still serve the stale cached config while it revalidates in the background; reload once more (or wait a beat) to see the new value. Expected, not a publish failure.
 6. Visit `/admin/config/history` → see `v1 PUBLISHED`, `v2 PUBLISHED` (and the archived prior). Click **Restore to draft** on the older version → a new draft is created.
 7. Visit `/admin/config` → the restored values are loaded as the draft. Publish to confirm rollback works.
 8. Hit `/admin/preview/disable` to exit Draft Mode.
