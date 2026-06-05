@@ -3,15 +3,17 @@ import { Mark } from "@/components/ui/Mark";
 import { Section, SectionHead } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
 import { CtaBand } from "@/components/CtaBand";
-import { getTenantOrigin } from "@/server/tenant/config";
+import { getTenantConfig, getTenantOrigin } from "@/server/tenant/config";
 import { SwaggerEmbed } from "./SwaggerEmbed";
 
-export const metadata: Metadata = {
-  title: "Developers — Public API",
-  description:
-    "MSFG public API for partners: versioned, API-key authenticated, rate-limited, and OpenAPI-documented. Rates, programs, loan officers, and partner lead intake.",
-  alternates: { canonical: "/developers" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getTenantConfig();
+  return {
+    title: "Developers — Public API",
+    description: `${config.brand.shortName} public API for partners: versioned, API-key authenticated, rate-limited, and OpenAPI-documented. Rates, programs, loan officers, and partner lead intake.`,
+    alternates: { canonical: "/developers" },
+  };
+}
 
 /** A labeled, accessible code/pre block. */
 function Code({ children, label }: { children: string; label?: string }) {

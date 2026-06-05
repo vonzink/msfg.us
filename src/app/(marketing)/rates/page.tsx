@@ -6,12 +6,14 @@ import { RateTable } from "@/components/rates/RateTable";
 import { RATES_UPDATED } from "@/content/rates";
 import { getTenantConfig } from "@/server/tenant/config";
 
-export const metadata: Metadata = {
-  title: "Today's Mortgage Rates",
-  description:
-    "Transparent purchase and refinance mortgage rates from MSFG, updated every business day. See estimated monthly payments and start your application.",
-  alternates: { canonical: "/rates" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getTenantConfig();
+  return {
+    title: "Today's Mortgage Rates",
+    description: `Transparent purchase and refinance mortgage rates from ${config.brand.shortName}, updated every business day. See estimated monthly payments and start your application.`,
+    alternates: { canonical: "/rates" },
+  };
+}
 
 export default async function RatesPage() {
   const config = await getTenantConfig();
