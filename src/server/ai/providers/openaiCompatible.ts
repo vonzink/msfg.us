@@ -49,7 +49,7 @@ export class OpenAICompatibleProvider implements AiProvider {
           tool_calls: m.toolCalls.map((tc) => ({
             id: tc.id,
             type: "function" as const,
-            function: { name: tc.name, arguments: tc.args },
+            function: { name: tc.name, arguments: tc.args || "{}" },
           })),
         });
       } else if (m.role === "tool") {
@@ -111,7 +111,7 @@ export class OpenAICompatibleProvider implements AiProvider {
 
     // Emit one tool_call event per accumulated call
     for (const partial of Object.values(partials)) {
-      if (partial.name) {
+      if (partial.name && partial.id) {
         yield { type: "tool_call", id: partial.id, name: partial.name, args: partial.args };
       }
     }

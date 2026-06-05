@@ -151,7 +151,7 @@ export async function POST(req: Request) {
           }
 
           // Record assistant text (best-effort)
-          if (assistantText) {
+          if (assistantText.trim()) {
             await record("assistant", assistantText);
           }
 
