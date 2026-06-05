@@ -53,6 +53,11 @@ describe("TenantConfigSchema", () => {
         knowsLanguage: ["en"],
       },
       features: { showFamily: false, ghlChat: false, aiAssistant: false },
+      ai: {
+        provider: "openai-compatible" as const,
+        model: "deepseek-chat",
+        baseUrl: "https://api.deepseek.com",
+      },
     };
     const parsed = TenantConfigSchema.parse(partial);
     // theme is omitted → every field defaults to the MSFG token value.

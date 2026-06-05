@@ -141,6 +141,12 @@ const FeaturesSchema = z.object({
   aiAssistant: z.boolean(),
 });
 
+const AiConfigSchema = z.object({
+  provider: z.enum(["openai-compatible", "anthropic"]),
+  model: z.string(),
+  baseUrl: z.string().optional(),
+});
+
 export const TenantConfigSchema = z.object({
   brand: BrandSchema,
   // Lazy default: when `theme` is omitted, fill all sub-fields with their
@@ -152,6 +158,7 @@ export const TenantConfigSchema = z.object({
   seo: SeoSchema,
   marketing: MarketingSchema.optional(),
   features: FeaturesSchema,
+  ai: AiConfigSchema,
 });
 
 export type TenantConfig = z.infer<typeof TenantConfigSchema>;
@@ -268,6 +275,11 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     testimonials: [{ names: "Drew & Anya", rating: 5 }],
   },
   features: { showFamily: true, ghlChat: true, aiAssistant: true },
+  ai: {
+    provider: "openai-compatible",
+    model: "deepseek-chat",
+    baseUrl: "https://api.deepseek.com",
+  },
 };
 
 // ---------------------------------------------------------------------------
