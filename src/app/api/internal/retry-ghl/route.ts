@@ -8,7 +8,7 @@
  * supported because Vercel Cron issues GET while manual triggers often POST.
  */
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { getTenantDb } from "@/lib/db";
 import { serverEnv } from "@/lib/env";
 import { dispatchToGhl } from "@/server/leads/leadService";
 
@@ -29,7 +29,13 @@ async function run(req: Request) {
     return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
   }
 
-  const db = getDb();
+  // Tenant-scoped read so it matches the per-row dispatchToGhl (which resolves
+  // the same tenant): the sweep only ever sees the resolved tenant's leads —
+  // never another tenant's PII pushed through the wrong CRM credentials. In
+  // dedicated mode that's the pinned tenant; in shared mode it's the tenant of
+  // this cron request. A fan-out across ALL tenants (loop tenants → scoped
+  // sweep each) is a later platform concern, not needed while MSFG is dedicated.
+  const db = await getTenantDb();
   const pending = await db.lead.findMany({
     where: {
       syncStatus: { in: ["FAILED", "PENDING"] },
