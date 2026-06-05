@@ -194,6 +194,9 @@ export async function POST(req: Request) {
         controller.enqueue(sse({ type: "done" }));
       } catch (err: unknown) {
         console.error("[chat] provider error:", err instanceof Error ? err.message : err);
+        // Match the pre-refactor route: show the friendly fallback text on a
+        // mid-stream failure, then signal error so the UI can recover.
+        controller.enqueue(sse({ type: "text", value: UNAVAILABLE_TEXT }));
         controller.enqueue(sse({ type: "error" }));
       } finally {
         controller.close();
