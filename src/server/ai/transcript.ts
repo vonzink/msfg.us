@@ -45,6 +45,42 @@ export async function createChatSession(
 }
 
 /**
+ * Find the ChatSession recording a given brain conversation, or create one.
+ * Threads multi-turn brain conversations into a single session, keyed by the
+ * brain's `conversationId` (stored in `metadata`). Best-effort: returns null on
+ * any failure so recording never blocks the answer.
+ */
+export async function findOrCreateBrainSession(
+  conversationId: string,
+  metadata?: Record<string, unknown>,
+): Promise<string | null> {
+  try {
+    const db = await getTenantDb();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const existing = await db.chatSession.findFirst({
+      where: { metadata: { path: ["conversationId"], equals: conversationId } } as any,
+      select: { id: true },
+    });
+    if (existing) return existing.id;
+    return await createChatSession({ ...metadata, conversationId });
+  } catch (err) {
+    console.error("[ai/transcript] findOrCreateBrainSession failed:", err);
+    return null;
+  }
+}
+
+/** Next orderIndex for a session (count of existing messages). 0 on error/null. */
+export async function nextOrderIndex(sessionId: string | null): Promise<number> {
+  if (!sessionId) return 0;
+  try {
+    const db = await getTenantDb();
+    return await db.chatMessage.count({ where: { chatSessionId: sessionId } });
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Append one message to a session. No-ops when sessionId is null. `toolName`
  * is recorded for tool rows. Returns nothing — failures are logged, never
  * surfaced.
