@@ -142,6 +142,10 @@ const envSchema = z.object({
   // EnvelopeAesSecretStore throws only when seal/open is actually called).
   // Generate: node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
   TENANT_SECRETS_KEY: z.string().optional(),
+
+  // Comma-separated emails granted platform-admin on first sign-in (bootstrap
+  // before any Membership row exists). Lower-cased + matched case-insensitively.
+  ADMIN_BOOTSTRAP_EMAILS: z.string().optional(),
 });
 
 export type ServerEnv = z.infer<typeof envSchema>;
