@@ -211,6 +211,28 @@ async function seedTestimonials() {
   return TESTIMONIALS.length;
 }
 
+async function seedConfigRevision() {
+  const tenantId = TENANT_ID;
+  // Seed from the tenant's stored config, else the bundled default.
+  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId }, select: { config: true } });
+  const data = (tenant?.config ?? DEFAULT_TENANT_CONFIG) as unknown as Prisma.InputJsonValue;
+
+  const editable = await prisma.editable.upsert({
+    where: { tenantId_kind_key: { tenantId, kind: "CONFIG", key: "default" } },
+    update: {},
+    create: { tenantId, kind: "CONFIG", key: "default" },
+  });
+
+  const existingPublished = await prisma.revision.findFirst({
+    where: { tenantId, editableId: editable.id, state: "PUBLISHED" },
+  });
+  if (existingPublished) return; // idempotent — don't clobber edited config
+
+  await prisma.revision.create({
+    data: { tenantId, editableId: editable.id, version: 1, state: "PUBLISHED", data, publishedAt: new Date(), note: "Seed" },
+  });
+}
+
 async function seedTenant() {
   // DEFAULT_TENANT_CONFIG is MSFG's config; cast through the Prisma JSON input
   // type so the structured object is accepted on the `config Json?` column.
@@ -229,6 +251,7 @@ async function seedTenant() {
 
 async function main() {
   await seedTenant();
+  await seedConfigRevision();
   const officers = await seedOfficers();
   const programs = await seedPrograms();
   const rates = await seedRates();
