@@ -20,6 +20,11 @@ const envSchema = z.object({
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   DIRECT_URL: z.string().min(1).optional(),
 
+  // Multi-tenancy. dedicated = one pinned tenant (TENANT_SLUG); shared = resolve
+  // the tenant from the request host. MSFG runs dedicated/msfg → zero change.
+  TENANT_MODE: z.enum(["dedicated", "shared"]).default("dedicated"),
+  TENANT_SLUG: z.string().min(1).default("msfg"),
+
   // Go High Level / LeadConnector (optional — sync disabled when unset).
   GHL_API_BASE: z
     .string()
