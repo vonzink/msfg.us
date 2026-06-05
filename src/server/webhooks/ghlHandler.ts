@@ -16,7 +16,7 @@
  * contacts that never originated on the website.
  */
 import type { Lead, Prisma } from "@prisma/client";
-import { getDb } from "@/lib/db";
+import { getTenantDb } from "@/lib/db";
 import { parseGhlWebhook } from "@/server/integrations/ghl/mappers";
 import { getOpportunity } from "@/server/integrations/ghl/ghlClient";
 import type {
@@ -30,7 +30,7 @@ async function findLead(opts: {
   contactId?: string;
   email?: string;
 }): Promise<Lead | null> {
-  const db = getDb();
+  const db = await getTenantDb();
 
   if (opts.opportunityId) {
     const byOpp = await db.lead.findFirst({
@@ -61,7 +61,7 @@ async function findLead(opts: {
 export async function handleGhlWebhook(
   input: WebhookHandlerInput,
 ): Promise<WebhookHandlerResult> {
-  const db = getDb();
+  const db = await getTenantDb();
   const event = parseGhlWebhook(input.eventType, input.payload);
 
   // If an opportunity event arrived thin (id only), hydrate status/stage/
@@ -91,8 +91,10 @@ export async function handleGhlWebhook(
     return { handled: false, externalId: event.opportunityId ?? contactId ?? null };
   }
 
-  // Backfill ids the webhook taught us, and mirror the CRM status.
-  const data: Prisma.LeadUpdateInput = {};
+  // Backfill ids the webhook taught us, and mirror the CRM status. The scoped
+  // client BANS `update` (its unique where can't be tenant-guarded); updateMany
+  // carries a tenant-scoped where and we don't need the row back here.
+  const data: Prisma.LeadUpdateManyMutationInput = {};
   if (status !== undefined) data.crmStatus = status;
   if (pipelineStageId !== undefined) data.crmStageId = pipelineStageId;
   if (event.opportunityId && !lead.ghlOpportunityId) {
@@ -103,7 +105,7 @@ export async function handleGhlWebhook(
   }
 
   if (Object.keys(data).length > 0) {
-    await db.lead.update({ where: { id: lead.id }, data });
+    await db.lead.updateMany({ where: { id: lead.id }, data });
   }
 
   return {
