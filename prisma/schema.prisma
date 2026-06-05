@@ -358,3 +358,111 @@ model TenantSecret {
   @@index([tenantId])
   @@map("tenant_secrets")
 }
+
+// ---------------------------------------------------------------------------
+// CMS / versioning (Phase 0)
+// ---------------------------------------------------------------------------
+
+enum AdminRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum RevisionState {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum EditableKind {
+  CONFIG
+  PAGE_SEO
+  REDIRECTS
+  NAV
+  OFFICER
+  RATE
+  TESTIMONIAL
+  PROGRAM
+}
+
+/// A global platform identity for admin users. NOT tenant-scoped; a person
+/// may hold Membership in multiple tenants. Keyed by Cognito sub.
+model AdminUser {
+  id              String       @id @default(cuid())
+  cognitoSub      String       @unique
+  email           String
+  name            String
+  isPlatformAdmin Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  memberships     Membership[]
+
+  @@map("admin_users")
+}
+
+/// A tenant-scoped role grant linking an AdminUser to a Tenant.
+/// Accessed via the versioning service with explicit tenantId — NOT in
+/// TENANT_SCOPED_MODELS (base client, explicit filter).
+model Membership {
+  id        String    @id @default(cuid())
+  userId    String
+  tenantId  String
+  role      AdminRole
+  createdAt DateTime  @default(now())
+  user      AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tenantId])
+  @@index([tenantId])
+  @@map("memberships")
+}
+
+/// A named piece of versioned content within a tenant (e.g. CONFIG/default).
+model Editable {
+  id        String       @id @default(cuid())
+  tenantId  String
+  kind      EditableKind
+  key       String
+  createdAt DateTime     @default(now())
+  revisions Revision[]
+
+  @@unique([tenantId, kind, key])
+  @@index([tenantId])
+  @@map("editables")
+}
+
+/// An immutable snapshot of an Editable at a given version.
+model Revision {
+  id          String        @id @default(cuid())
+  tenantId    String
+  editableId  String
+  version     Int
+  state       RevisionState @default(DRAFT)
+  data        Json
+  authorId    String?
+  note        String?
+  createdAt   DateTime      @default(now())
+  publishedAt DateTime?
+  editable    Editable      @relation(fields: [editableId], references: [id], onDelete: Cascade)
+
+  @@unique([editableId, version])
+  @@index([tenantId])
+  @@index([editableId, state])
+  @@map("revisions")
+}
+
+/// Immutable audit trail for admin actions within a tenant.
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  userId     String?
+  action     String
+  editableId String?
+  meta       Json?
+  at         DateTime @default(now())
+
+  @@index([tenantId, at])
+  @@map("audit_logs")
+}
+

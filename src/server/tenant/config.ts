@@ -1,4 +1,6 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
+import { draftMode } from "next/headers";
 import { getDb } from "@/lib/db";
 import { getTenant } from "./resolve";
 import { serverEnv } from "@/lib/env";
@@ -7,6 +9,8 @@ import {
   DEFAULT_TENANT_CONFIG,
   type TenantConfig,
 } from "@/content/site";
+import { getPublishedData, getDraftData } from "@/server/cms/versioning";
+import { configTag } from "@/server/cms/cache";
 
 /**
  * Parse a raw `tenant.config` value into a typed TenantConfig, falling back to
@@ -43,23 +47,35 @@ export function tenantOrigin(tenant: OriginTenant): string {
   return first ? `https://${first}` : "https://msfg.us";
 }
 
-// Config is tiny + stable within a process; cache by tenant.id (mirrors the
-// getTenantDb scoped-client cache in src/lib/db.ts).
-const configCache = new Map<string, TenantConfig>();
+/**
+ * Cached reader for a tenant's PUBLISHED config revision. Per-tenant tag so a
+ * publish can `revalidateTag(configTag(id))`. Falls back to DEFAULT via
+ * parseTenantConfig when no published revision exists.
+ */
+function publishedConfigReader(tenantId: string) {
+  return unstable_cache(
+    async () => parseTenantConfig(await getPublishedData(tenantId, "CONFIG", "default")),
+    ["tenant-config", tenantId],
+    { tags: [configTag(tenantId)] },
+  );
+}
 
-/** Resolve + parse + cache the active tenant's config. */
+/** Resolve the active tenant's config. Draft Mode editors see the working draft. */
 export async function getTenantConfig(): Promise<TenantConfig> {
   const tenant = await getTenant();
-  const cached = configCache.get(tenant.id);
-  if (cached) return cached;
 
-  const row = await getDb().tenant.findUnique({
-    where: { id: tenant.id },
-    select: { config: true },
-  });
-  const config = parseTenantConfig(row?.config ?? null);
-  configCache.set(tenant.id, config);
-  return config;
+  let isDraft = false;
+  try {
+    isDraft = (await draftMode()).isEnabled;
+  } catch {
+    isDraft = false; // outside a request scope (e.g. unit tests)
+  }
+  if (isDraft) {
+    const draft = await getDraftData(tenant.id, "CONFIG", "default");
+    if (draft != null) return parseTenantConfig(draft);
+  }
+
+  return publishedConfigReader(tenant.id)();
 }
 
 // Origin is likewise stable per tenant; cache by tenant.id.
