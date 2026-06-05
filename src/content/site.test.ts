@@ -135,3 +135,23 @@ describe("testimonials", () => {
     expect(caption).not.toContain("MSFG");
   });
 });
+
+describe("config.ai.brain", () => {
+  it("defaults brain to disabled when an older stored config omits it", () => {
+    const stored = JSON.parse(JSON.stringify(DEFAULT_TENANT_CONFIG));
+    delete stored.ai.brain; // simulate a config saved before the brain field existed
+    const parsed = TenantConfigSchema.parse(stored);
+    expect(parsed.ai.brain).toEqual({ enabled: false, baseUrl: "" });
+  });
+
+  it("parses an enabled brain config", () => {
+    const stored = JSON.parse(JSON.stringify(DEFAULT_TENANT_CONFIG));
+    stored.ai.brain = { enabled: true, baseUrl: "http://localhost:8080" };
+    const parsed = TenantConfigSchema.parse(stored);
+    expect(parsed.ai.brain).toEqual({ enabled: true, baseUrl: "http://localhost:8080" });
+  });
+
+  it("ships brain disabled in DEFAULT_TENANT_CONFIG", () => {
+    expect(DEFAULT_TENANT_CONFIG.ai.brain).toEqual({ enabled: false, baseUrl: "" });
+  });
+});

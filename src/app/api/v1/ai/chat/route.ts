@@ -1,5 +1,10 @@
 /**
- * POST /api/v1/ai/chat — streaming MSFG AI assistant (provider-agnostic).
+ * POST /api/v1/ai/chat — streaming provider-agnostic assistant (DeepSeek/Claude).
+ *
+ * DORMANT as of the Mortgage Brain integration: the marketing AiWidget now calls
+ * /api/v1/ai/ask (the compliance-bound brain). This route + getAiProvider + the
+ * tools are intentionally retained (reversible / available for other platform
+ * uses) but are no longer invoked by the homepage widget.
  *
  * Body: { sessionId?: string, messages: Array<{role:"user"|"assistant", content:string}> }
  *

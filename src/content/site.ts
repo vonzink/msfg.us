@@ -145,6 +145,18 @@ const AiConfigSchema = z.object({
   provider: z.enum(["openai-compatible", "anthropic"]),
   model: z.string(),
   baseUrl: z.string().optional(),
+  /**
+   * External Mortgage Brain (RAG answer service). When `enabled` and a `baseUrl`
+   * is set, the marketing chat routes questions to the brain and renders its
+   * answer verbatim. Disabled by default — backward-compatible with stored
+   * configs saved before this field existed.
+   */
+  brain: z
+    .object({
+      enabled: z.boolean().default(false),
+      baseUrl: z.string().default(""),
+    })
+    .default({ enabled: false, baseUrl: "" }),
 });
 
 export const TenantConfigSchema = z.object({
@@ -279,6 +291,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     provider: "openai-compatible",
     model: "deepseek-chat",
     baseUrl: "https://api.deepseek.com",
+    brain: { enabled: false, baseUrl: "" },
   },
 };
 
