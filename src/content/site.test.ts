@@ -47,6 +47,8 @@ describe("TenantConfigSchema", () => {
         ogTitle: "Acme",
         ogDescription: "Acme home loans.",
         siteName: "Acme",
+        orgDescription: "Acme home loans across California.",
+        knowsLanguage: ["en"],
       },
       features: { showFamily: false, ghlChat: false, aiAssistant: false },
     };

@@ -11,6 +11,10 @@ describe("localBusinessSchema", () => {
     expect(s.alternateName).toBe("MSFG");
     expect(s.identifier.value).toBe("1234567");
     expect(s.areaServed).toHaveLength(7);
+    expect(s.description).toBe(
+      "AI-first, transparent home financing — expert mortgage guidance from seasoned, licensed loan officers across seven states.",
+    );
+    expect(s.knowsLanguage).toEqual(["en", "es", "hi", "ko"]);
   });
 
   it("reflects a swapped second tenant (config-only retheme)", () => {
@@ -26,6 +30,11 @@ describe("localBusinessSchema", () => {
         ...DEFAULT_TENANT_CONFIG.legal,
         states: [{ code: "CA", name: "California" }],
       },
+      seo: {
+        ...DEFAULT_TENANT_CONFIG.seo,
+        orgDescription: "Acme home loans across California.",
+        knowsLanguage: ["en"],
+      },
     };
     const s = localBusinessSchema(acme, "https://acme.com");
     expect(s["@id"]).toBe("https://acme.com#org");
@@ -34,5 +43,7 @@ describe("localBusinessSchema", () => {
     expect(s.alternateName).toBe("Acme");
     expect(s.identifier.value).toBe("9999999");
     expect(s.areaServed).toEqual([{ "@type": "State", name: "California" }]);
+    expect(s.description).toBe("Acme home loans across California.");
+    expect(s.knowsLanguage).toEqual(["en"]);
   });
 });

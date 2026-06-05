@@ -100,6 +100,10 @@ const SeoSchema = z.object({
   siteName: z.string(),
   ogImage: z.string().optional(),
   keywords: z.array(z.string()).optional(),
+  /** JSON-LD LocalBusiness description (distinct from the meta description). */
+  orgDescription: z.string(),
+  /** Languages the business operates in (schema.org knowsLanguage). */
+  knowsLanguage: z.array(z.string()),
 });
 
 const StatSchema = z.object({ num: z.string(), label: z.string() });
@@ -190,6 +194,9 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     ogDescription:
       "AI-first, transparent home financing across seven states. Real licensed loan officers, one tap away.",
     siteName: "MSFG",
+    orgDescription:
+      "AI-first, transparent home financing — expert mortgage guidance from seasoned, licensed loan officers across seven states.",
+    knowsLanguage: ["en", "es", "hi", "ko"],
   },
   marketing: {
     tagline:

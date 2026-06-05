@@ -11,8 +11,7 @@ export function localBusinessSchema(config: TenantConfig, origin: string) {
     url: origin,
     telephone: config.contact.phoneDisplay,
     email: config.contact.email,
-    description:
-      "AI-first, transparent home financing — expert mortgage guidance from seasoned, licensed loan officers across seven states.",
+    description: config.seo.orgDescription,
     areaServed: config.legal.states.map((s) => ({
       "@type": "State",
       name: s.name,
@@ -22,6 +21,6 @@ export function localBusinessSchema(config: TenantConfig, origin: string) {
       propertyID: "NMLS",
       value: config.contact.nmls,
     },
-    knowsLanguage: ["en", "es", "hi", "ko"],
+    knowsLanguage: config.seo.knowsLanguage,
   };
 }
