@@ -29,6 +29,10 @@ model Tenant {
   name      String
   domains   String[] @default([])
   status    String   @default("active")
+  /// Per-tenant config (brand/theme/contact/legal/seo/marketing/features),
+  /// validated by TenantConfigSchema (src/content/site.ts). Nullable so the
+  /// resolver falls back to DEFAULT_TENANT_CONFIG when absent.
+  config    Json?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

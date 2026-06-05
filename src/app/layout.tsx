@@ -3,8 +3,9 @@ import { Hanken_Grotesk } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
-import { SITE } from "@/content/site";
 import { GhlChat } from "@/components/integrations/GhlChat";
+import { TenantTheme } from "@/components/theme/TenantTheme";
+import { getTenantConfig, getTenantOrigin } from "@/server/tenant/config";
 
 const hanken = Hanken_Grotesk({
   subsets: ["latin"],
@@ -13,36 +14,49 @@ const hanken = Hanken_Grotesk({
   display: "swap",
 });
 
-const isProd = process.env.NEXT_PUBLIC_SITE_ENV === "production";
-
-export const metadata: Metadata = {
-  metadataBase: new URL(SITE.url),
-  title: {
-    default: "MSFG — Expert Mortgage Guidance from Seasoned Professionals",
-    template: "%s · MSFG",
-  },
-  description:
-    "Mountain State Financial Group — AI-first, transparent home financing across Colorado, North Dakota, South Dakota, Minnesota, Texas, Michigan, and Indiana.",
-  applicationName: "MSFG",
-  openGraph: {
-    type: "website",
-    siteName: "MSFG",
-    url: SITE.url,
-    title: "MSFG — Expert Mortgage Guidance from Seasoned Professionals",
-    description:
-      "AI-first, transparent home financing across seven states. Real licensed loan officers, one tap away.",
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const [config, origin] = await Promise.all([
+    getTenantConfig(),
+    getTenantOrigin(),
+  ]);
+  const { seo } = config;
   // Staging and preview environments must never be indexed.
-  robots: isProd
-    ? { index: true, follow: true }
-    : { index: false, follow: false },
-};
+  const isProd = process.env.NEXT_PUBLIC_SITE_ENV === "production";
+  return {
+    metadataBase: new URL(origin),
+    title: {
+      default: seo.titleDefault,
+      template: seo.titleTemplate,
+    },
+    description: seo.description,
+    applicationName: config.brand.shortName,
+    keywords: seo.keywords,
+    openGraph: {
+      type: "website",
+      siteName: seo.siteName,
+      url: origin,
+      title: seo.ogTitle,
+      description: seo.ogDescription,
+      ...(seo.ogImage ? { images: [{ url: seo.ogImage }] } : {}),
+    },
+    robots: isProd
+      ? { index: true, follow: true }
+      : { index: false, follow: false },
+  };
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={hanken.variable}>
+      <head>
+        {/* Per-tenant CSS-var overrides — SSR'd before paint (no FOUC/CLS).
+            The `no-head-element` ESLint rule skips App Router files (rule
+            returns early when context.filename includes `app/`), so using a
+            raw <head> element here is lint-clean. */}
+        <TenantTheme />
+      </head>
       <body className="min-h-screen">
         {children}
         {/* Site-wide LeadConnector live-agent chat (renders nothing unless

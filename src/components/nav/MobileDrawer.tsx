@@ -5,12 +5,17 @@ import Link from "next/link";
 import { Menu, X, ChevronDown, Phone } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NAV } from "@/content/nav";
-import { SITE } from "@/content/site";
 import { cn } from "@/lib/cn";
 
 /** Hamburger + full-screen drawer for < 980px. Each nav item expands to its
  *  sub-links; primary CTAs are pinned to the bottom. */
-export function MobileDrawer() {
+export function MobileDrawer({
+  phoneHref,
+  shortName,
+}: {
+  phoneHref: string;
+  shortName: string;
+}) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -46,7 +51,7 @@ export function MobileDrawer() {
               className="flex items-center gap-2.5"
             >
               <span className="text-[23px] font-extrabold tracking-[-0.03em] text-white">
-                MSFG
+                {shortName}
               </span>
             </Link>
             <button
@@ -126,7 +131,7 @@ export function MobileDrawer() {
               Apply now
             </Button>
             <Button
-              href={SITE.phoneHref}
+              href={phoneHref}
               variant="ghostDark"
               size="lg"
               className="w-full"

@@ -4,11 +4,16 @@ import { Family } from "@/components/home/Family";
 import { CtaBand } from "@/components/CtaBand";
 import { JsonLd } from "@/components/JsonLd";
 import { localBusinessSchema } from "@/lib/schema";
+import { getTenantConfig, getTenantOrigin } from "@/server/tenant/config";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [config, origin] = await Promise.all([
+    getTenantConfig(),
+    getTenantOrigin(),
+  ]);
   return (
     <>
-      <JsonLd data={localBusinessSchema()} />
+      <JsonLd data={localBusinessSchema(config, origin)} />
       <Hero />
       <Features />
       <Family />

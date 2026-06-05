@@ -16,6 +16,8 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { OFFICERS } from "@/content/officers";
 import { RATE_DATA, type RateTab } from "@/content/rates";
 import { CATS, type CategoryKey } from "@/content/categories";
+import { DEFAULT_TENANT_CONFIG } from "@/content/site";
+import type { Prisma } from "@prisma/client";
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -210,10 +212,18 @@ async function seedTestimonials() {
 }
 
 async function seedTenant() {
+  // DEFAULT_TENANT_CONFIG is MSFG's config; cast through the Prisma JSON input
+  // type so the structured object is accepted on the `config Json?` column.
+  const config = DEFAULT_TENANT_CONFIG as unknown as Prisma.InputJsonValue;
   await prisma.tenant.upsert({
     where: { slug: "msfg" },
-    update: {},
-    create: { id: TENANT_ID, slug: "msfg", name: "Mountain State Financial Group" },
+    update: { config },
+    create: {
+      id: TENANT_ID,
+      slug: "msfg",
+      name: "Mountain State Financial Group",
+      config,
+    },
   });
 }
 

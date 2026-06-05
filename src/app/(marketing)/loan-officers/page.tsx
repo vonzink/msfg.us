@@ -3,15 +3,19 @@ import { Mark } from "@/components/ui/Mark";
 import { Section } from "@/components/ui/Section";
 import { CtaBand } from "@/components/CtaBand";
 import { OfficerDirectory } from "@/components/officers/OfficerDirectory";
+import { getTenantConfig } from "@/server/tenant/config";
 
-export const metadata: Metadata = {
-  title: "Loan officers",
-  description:
-    "Meet your local experts — seasoned, licensed MSFG loan officers who live in the communities they serve. Find one by location, language, or specialty.",
-  alternates: { canonical: "/loan-officers" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getTenantConfig();
+  return {
+    title: "Loan officers",
+    description: `Meet your local experts — seasoned, licensed ${config.brand.shortName} loan officers who live in the communities they serve. Find one by location, language, or specialty.`,
+    alternates: { canonical: "/loan-officers" },
+  };
+}
 
-export default function LoanOfficersPage() {
+export default async function LoanOfficersPage() {
+  const config = await getTenantConfig();
   return (
     <>
       {/* 4a. Mini-hero — dark emerald, centered */}
@@ -38,7 +42,7 @@ export default function LoanOfficersPage() {
 
       {/* 4b. Directory — cream section */}
       <Section>
-        <OfficerDirectory />
+        <OfficerDirectory states={config.legal.states} />
       </Section>
 
       {/* 4c. CTA band */}

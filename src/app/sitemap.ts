@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { SITE } from "@/content/site";
+import { getTenantOrigin } from "@/server/tenant/config";
 
 const ROUTES = [
   "",
@@ -13,9 +13,10 @@ const ROUTES = [
   "/apply/cash",
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const origin = await getTenantOrigin();
   return ROUTES.map((route) => ({
-    url: `${SITE.url}${route}`,
+    url: `${origin}${route}`,
     changeFrequency: route === "/rates" ? "daily" : "weekly",
     priority: route === "" ? 1 : route.startsWith("/apply") ? 0.6 : 0.8,
   }));

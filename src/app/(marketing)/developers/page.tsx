@@ -3,18 +3,17 @@ import { Mark } from "@/components/ui/Mark";
 import { Section, SectionHead } from "@/components/ui/Section";
 import { Button } from "@/components/ui/Button";
 import { CtaBand } from "@/components/CtaBand";
-import { SITE } from "@/content/site";
+import { getTenantConfig, getTenantOrigin } from "@/server/tenant/config";
 import { SwaggerEmbed } from "./SwaggerEmbed";
 
-const BASE = `${SITE.url}/api/v1/public`;
-const OPENAPI_URL = `${BASE}/openapi.json`;
-
-export const metadata: Metadata = {
-  title: "Developers — Public API",
-  description:
-    "MSFG public API for partners: versioned, API-key authenticated, rate-limited, and OpenAPI-documented. Rates, programs, loan officers, and partner lead intake.",
-  alternates: { canonical: "/developers" },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getTenantConfig();
+  return {
+    title: "Developers — Public API",
+    description: `${config.brand.shortName} public API for partners: versioned, API-key authenticated, rate-limited, and OpenAPI-documented. Rates, programs, loan officers, and partner lead intake.`,
+    alternates: { canonical: "/developers" },
+  };
+}
 
 /** A labeled, accessible code/pre block. */
 function Code({ children, label }: { children: string; label?: string }) {
@@ -36,37 +35,38 @@ type Endpoint = {
   example: string;
 };
 
-const ENDPOINTS: Endpoint[] = [
-  {
-    method: "GET",
-    path: "/rates",
-    auth: "Open",
-    summary:
-      "Today's purchase and refinance rates with estimated monthly P&I on a $300,000 loan.",
-    example: `curl ${BASE}/rates`,
-  },
-  {
-    method: "GET",
-    path: "/programs",
-    auth: "Open",
-    summary: "Loan programs by category (name, blurb, best-for audience).",
-    example: `curl ${BASE}/programs`,
-  },
-  {
-    method: "GET",
-    path: "/loan-officers",
-    auth: "Open",
-    summary:
-      "Public loan-officer directory (name, NMLS, city, state, languages, specialties, rating).",
-    example: `curl ${BASE}/loan-officers`,
-  },
-  {
-    method: "POST",
-    path: "/leads",
-    auth: "API key (+ HMAC)",
-    summary:
-      "Submit a partner lead. Requires x-api-key; add x-signature when your key has a secret.",
-    example: `curl -X POST ${BASE}/leads \\
+function buildEndpoints(base: string): Endpoint[] {
+  return [
+    {
+      method: "GET",
+      path: "/rates",
+      auth: "Open",
+      summary:
+        "Today's purchase and refinance rates with estimated monthly P&I on a $300,000 loan.",
+      example: `curl ${base}/rates`,
+    },
+    {
+      method: "GET",
+      path: "/programs",
+      auth: "Open",
+      summary: "Loan programs by category (name, blurb, best-for audience).",
+      example: `curl ${base}/programs`,
+    },
+    {
+      method: "GET",
+      path: "/loan-officers",
+      auth: "Open",
+      summary:
+        "Public loan-officer directory (name, NMLS, city, state, languages, specialties, rating).",
+      example: `curl ${base}/loan-officers`,
+    },
+    {
+      method: "POST",
+      path: "/leads",
+      auth: "API key (+ HMAC)",
+      summary:
+        "Submit a partner lead. Requires x-api-key; add x-signature when your key has a secret.",
+      example: `curl -X POST ${base}/leads \\
   -H "Content-Type: application/json" \\
   -H "x-api-key: YOUR_KEY" \\
   -d '{
@@ -78,8 +78,9 @@ const ENDPOINTS: Endpoint[] = [
     "consentTcpa": true,
     "idempotencyKey": "a-unique-string-16chars+"
   }'`,
-  },
-];
+    },
+  ];
+}
 
 const HMAC_EXAMPLE = `# Node: sign the exact raw JSON body you send
 const crypto = require("crypto");
@@ -88,7 +89,11 @@ const sig = crypto.createHmac("sha256", YOUR_SECRET)
   .update(body, "utf8").digest("hex");
 // send header:  x-signature: sha256=<sig>`;
 
-export default function DevelopersPage() {
+export default async function DevelopersPage() {
+  const origin = await getTenantOrigin();
+  const BASE = `${origin}/api/v1/public`;
+  const OPENAPI_URL = `${BASE}/openapi.json`;
+  const ENDPOINTS = buildEndpoints(BASE);
   return (
     <>
       {/* Mini-hero — dark emerald, matches /rates */}

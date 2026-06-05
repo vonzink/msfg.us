@@ -1,16 +1,17 @@
 import type { MetadataRoute } from "next";
-import { SITE } from "@/content/site";
+import { getTenantOrigin } from "@/server/tenant/config";
 
 /** Staging/preview environments are fully disallowed so they never get
  *  indexed; production allows everything except API routes. */
-export default function robots(): MetadataRoute.Robots {
-  const isProd = SITE.env === "production";
+export default async function robots(): Promise<MetadataRoute.Robots> {
+  const isProd = process.env.NEXT_PUBLIC_SITE_ENV === "production";
   if (!isProd) {
     return { rules: [{ userAgent: "*", disallow: "/" }] };
   }
+  const origin = await getTenantOrigin();
   return {
     rules: [{ userAgent: "*", allow: "/", disallow: ["/api/"] }],
-    sitemap: `${SITE.url}/sitemap.xml`,
-    host: SITE.url,
+    sitemap: `${origin}/sitemap.xml`,
+    host: origin,
   };
 }

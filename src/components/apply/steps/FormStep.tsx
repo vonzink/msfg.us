@@ -2,7 +2,6 @@
 
 import { useId, useState } from "react";
 import { cn } from "@/lib/cn";
-import { CONSENT_TCPA } from "@/content/site";
 import type { LeadContact } from "@/lib/leads";
 
 type FieldDef = {
@@ -22,9 +21,12 @@ const FIELDS: FieldDef[] = [
 
 export function FormStep({
   onDone,
+  consentTcpa,
 }: {
   /** Called with the collected contact once all 4 fields are filled. */
   onDone: (contact: LeadContact) => void;
+  /** TCPA consent microcopy (tenant-specific). */
+  consentTcpa: string;
 }) {
   const baseId = useId();
   const [f, setF] = useState<LeadContact>({
@@ -86,7 +88,7 @@ export function FormStep({
       </button>
 
       <p className="mt-[18px] text-left text-xs leading-relaxed text-muted">
-        {CONSENT_TCPA}
+        {consentTcpa}
       </p>
     </>
   );
