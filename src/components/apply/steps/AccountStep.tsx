@@ -17,8 +17,8 @@ import type { LeadContact } from "@/lib/leads";
  *  • CONFIGURED → real auth. If signed out, offer "Create account / Sign in"
  *    which routes to `/auth/login?returnTo=/apply/<intent>` (Hosted UI). If
  *    already signed in, show the signed-in email, fire the best-effort LOS
- *    hand-off, and surface a "Continue in the MSFG app" deep link (shared
- *    Cognito session → silent SSO at app.msfgco.com).
+ *    hand-off, and surface a "Continue in the <brand> app" deep link (shared
+ *    Cognito session → silent SSO at the tenant app, e.g. app.msfgco.com).
  *
  *  • NOT CONFIGURED → the original UI mock is preserved verbatim, so the site
  *    builds/runs and the apply flow is unbroken with no auth set up.
@@ -29,12 +29,15 @@ export function AccountStep({
   answers,
   location,
   leadId,
+  shortName,
 }: {
   intent: Intent;
   contact: LeadContact | null;
   answers: Record<number, string>;
   location?: string;
   leadId: string | null;
+  /** Tenant brand short name — names the companion app in the LOS deep link. */
+  shortName: string;
 }) {
   const auth = useAuth();
 
@@ -66,6 +69,7 @@ export function AccountStep({
         answers={answers}
         location={location}
         leadId={leadId}
+        shortName={shortName}
       />
     );
   }
@@ -103,7 +107,7 @@ function SignInPrompt({ intent }: { intent: Intent }) {
 
 /**
  * Configured + signed-in: confirm identity, fire the LOS hand-off once, then
- * show the deep link into the MSFG app. The hand-off is best-effort — the CTA
+ * show the deep link into the tenant app. The hand-off is best-effort — the CTA
  * appears regardless of its outcome (the shared Cognito session is what lets
  * the app pick the user up).
  */
@@ -114,6 +118,7 @@ function SignedIn({
   answers,
   location,
   leadId,
+  shortName,
 }: {
   email?: string;
   intent: Intent;
@@ -121,6 +126,7 @@ function SignedIn({
   answers: Record<number, string>;
   location?: string;
   leadId: string | null;
+  shortName: string;
 }) {
   const [handoff, setHandoff] = useState<"idle" | "sending" | "done">("idle");
   const fired = useRef(false);
@@ -173,15 +179,16 @@ function SignedIn({
       )}
 
       <p className="mb-7 text-[16px] text-muted">
-        Your details are saved. Continue in the MSFG app to upload documents and
-        track your application — you&apos;re already signed in there.
+        Your details are saved. Continue in the {shortName} app to upload
+        documents and track your application — you&apos;re already signed in
+        there.
       </p>
 
       <a
         href={APP_URL}
         className="mt-2 flex h-[66px] w-full items-center justify-center gap-2.5 rounded-lg bg-green-600 text-[18px] font-bold text-white transition-[transform,background,box-shadow] duration-150 [box-shadow:0_3px_0_#0a3a2a,var(--shadow-3d)] hover:-translate-y-0.5 hover:bg-green-700 hover:[box-shadow:0_5px_0_#0a3a2a,var(--shadow-pop)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spring-3 active:translate-y-px"
       >
-        Continue in the MSFG app
+        Continue in the {shortName} app
         <ArrowRight className="size-5" strokeWidth={2.2} aria-hidden="true" />
       </a>
 

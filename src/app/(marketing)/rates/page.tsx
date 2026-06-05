@@ -23,7 +23,7 @@ export default async function RatesPage() {
       <section className="hero-bg px-0 pb-[60px] pt-14 text-center text-white">
         <div className="wrap">
           <span className="mb-3.5 inline-flex items-center gap-2.5 text-mint">
-            <Mark size={18} />
+            <Mark size={18} label={config.brand.shortName} />
             <span className="text-[13px] font-semibold tracking-[0.02em]">
               Today&rsquo;s rates
             </span>

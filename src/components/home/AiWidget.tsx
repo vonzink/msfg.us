@@ -52,7 +52,13 @@ type ChatEvent =
 
 /** Homepage hero card. Defaults to Classic (3 intent buttons); the AI-mode
  *  toggle reveals a REAL streaming assistant backed by /api/v1/ai/chat. */
-export function AiWidget() {
+export function AiWidget({
+  assistantName,
+  shortName,
+}: {
+  assistantName: string;
+  shortName: string;
+}) {
   const [aiMode, setAiMode] = useState(false);
   const [convo, setConvo] = useState<ChatTurn[]>([]);
   const [typing, setTyping] = useState(false);
@@ -209,7 +215,7 @@ export function AiWidget() {
         <div className="p-2">
           <div className="flex items-center gap-3 rounded-lg px-4 py-3.5">
             <span className="size-[30px] shrink-0">
-              <Mark size={30} />
+              <Mark size={30} label={shortName} />
             </span>
             <input
               className="min-w-0 flex-1 border-0 bg-transparent text-[18px] text-ink outline-none placeholder:text-[#9aa39c]"
@@ -217,7 +223,7 @@ export function AiWidget() {
               value={value}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && onSend()}
-              aria-label="Ask MSFG AI"
+              aria-label={`Ask ${assistantName}`}
               disabled={streaming}
             />
             <button
@@ -258,8 +264,8 @@ export function AiWidget() {
           {/* Recording / privacy disclosure + always-visible human handoff. */}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3.5 pt-1">
             <p className="text-[12px] leading-snug text-[#6b756d]">
-              MSFG AI can make mistakes and may be recorded for quality &amp;
-              compliance. Not a commitment to lend.
+              {assistantName} can make mistakes and may be recorded for quality
+              &amp; compliance. Not a commitment to lend.
             </p>
             <Link
               href="/loan-officers"

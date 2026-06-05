@@ -6,7 +6,7 @@ import { ChevronLeft, Phone } from "lucide-react";
 import { Mark } from "@/components/ui/Mark";
 import { FLOW, type Intent } from "@/content/flows";
 import { submitLead, type LeadContact } from "@/lib/leads";
-import { ChoiceStep } from "./steps/ChoiceStep";
+import { ChoiceStep, type TestimonialDisplay } from "./steps/ChoiceStep";
 import { BinaryStep } from "./steps/BinaryStep";
 import { PlaceStep } from "./steps/PlaceStep";
 import { FormStep } from "./steps/FormStep";
@@ -20,11 +20,18 @@ export function Wizard({
   phoneHref,
   phoneDisplay,
   consentTcpa,
+  assistantName,
+  shortName,
+  testimonial,
 }: {
   intent: Intent;
   phoneHref: string;
   phoneDisplay: string;
   consentTcpa: string;
+  assistantName: string;
+  shortName: string;
+  /** Per-tenant testimonial for the ChoiceStep Review (undefined → hidden). */
+  testimonial?: TestimonialDisplay;
 }) {
   const router = useRouter();
   const steps = FLOW[intent];
@@ -166,6 +173,7 @@ export function Wizard({
               options={step.opts}
               sub={step.sub}
               review={step.review}
+              testimonial={testimonial}
               selected={answers[idx]}
               onPick={pick}
             />
@@ -201,6 +209,7 @@ export function Wizard({
               answers={answers}
               location={location || undefined}
               leadId={leadId}
+              shortName={shortName}
             />
           )}
         </div>
@@ -209,10 +218,10 @@ export function Wizard({
       {/* Floating "Ask AI" — Phase 2 wires the assistant. */}
       <button
         type="button"
-        aria-label="Ask MSFG AI"
+        aria-label={`Ask ${assistantName}`}
         className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2.5 rounded-full bg-green-800 py-0 pl-2.5 pr-5 text-[15px] font-bold text-white shadow-pop transition-transform duration-150 hover:-translate-y-0.5"
       >
-        <Mark size={36} /> Ask AI
+        <Mark size={36} label={shortName} /> Ask AI
       </button>
     </div>
   );

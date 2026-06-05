@@ -1,14 +1,15 @@
 /**
- * POST /api/v1/ai/chat — streaming MSFG AI assistant (DeepSeek, OpenAI-compatible).
+ * POST /api/v1/ai/chat — streaming MSFG AI assistant (provider-agnostic).
  *
  * Body: { sessionId?: string, messages: Array<{role:"user"|"assistant", content:string}> }
  *
  * Behavior:
- *  - If the assistant isn't configured (no DEEPSEEK_API_KEY) → 200 SSE stream
- *    with a single friendly "unavailable" text + done, so the UI degrades.
- *  - Otherwise run a MANUAL agentic tool loop: stream each model turn, collect
- *    text + tool calls, execute any tool calls server-side, append the assistant
- *    turn + tool result turns, and loop until the model answers without tools.
+ *  - If no AI provider is configured → 200 SSE stream with a single friendly
+ *    "unavailable" text + done, so the UI degrades gracefully.
+ *  - Otherwise run a MANUAL agentic tool loop: stream each model turn via
+ *    provider.streamTurn(), collect text + tool calls, execute any tool calls
+ *    server-side, append the neutral AiMessage results, and loop until the
+ *    model answers without tools.
  *  - Streams Server-Sent Events to the client (provider-agnostic protocol):
  *      data: {"type":"text","value":"..."}        text deltas
  *      data: {"type":"tool","name":"..."}         a tool started executing
@@ -17,14 +18,13 @@
  *      data: {"type":"error"}                      failure
  *  - Records the transcript (user msg + assistant text + tool names) best-effort.
  *
- * Node runtime (Prisma + SDK), never statically cached.
+ * Node runtime (Prisma + provider SDK), never statically cached.
  */
-import OpenAI from "openai";
-import { aiConfigured } from "@/lib/env";
 import { SITE } from "@/content/site";
 import { SYSTEM_PROMPT } from "@/server/ai/prompt";
 import { TOOLS, runTool } from "@/server/ai/tools";
-import { getAiClient, aiModel, AI_MAX_TOKENS } from "@/server/ai/client";
+import { getAiProvider } from "@/server/ai/providers";
+import type { AiMessage } from "@/server/ai/providers/types";
 import {
   createChatSession,
   appendMessage,
@@ -79,9 +79,6 @@ function staticStream(text: string): ReadableStream<Uint8Array> {
   });
 }
 
-/** Accumulator for a streamed tool call (assembled across delta chunks). */
-type PendingToolCall = { id: string; name: string; args: string };
-
 export async function POST(req: Request) {
   let body: unknown;
   try {
@@ -98,18 +95,19 @@ export async function POST(req: Request) {
     );
   }
 
-  // No key → graceful degraded path (still a 200 SSE stream the UI can read).
-  if (!aiConfigured()) {
+  // No provider configured → graceful degraded path (200 SSE the UI can read).
+  const provider = await getAiProvider();
+  if (!provider) {
     return new Response(staticStream(UNAVAILABLE_TEXT), { headers: SSE_HEADERS });
   }
 
-  const client = getAiClient();
-
-  // Build the conversation: system prompt first, then the client history.
-  const convo: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...messages.map((m) => ({ role: m.role, content: m.content })),
-  ];
+  // Build neutral history from inbound messages (user/assistant text only).
+  // System prompt is passed separately to provider.streamTurn.
+  const history: AiMessage[] = messages.map((m) =>
+    m.role === "user"
+      ? { role: "user" as const, content: m.content }
+      : { role: "assistant" as const, content: m.content },
+  );
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -139,86 +137,65 @@ export async function POST(req: Request) {
         // Manual agentic loop. Bounded to avoid any unbounded tool cycling.
         const MAX_TURNS = 8;
         for (let turn = 0; turn < MAX_TURNS; turn++) {
-          const completion = await client.chat.completions.create({
-            model: aiModel(),
-            max_tokens: AI_MAX_TOKENS,
-            messages: convo,
-            tools: TOOLS,
-            stream: true,
-          });
-
           let assistantText = "";
-          const pending = new Map<number, PendingToolCall>();
+          const pendingToolCalls: Array<{ id: string; name: string; args: string }> = [];
 
-          for await (const chunk of completion) {
-            const choice = chunk.choices[0];
-            if (!choice) continue;
-            const delta = choice.delta;
-            if (delta?.content) {
-              assistantText += delta.content;
-              controller.enqueue(sse({ type: "text", value: delta.content }));
-            }
-            for (const tc of delta?.tool_calls ?? []) {
-              const cur = pending.get(tc.index) ?? { id: "", name: "", args: "" };
-              if (tc.id) cur.id = tc.id;
-              if (tc.function?.name) cur.name = tc.function.name;
-              if (tc.function?.arguments) cur.args += tc.function.arguments;
-              pending.set(tc.index, cur);
+          // Stream one turn from the provider
+          for await (const event of provider.streamTurn(SYSTEM_PROMPT, history, TOOLS)) {
+            if (event.type === "text") {
+              controller.enqueue(sse({ type: "text", value: event.delta }));
+              assistantText += event.delta;
+            } else if (event.type === "tool_call") {
+              pendingToolCalls.push({ id: event.id, name: event.name, args: event.args });
             }
           }
 
-          // Persist any assistant text produced this turn.
-          if (assistantText.trim()) await record("assistant", assistantText);
+          // Record assistant text (best-effort)
+          if (assistantText.trim()) {
+            await record("assistant", assistantText);
+          }
 
-          // No tool calls → the model answered; we're done.
-          if (pending.size === 0) break;
+          // No tool calls → done
+          if (pendingToolCalls.length === 0) break;
 
-          const toolCalls = [...pending.entries()]
-            .sort(([a], [b]) => a - b)
-            .map(([, c]) => c)
-            .filter((c) => c.id && c.name);
-
-          // Append the assistant turn carrying the tool calls (required so the
-          // following tool results have matching tool_call_ids).
-          convo.push({
+          // Push neutral assistant-tool-calls message into history
+          history.push({
             role: "assistant",
-            content: assistantText || null,
-            tool_calls: toolCalls.map((c) => ({
-              id: c.id,
-              type: "function",
-              function: { name: c.name, arguments: c.args || "{}" },
+            toolCalls: pendingToolCalls.map((tc) => ({
+              id: tc.id,
+              name: tc.name,
+              args: tc.args,
             })),
           });
 
-          // Execute each tool call server-side, in order, and append results.
-          for (const c of toolCalls) {
-            controller.enqueue(sse({ type: "tool", name: c.name }));
+          // Execute each tool, stream the tool SSE event, record, and push neutral result
+          for (const tc of pendingToolCalls) {
+            controller.enqueue(sse({ type: "tool", name: tc.name }));
+            // Parse the model's args defensively (matches the pre-refactor route's
+            // graceful fallback — a malformed args string must NOT break the loop).
             let parsed: unknown = {};
             try {
-              parsed = c.args ? JSON.parse(c.args) : {};
+              parsed = tc.args ? JSON.parse(tc.args) : {};
             } catch {
               parsed = {};
             }
-            const result = await runTool(c.name, parsed);
-            await record("tool", result, c.name);
-            convo.push({
+            // runTool returns a plain string — use it AS-IS, never JSON.stringify.
+            const result = await runTool(tc.name, parsed);
+            await record("tool", result, tc.name);
+            history.push({
               role: "tool",
-              tool_call_id: c.id,
-              content: result,
+              toolCallId: tc.id,
+              name: tc.name,
+              result,
             });
           }
         }
 
         controller.enqueue(sse({ type: "done" }));
-      } catch (err) {
-        if (err instanceof OpenAI.APIError) {
-          console.error(
-            `[ai/chat] DeepSeek API error${err.status ? ` ${err.status}` : ""}:`,
-            err.message,
-          );
-        } else {
-          console.error("[ai/chat] stream error:", err);
-        }
+      } catch (err: unknown) {
+        console.error("[chat] provider error:", err instanceof Error ? err.message : err);
+        // Match the pre-refactor route: show the friendly fallback text on a
+        // mid-stream failure, then signal error so the UI can recover.
         controller.enqueue(sse({ type: "text", value: UNAVAILABLE_TEXT }));
         controller.enqueue(sse({ type: "error" }));
       } finally {

@@ -25,6 +25,9 @@ const BrandSchema = z.object({
   shortName: z.string(),
   legalName: z.string(),
   foundedYear: z.number().int(),
+  /** Display name of the tenant's AI assistant (e.g. "MSFG AI"). Named where
+   *  the assistant is referenced in UI + the derived legal strip. */
+  assistantName: z.string(),
   logos: z.object({
     horizontal: z.string(),
     white: z.string(),
@@ -114,17 +117,34 @@ const FamilyCardSchema = z.object({
 });
 const FooterFamilySchema = z.object({ rest: z.string(), desc: z.string() });
 
+/** A customer testimonial shown in the apply flow (ChoiceStep "Review"). */
+const TestimonialSchema = z.object({
+  /** Customer display names, e.g. "Drew & Anya". */
+  names: z.string(),
+  /** Star rating, 1–5. */
+  rating: z.number().int().min(1).max(5),
+});
+export type Testimonial = z.infer<typeof TestimonialSchema>;
+
 const MarketingSchema = z.object({
   tagline: z.string(),
   stats: z.array(StatSchema),
   familyOfCompanies: z.array(FamilyCardSchema),
   footerFamily: z.array(FooterFamilySchema),
+  /** Apply-flow social proof. Empty array → no testimonial is shown. */
+  testimonials: z.array(TestimonialSchema),
 });
 
 const FeaturesSchema = z.object({
   showFamily: z.boolean(),
   ghlChat: z.boolean(),
   aiAssistant: z.boolean(),
+});
+
+const AiConfigSchema = z.object({
+  provider: z.enum(["openai-compatible", "anthropic"]),
+  model: z.string(),
+  baseUrl: z.string().optional(),
 });
 
 export const TenantConfigSchema = z.object({
@@ -138,6 +158,7 @@ export const TenantConfigSchema = z.object({
   seo: SeoSchema,
   marketing: MarketingSchema.optional(),
   features: FeaturesSchema,
+  ai: AiConfigSchema,
 });
 
 export type TenantConfig = z.infer<typeof TenantConfigSchema>;
@@ -156,6 +177,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     shortName: "MSFG",
     legalName: "Mountain State Financial Group, LLC",
     foundedYear: 1998,
+    assistantName: "MSFG AI",
     logos: {
       horizontal: "/brand/msfg-horizontal.svg",
       white: "/brand/msfg-white.svg",
@@ -250,8 +272,14 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
       },
       { rest: "Inspect", desc: "Free repair estimates and 24-hour report turnarounds." },
     ],
+    testimonials: [{ names: "Drew & Anya", rating: 5 }],
   },
   features: { showFamily: true, ghlChat: true, aiAssistant: true },
+  ai: {
+    provider: "openai-compatible",
+    model: "deepseek-chat",
+    baseUrl: "https://api.deepseek.com",
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -265,12 +293,21 @@ export function statesLine(c: TenantConfig): string {
 
 /** Full footer legal strip. Identical to the pre-Phase-B LEGAL_STRIP for MSFG. */
 export function buildLegalStrip(c: TenantConfig): string {
-  return `${c.brand.legalName}. NMLS #${c.contact.nmls} [PLACEHOLDER]. Equal Housing Lender. Licensed in ${statesLine(c)}. Loans subject to credit and property approval. Rates and terms subject to change without notice. ${c.brand.shortName} AI provides general information and estimates only and is not a commitment to lend. © ${c.brand.foundedYear}–2026 ${c.brand.shortName}, LLC.`;
+  return `${c.brand.legalName}. NMLS #${c.contact.nmls} [PLACEHOLDER]. Equal Housing Lender. Licensed in ${statesLine(c)}. Loans subject to credit and property approval. Rates and terms subject to change without notice. ${c.brand.assistantName} provides general information and estimates only and is not a commitment to lend. © ${c.brand.foundedYear}–2026 ${c.brand.shortName}, LLC.`;
 }
 
 /** Short marketing/automated-contact consent microcopy (TCPA). */
 export function buildConsentTcpa(c: TenantConfig): string {
   return `By submitting, you agree that ${c.brand.shortName} and its affiliates may contact you about your inquiry by phone, text, and email — including via automated technology — at the number and address provided. Consent is not a condition of any purchase. Message and data rates may apply.`;
+}
+
+/**
+ * Apply-flow testimonial caption, e.g. "Drew & Anya, MSFG customers". The brand
+ * token is sourced from `shortName` (the customer names stay tenant content), so
+ * a config swap renames the brand without touching the names.
+ */
+export function buildTestimonialCaption(c: TenantConfig, t: Testimonial): string {
+  return `${t.names}, ${c.brand.shortName} customers`;
 }
 
 // ---------------------------------------------------------------------------

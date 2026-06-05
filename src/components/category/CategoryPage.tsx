@@ -10,6 +10,7 @@ import {
   Wallet,
 } from "lucide-react";
 import { Mark } from "@/components/ui/Mark";
+import { getTenantConfig } from "@/server/tenant/config";
 import { Button } from "@/components/ui/Button";
 import { Section, SectionHead } from "@/components/ui/Section";
 import { CtaBand } from "@/components/CtaBand";
@@ -35,7 +36,8 @@ const PROGRAM_ICONS: Record<ProgramIcon, ComponentType<IconProps>> = {
  * live estimator), "How it works", and "Loan programs" from `CATS[cat]`.
  * The global Nav + Footer are supplied by the marketing layout.
  */
-export function CategoryPage({ cat }: { cat: CategoryKey }) {
+export async function CategoryPage({ cat }: { cat: CategoryKey }) {
+  const config = await getTenantConfig();
   const c = CATS[cat];
   const applyHref = `/apply/${c.intent}`;
 
@@ -46,7 +48,7 @@ export function CategoryPage({ cat }: { cat: CategoryKey }) {
         <div className="wrap relative grid grid-cols-[1.15fr_0.85fr] items-center gap-14 max-[980px]:grid-cols-1 max-[980px]:gap-9">
           <div>
             <span className="mb-4 inline-flex items-center gap-2.5 text-[13px] font-semibold text-mint">
-              <Mark size={18} /> {c.tag}
+              <Mark size={18} label={config.brand.shortName} /> {c.tag}
             </span>
             <h1 className="m-0 text-balance text-[clamp(36px,5vw,60px)] font-extrabold leading-[1.02] tracking-[-0.035em] text-white">
               {c.h1[0]}
