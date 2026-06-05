@@ -13,12 +13,27 @@ vi.mock("@/lib/env", () => ({
     },
   }),
 }));
+vi.mock("next/cache", () => ({
+  unstable_cache: (fn: (...a: unknown[]) => unknown) => fn,
+}));
+vi.mock("next/headers", () => ({
+  draftMode: vi.fn(async () => ({ isEnabled: false })),
+}));
+vi.mock("@/server/cms/versioning", () => ({
+  getPublishedData: vi.fn(),
+  getDraftData: vi.fn(),
+}));
+vi.mock("@/server/cms/cache", () => ({ configTag: (id: string) => `t:${id}:config` }));
 
-import { parseTenantConfig, tenantOrigin } from "./config";
+import { parseTenantConfig, tenantOrigin, getTenantConfig } from "./config";
 import { DEFAULT_TENANT_CONFIG } from "@/content/site";
+import { getTenant } from "./resolve";
+import { getPublishedData, getDraftData } from "@/server/cms/versioning";
+import { draftMode } from "next/headers";
 
 beforeEach(() => {
   vi.unstubAllEnvs();
+  vi.clearAllMocks();
 });
 
 describe("parseTenantConfig", () => {
@@ -68,5 +83,38 @@ describe("tenantOrigin", () => {
   it("shared mode falls back to msfg.us when no domains", () => {
     vi.stubEnv("TENANT_MODE", "shared");
     expect(tenantOrigin({ domains: [] })).toBe("https://msfg.us");
+  });
+});
+
+describe("getTenantConfig", () => {
+  it("returns parsed published config when not in draft mode", async () => {
+    (getTenant as any).mockResolvedValue({ id: "tenant_msfg", slug: "msfg", name: "MSFG" });
+    (draftMode as any).mockResolvedValue({ isEnabled: false });
+    (getPublishedData as any).mockResolvedValue({
+      ...DEFAULT_TENANT_CONFIG,
+      brand: { ...DEFAULT_TENANT_CONFIG.brand, shortName: "Pub" },
+    });
+    const cfg = await getTenantConfig();
+    expect(cfg.brand.shortName).toBe("Pub");
+    expect(getDraftData).not.toHaveBeenCalled();
+  });
+
+  it("returns the draft config when draft mode is enabled", async () => {
+    (getTenant as any).mockResolvedValue({ id: "tenant_msfg", slug: "msfg", name: "MSFG" });
+    (draftMode as any).mockResolvedValue({ isEnabled: true });
+    (getDraftData as any).mockResolvedValue({
+      ...DEFAULT_TENANT_CONFIG,
+      brand: { ...DEFAULT_TENANT_CONFIG.brand, shortName: "Draft" },
+    });
+    const cfg = await getTenantConfig();
+    expect(cfg.brand.shortName).toBe("Draft");
+  });
+
+  it("falls back to DEFAULT when no published revision exists", async () => {
+    (getTenant as any).mockResolvedValue({ id: "tenant_msfg", slug: "msfg", name: "MSFG" });
+    (draftMode as any).mockResolvedValue({ isEnabled: false });
+    (getPublishedData as any).mockResolvedValue(null);
+    const cfg = await getTenantConfig();
+    expect(cfg).toEqual(DEFAULT_TENANT_CONFIG);
   });
 });
