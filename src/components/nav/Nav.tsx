@@ -5,25 +5,26 @@ import { Button } from "@/components/ui/Button";
 import { MobileDrawer } from "@/components/nav/MobileDrawer";
 import { NavAuthLink } from "@/components/nav/NavAuthLink";
 import { NAV } from "@/content/nav";
-import { SITE } from "@/content/site";
+import { getTenantConfig } from "@/server/tenant/config";
 
 /**
  * Sticky dark nav. Desktop shows hover/focus dropdowns (CSS-only, keyboard
  * accessible via group-focus-within). Below 980px the links collapse into the
  * MobileDrawer hamburger.
  */
-export function Nav() {
+export async function Nav() {
+  const config = await getTenantConfig();
   return (
     <header className="sticky top-0 z-[60] bg-green-800">
       <div className="wrap flex h-[76px] items-center gap-2">
         <Link
           href="/"
-          aria-label="MSFG home"
+          aria-label={`${config.brand.shortName} home`}
           className="mr-[18px] flex items-center gap-2.5"
         >
           <Mark size={30} />
           <span className="text-[23px] font-extrabold tracking-[-0.03em] text-white">
-            MSFG
+            {config.brand.shortName}
           </span>
         </Link>
 
@@ -66,7 +67,7 @@ export function Nav() {
 
         <div className="ml-auto flex items-center gap-3.5">
           <a
-            href={SITE.phoneHref}
+            href={config.contact.phoneHref}
             aria-label="Call us"
             className="flex size-11 items-center justify-center rounded-full border border-hair-dark text-white transition-colors hover:bg-white/[0.08]"
           >
@@ -76,7 +77,7 @@ export function Nav() {
           <Button href="/apply/buy" size="sm">
             Get started
           </Button>
-          <MobileDrawer />
+          <MobileDrawer phoneHref={config.contact.phoneHref} shortName={config.brand.shortName} />
         </div>
       </div>
     </header>

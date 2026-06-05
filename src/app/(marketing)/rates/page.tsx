@@ -4,7 +4,7 @@ import { Section } from "@/components/ui/Section";
 import { CtaBand } from "@/components/CtaBand";
 import { RateTable } from "@/components/rates/RateTable";
 import { RATES_UPDATED } from "@/content/rates";
-import { RATES_DISCLAIMER } from "@/content/site";
+import { getTenantConfig } from "@/server/tenant/config";
 
 export const metadata: Metadata = {
   title: "Today's Mortgage Rates",
@@ -13,7 +13,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/rates" },
 };
 
-export default function RatesPage() {
+export default async function RatesPage() {
+  const config = await getTenantConfig();
   return (
     <>
       {/* 3a. Mini-hero — dark emerald, centered */}
@@ -46,7 +47,7 @@ export default function RatesPage() {
       <Section>
         <RateTable />
         <p className="mx-auto mt-[18px] max-w-[980px] text-center text-[13px] leading-[1.6] text-muted">
-          *{RATES_DISCLAIMER}
+          *{config.legal.ratesDisclaimer}
         </p>
       </Section>
 

@@ -2,11 +2,13 @@ import { MapPin, Languages, Star } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ScheduleCallButton } from "@/components/integrations/ScheduleCallButton";
 import { officerInitials, type Officer } from "@/content/officers";
-import { SITE } from "@/content/site";
+import type { TenantConfig } from "@/content/site";
+
+type StateRef = TenantConfig["legal"]["states"][number];
 
 /** Full state name for a USPS code, falling back to the code itself. */
-function stateName(code: string): string {
-  return SITE.states.find((s) => s.code === code)?.name ?? code;
+function stateName(code: string, states: StateRef[]): string {
+  return states.find((s) => s.code === code)?.name ?? code;
 }
 
 /**
@@ -14,7 +16,13 @@ function stateName(code: string): string {
  * hover. Layout ported from the design prototype's `.of-card`.
  * Avatar is an initials tile — [PLACEHOLDER] for a real photo before launch.
  */
-export function OfficerCard({ officer }: { officer: Officer }) {
+export function OfficerCard({
+  officer,
+  states,
+}: {
+  officer: Officer;
+  states: StateRef[];
+}) {
   const { name, nmls, city, state, languages, specialties, rating } = officer;
 
   return (
@@ -63,7 +71,7 @@ export function OfficerCard({ officer }: { officer: Officer }) {
       {/* Location */}
       <div className="flex items-center gap-1.5 text-[13px] text-muted">
         <MapPin aria-hidden className="h-3.5 w-3.5" />
-        {city}, {stateName(state)}
+        {city}, {stateName(state, states)}
       </div>
 
       {/* Languages */}

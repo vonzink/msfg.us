@@ -1,8 +1,9 @@
 import { Mark } from "@/components/ui/Mark";
 import { AiWidget } from "@/components/home/AiWidget";
-import { SITE } from "@/content/site";
+import { getTenantConfig } from "@/server/tenant/config";
 
-export function Hero() {
+export async function Hero() {
+  const config = await getTenantConfig();
   return (
     <section id="top" className="hero-bg px-0 pb-[72px] pt-10 text-white">
       <div className="wrap flex flex-col items-center text-center">
@@ -19,7 +20,7 @@ export function Hero() {
         <AiWidget />
 
         <dl className="mt-7 flex justify-center gap-12 max-[980px]:gap-9">
-          {SITE.stats.map((s) => (
+          {config.marketing?.stats.map((s) => (
             <div key={s.label}>
               <dd className="m-0 whitespace-nowrap text-[clamp(34px,4vw,46px)] font-extrabold tracking-[-0.03em] text-on-dark-3">
                 {s.num}

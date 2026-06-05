@@ -9,10 +9,12 @@ import {
   officerSpecialties,
   type Officer,
 } from "@/content/officers";
-import { SITE } from "@/content/site";
+import type { TenantConfig } from "@/content/site";
 import { cn } from "@/lib/cn";
 
 const ALL = "all";
+
+type StateRef = TenantConfig["legal"]["states"][number];
 
 /** Filter-chip <select> styled as a pill (ported from `.of-chip`). */
 function FilterChip({
@@ -57,7 +59,7 @@ function FilterChip({
  * the page. Renders three filter-chip selects (state / language / specialty)
  * that filter the OFFICERS list live, then a responsive 3→2→1 card grid.
  */
-export function OfficerDirectory() {
+export function OfficerDirectory({ states }: { states: StateRef[] }) {
   const [stateFilter, setStateFilter] = useState(ALL);
   const [languageFilter, setLanguageFilter] = useState(ALL);
   const [specialtyFilter, setSpecialtyFilter] = useState(ALL);
@@ -67,9 +69,9 @@ export function OfficerDirectory() {
   const stateOptions = useMemo(
     () => [
       { value: ALL, label: "All states" },
-      ...SITE.states.map((s) => ({ value: s.code, label: s.name })),
+      ...states.map((s) => ({ value: s.code, label: s.name })),
     ],
-    [],
+    [states],
   );
   const languageOptions = useMemo(
     () => [
@@ -131,7 +133,7 @@ export function OfficerDirectory() {
           )}
         >
           {filtered.map((officer) => (
-            <OfficerCard key={officer.nmls} officer={officer} />
+            <OfficerCard key={officer.nmls} officer={officer} states={states} />
           ))}
         </div>
       ) : (
