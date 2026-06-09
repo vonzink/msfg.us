@@ -23,6 +23,13 @@ const nextConfig: NextConfig = {
       "./node_modules/@anthropic-ai/sdk/**",   // ← Task 5
     ],
   },
+  // Loan-officer headshots imported from the S3 roster are served from
+  // LeadConnector's CDN — allow next/image to optimize them.
+  images: {
+    remotePatterns: [
+      { protocol: "https", hostname: "images.leadconnectorhq.com" },
+    ],
+  },
 };
 
 export default nextConfig;
