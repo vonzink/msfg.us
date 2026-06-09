@@ -155,3 +155,21 @@ describe("config.ai.brain", () => {
     expect(DEFAULT_TENANT_CONFIG.ai.brain).toEqual({ enabled: false, baseUrl: "" });
   });
 });
+
+describe("theme CSS-value validation", () => {
+  it("accepts the MSFG default theme values", () => {
+    expect(() => TenantConfigSchema.parse(DEFAULT_TENANT_CONFIG)).not.toThrow();
+  });
+
+  it("rejects a value that could break out of the injected <style>", () => {
+    const evil = JSON.parse(JSON.stringify(DEFAULT_TENANT_CONFIG));
+    evil.theme.green900 = "red;}</style><script>alert(1)</script>";
+    expect(() => TenantConfigSchema.parse(evil)).toThrow();
+  });
+
+  it("rejects CSS-injection chars (;, }, @) in a theme value", () => {
+    const evil = JSON.parse(JSON.stringify(DEFAULT_TENANT_CONFIG));
+    evil.theme.spring = "#1fb463; background:url(x)";
+    expect(() => TenantConfigSchema.parse(evil)).toThrow();
+  });
+});

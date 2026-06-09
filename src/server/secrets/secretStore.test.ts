@@ -14,7 +14,7 @@ vi.mock("@/lib/env", () => ({
   }),
 }));
 
-import { secretStore, EnvelopeAesSecretStore } from "./secretStore";
+import { secretStore } from "./secretStore";
 
 describe("EnvelopeAesSecretStore", () => {
   it("seal → open round-trips to the original plaintext", () => {

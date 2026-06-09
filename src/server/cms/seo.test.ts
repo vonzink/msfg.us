@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { PageSeoSchema, parsePageSeo, type PageSeo } from "./seo";
+import { parsePageSeo, type PageSeo } from "./seo";
 import { seoTag } from "./cache";
 
 describe("PageSeoSchema / parsePageSeo", () => {

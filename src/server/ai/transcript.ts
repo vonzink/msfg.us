@@ -56,9 +56,10 @@ export async function findOrCreateBrainSession(
 ): Promise<string | null> {
   try {
     const db = await getTenantDb();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const existing = await db.chatSession.findFirst({
-      where: { metadata: { path: ["conversationId"], equals: conversationId } } as any,
+      where: {
+        metadata: { path: ["conversationId"], equals: conversationId },
+      } as Prisma.ChatSessionWhereInput,
       select: { id: true },
     });
     if (existing) return existing.id;

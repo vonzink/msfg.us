@@ -39,45 +39,51 @@ const BrandSchema = z.object({
  * Theme tokens. Every field is optional and defaults to MSFG's value, so a
  * partial config still renders. Field names map 1:1 to the CSS variables in
  * src/app/globals.css `@theme` (see src/components/theme/tenantThemeCss.ts).
+ *
+ * SECURITY: theme values are admin-editable (the /admin config editor) and get
+ * concatenated into a <style> injected via dangerouslySetInnerHTML. They are
+ * restricted to a safe CSS-value allowlist so a value can't break out of the
+ * style context (`</style>…`) or inject extra declarations/rules (`;`, `}`).
  */
+const SAFE_CSS_VALUE = /^[#a-zA-Z0-9(),.%\s_'"-]+$/;
+/** A theme token: a CSS value restricted to the safe-character allowlist. */
+const cssValue = (def: string) =>
+  z.string().regex(SAFE_CSS_VALUE, "unsafe CSS value").default(def);
+
 const ThemeSchema = z.object({
   // Deep emerald system
-  green900: z.string().default("#07271e"),
-  green850: z.string().default("#0a3329"),
-  green800: z.string().default("#0b3d30"),
-  green700: z.string().default("#0e4a39"),
-  green600: z.string().default("#135e48"),
-  greenGlow: z.string().default("#1d7a55"),
+  green900: cssValue("#07271e"),
+  green850: cssValue("#0a3329"),
+  green800: cssValue("#0b3d30"),
+  green700: cssValue("#0e4a39"),
+  green600: cssValue("#135e48"),
+  greenGlow: cssValue("#1d7a55"),
   // Action green
-  spring: z.string().default("#1fb463"),
-  spring2: z.string().default("#18a359"),
-  spring3: z.string().default("#34d17e"),
-  springSoft: z.string().default("rgba(31, 180, 99, 0.14)"),
+  spring: cssValue("#1fb463"),
+  spring2: cssValue("#18a359"),
+  spring3: cssValue("#34d17e"),
+  springSoft: cssValue("rgba(31, 180, 99, 0.14)"),
   // Headline accent
-  mint: z.string().default("#7fe3a8"),
+  mint: cssValue("#7fe3a8"),
   // Neutrals
-  ink: z.string().default("#0b231c"),
-  paper: z.string().default("#fbfbf7"),
-  paper2: z.string().default("#f2f4ef"),
-  muted: z.string().default("#5a6b61"),
-  line: z.string().default("#e2e6dd"),
+  ink: cssValue("#0b231c"),
+  paper: cssValue("#fbfbf7"),
+  paper2: cssValue("#f2f4ef"),
+  muted: cssValue("#5a6b61"),
+  line: cssValue("#e2e6dd"),
   // On-dark text + hairlines
-  onDark: z.string().default("rgba(255, 255, 255, 0.92)"),
-  onDark2: z.string().default("rgba(255, 255, 255, 0.62)"),
-  onDark3: z.string().default("rgba(255, 255, 255, 0.4)"),
-  hairDark: z.string().default("rgba(255, 255, 255, 0.12)"),
+  onDark: cssValue("rgba(255, 255, 255, 0.92)"),
+  onDark2: cssValue("rgba(255, 255, 255, 0.62)"),
+  onDark3: cssValue("rgba(255, 255, 255, 0.4)"),
+  hairDark: cssValue("rgba(255, 255, 255, 0.12)"),
   // Radii
-  radiusSm: z.string().default("6px"),
-  radiusMd: z.string().default("9px"),
-  radiusLg: z.string().default("12px"),
-  radiusXl: z.string().default("16px"),
+  radiusSm: cssValue("6px"),
+  radiusMd: cssValue("9px"),
+  radiusLg: cssValue("12px"),
+  radiusXl: cssValue("16px"),
   // Non-utility tokens
-  lip: z.string().default("#0c6b39"),
-  fontFamily: z
-    .string()
-    .default(
-      'var(--font-hanken), system-ui, -apple-system, "Segoe UI", sans-serif',
-    ),
+  lip: cssValue("#0c6b39"),
+  fontFamily: cssValue('var(--font-hanken), system-ui, -apple-system, "Segoe UI", sans-serif'),
 });
 
 const ContactSchema = z.object({

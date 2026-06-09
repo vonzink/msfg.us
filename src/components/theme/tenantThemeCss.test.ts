@@ -34,4 +34,15 @@ describe("buildTenantThemeCss", () => {
     // Untouched tokens keep MSFG values.
     expect(css).toContain("--color-ink:#0b231c;");
   });
+
+  it("sanitizes CSS/HTML-breaking chars (defense-in-depth)", () => {
+    const css = buildTenantThemeCss({
+      ...DEFAULT_TENANT_CONFIG.theme,
+      green900: "red;}</style><script>",
+    });
+    expect(css).not.toContain("</style>");
+    expect(css).not.toContain("<script>");
+    // Only the structural :root{ … } braces survive — the value's were stripped.
+    expect(css.match(/[{}]/g)?.length).toBe(2);
+  });
 });

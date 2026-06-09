@@ -28,7 +28,7 @@ function fakeDb(initial: { editable?: { id: string }; revisions?: Rev[] } = {}) 
     },
     revision: {
       findMany: vi.fn(async () => revisions),
-      findFirst: vi.fn(async ({ where, orderBy }: any) => {
+      findFirst: vi.fn(async ({ where }: any) => {
         const matched = revisions
           .filter((r) => r.state === where.state)
           .sort((a, b) => b.version - a.version);
