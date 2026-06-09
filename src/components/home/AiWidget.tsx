@@ -2,19 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ArrowUp,
-  Banknote,
-  Home,
-  Mic,
-  PiggyBank,
-  RefreshCw,
-} from "lucide-react";
+import { ArrowRight, ArrowUp, Banknote, Mic, PiggyBank, RefreshCw } from "lucide-react";
 import { Mark } from "@/components/ui/Mark";
 import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/lib/cn";
 import { AI_PILLS } from "@/content/ai-script";
+import { ChatMarkdown } from "@/components/ai/ChatMarkdown";
+import { IntentReel } from "@/components/home/IntentReel";
 import type { BrainAnswer } from "@/server/ai/brain/types";
 
 const PILL_ICONS: Record<string, React.ReactNode> = {
@@ -32,19 +26,23 @@ const PILL_PROMPTS: Record<string, string> = {
   "Get cash": "I'd like to get cash from my home — what are my options?",
 };
 
-const INTENTS = [
-  { label: "Buy a home", href: "/apply/buy", icon: <Home className="size-[26px]" strokeWidth={1.8} /> },
-  { label: "Refinance my mortgage", href: "/apply/refi", icon: <RefreshCw className="size-[26px]" strokeWidth={1.8} /> },
-  { label: "Get cash from my home", href: "/apply/cash", icon: <Banknote className="size-[26px]" strokeWidth={1.8} /> },
-];
-
-/** A turn in the transcript. Brain answers carry the full compliance payload. */
+/** A turn in the transcript. Brain answers carry the full compliance payload;
+ *  DeepSeek (pre-Brain) turns are streamed plain text. Both render as Markdown. */
 type ChatTurn =
   | { role: "user"; text: string }
+  | { role: "assistant"; text: string }
   | { role: "answer"; data: BrainAnswer }
   | { role: "error"; text: string };
 
-/** Stable per-visitor id for the brain (persisted in sessionStorage). */
+/** Wire format for one SSE event from /api/v1/ai/chat (DeepSeek path). */
+type ChatEvent =
+  | { type: "text"; value: string }
+  | { type: "tool"; name: string }
+  | { type: "session"; sessionId: string }
+  | { type: "done" }
+  | { type: "error" };
+
+/** Stable per-visitor id for the Brain (persisted in sessionStorage). */
 function getVisitorSessionId(): string {
   if (typeof window === "undefined") return "";
   const KEY = "msfg.ai.sessionId";
@@ -69,10 +67,11 @@ function citationLine(c: BrainAnswer["citations"][number]): string {
     .join(" · ");
 }
 
+/** Brain answer bubble: verbatim answer (as Markdown) + sources + disclaimer + escalation. */
 function AnswerBubble({ data }: { data: BrainAnswer }) {
   return (
     <div className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-left">
-      <p className="whitespace-pre-wrap text-[15px] leading-normal text-ink">{data.answer}</p>
+      <ChatMarkdown>{data.answer}</ChatMarkdown>
 
       {data.citations.length > 0 && (
         <div className="mt-2 border-t border-line pt-2 text-[12px] text-[#6b756d]">
@@ -100,37 +99,34 @@ function AnswerBubble({ data }: { data: BrainAnswer }) {
   );
 }
 
-/** Homepage hero card. Defaults to Classic (3 intent buttons); the AI-mode toggle
- *  reveals the assistant backed by the Mortgage Brain (/api/v1/ai/ask). */
+/** Homepage hero card. Classic mode shows the slot-reel of apply intents; the
+ *  AI-mode toggle reveals the assistant. When `brainEnabled`, answers come from
+ *  the compliance-bound Mortgage Brain (verbatim + citations); otherwise the
+ *  DeepSeek assistant streams (the pre-Brain experience). */
 export function AiWidget({
   assistantName,
   shortName,
+  brainEnabled = false,
 }: {
   assistantName: string;
   shortName: string;
+  brainEnabled?: boolean;
 }) {
   const [aiMode, setAiMode] = useState(false);
   const [convo, setConvo] = useState<ChatTurn[]>([]);
   const [typing, setTyping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [value, setValue] = useState("");
-  const conversationIdRef = useRef<string | undefined>(undefined);
+  const conversationIdRef = useRef<string | undefined>(undefined); // Brain
+  const sessionIdRef = useRef<string | null>(null); // DeepSeek recording session
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [convo, typing]);
 
-  /** Send a question to the brain; render the verbatim answer. */
-  const send = async (userText: string) => {
-    const text = userText.trim();
-    if (!text || busy) return;
-
-    setConvo((c) => [...c, { role: "user", text }]);
-    setValue("");
-    setTyping(true);
-    setBusy(true);
-
+  /** Brain path: one JSON request, render the verbatim answer. */
+  const sendViaBrain = async (text: string) => {
     try {
       const res = await fetch("/api/v1/ai/ask", {
         method: "POST",
@@ -141,9 +137,7 @@ export function AiWidget({
           question: text,
         }),
       });
-
       const data = (await res.json()) as BrainAnswer | { error?: string; kind?: string };
-
       if (!res.ok || !("answer" in data) || typeof data.answer !== "string") {
         const msg =
           "error" in data && data.error
@@ -152,7 +146,6 @@ export function AiWidget({
         setConvo((c) => [...c, { role: "error", text: msg }]);
         return;
       }
-
       if (data.conversationId) conversationIdRef.current = data.conversationId;
       setConvo((c) => [...c, { role: "answer", data }]);
     } catch {
@@ -163,6 +156,93 @@ export function AiWidget({
           text: "Sorry — I couldn't reach the assistant. Please try again, or talk to a loan officer.",
         },
       ]);
+    }
+  };
+
+  /** DeepSeek path (pre-Brain): stream the reply token-by-token into the bubble. */
+  const sendViaChat = async (text: string) => {
+    const history = [
+      ...convo.flatMap((t) =>
+        t.role === "user" || t.role === "assistant" ? [{ role: t.role, content: t.text }] : [],
+      ),
+      { role: "user" as const, content: text },
+    ];
+    let assistantStarted = false;
+    const pushDelta = (delta: string) => {
+      setConvo((c) => {
+        if (!assistantStarted) return c;
+        const next = [...c];
+        const last = next[next.length - 1];
+        if (last && last.role === "assistant") {
+          next[next.length - 1] = { role: "assistant", text: last.text + delta };
+        }
+        return next;
+      });
+    };
+    try {
+      const res = await fetch("/api/v1/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: sessionIdRef.current ?? undefined, messages: history }),
+      });
+      if (!res.ok || !res.body) throw new Error(`chat request failed: ${res.status}`);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      const handle = (evt: ChatEvent) => {
+        if (evt.type === "session") {
+          sessionIdRef.current = evt.sessionId;
+          return;
+        }
+        if (evt.type === "text") {
+          if (!assistantStarted) {
+            assistantStarted = true;
+            setTyping(false);
+            setConvo((c) => [...c, { role: "assistant", text: "" }]);
+          }
+          pushDelta(evt.value);
+        }
+      };
+      for (;;) {
+        const { done, value: chunk } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(chunk, { stream: true });
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          const line = frame.trim();
+          if (!line.startsWith("data:")) continue;
+          const jsonStr = line.slice(5).trim();
+          if (!jsonStr) continue;
+          try {
+            handle(JSON.parse(jsonStr) as ChatEvent);
+          } catch {
+            // ignore malformed frames; keep streaming
+          }
+        }
+      }
+    } catch {
+      setConvo((c) => [
+        ...c,
+        {
+          role: "error",
+          text: "Sorry — I hit a problem reaching the assistant. Please try again, or talk to a loan officer.",
+        },
+      ]);
+    }
+  };
+
+  /** Send a user message via whichever assistant is active. */
+  const send = async (userText: string) => {
+    const text = userText.trim();
+    if (!text || busy) return;
+    setConvo((c) => [...c, { role: "user", text }]);
+    setValue("");
+    setTyping(true);
+    setBusy(true);
+    try {
+      if (brainEnabled) await sendViaBrain(text);
+      else await sendViaChat(text);
     } finally {
       setTyping(false);
       setBusy(false);
@@ -191,6 +271,16 @@ export function AiWidget({
                 </div>
               );
             }
+            if (m.role === "assistant") {
+              return (
+                <div
+                  key={i}
+                  className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3"
+                >
+                  <ChatMarkdown>{m.text}</ChatMarkdown>
+                </div>
+              );
+            }
             if (m.role === "error") {
               return (
                 <div
@@ -198,7 +288,10 @@ export function AiWidget({
                   className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-[15px] leading-normal text-ink"
                 >
                   {m.text}{" "}
-                  <Link href="/loan-officers" className="font-semibold text-green-700 underline-offset-2 hover:underline">
+                  <Link
+                    href="/loan-officers"
+                    className="font-semibold text-green-700 underline-offset-2 hover:underline"
+                  >
                     Talk to a loan officer
                   </Link>
                 </div>
@@ -281,18 +374,7 @@ export function AiWidget({
           </div>
         </div>
       ) : (
-        <div className="flex flex-col gap-3 p-2">
-          {INTENTS.map((it) => (
-            <Link
-              key={it.label}
-              href={it.href}
-              className="press-3d flex h-16 items-center gap-3.5 rounded-lg bg-spring px-6 text-[18px] font-bold tracking-[-0.01em] text-[#04130c] hover:bg-spring-3"
-            >
-              <span className="flex w-[26px] justify-center">{it.icon}</span>
-              {it.label}
-            </Link>
-          ))}
-        </div>
+        <IntentReel />
       )}
 
       <div className="flex items-center border-t border-line bg-[#fafbf8] px-[18px] py-3.5">

@@ -20,6 +20,7 @@ export async function Hero() {
         <AiWidget
           assistantName={config.brand.assistantName}
           shortName={config.brand.shortName}
+          brainEnabled={config.ai.brain.enabled}
         />
 
         <dl className="mt-7 flex justify-center gap-12 max-[980px]:gap-9">
