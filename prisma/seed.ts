@@ -57,24 +57,18 @@ function parsePoints(points: string): number {
 }
 
 async function seedOfficers() {
-  // NOTE: the content `Officer` shape moved to title/email/phone/states[]/bio,
-  // but the `LoanOfficer` model still carries the older city/state/languages/
-  // specialties/rating columns. Until that model is migrated (add title, email,
-  // phone, states[], bio; drop languages/specialties/rating), we map the new
-  // fields onto the existing columns: primary state, photo, and apply link.
-  // Placeholder columns are explicitly reset so a re-seed clears stale data.
   let i = 0;
   for (const o of OFFICERS) {
     const fields = {
       name: o.name,
-      city: "",
-      state: o.states[0] ?? "",
-      languages: [] as string[],
-      specialties: [] as string[],
-      ratingAvg: 0,
-      ratingCount: 0,
+      title: o.title,
+      email: o.email,
+      phone: o.phone,
+      state: o.states[0] ?? null,
+      licensedStates: o.states,
+      bio: o.bio,
       photoUrl: o.photo,
-      scheduleUrl: o.applyHref,
+      applyUrl: o.applyHref,
       sortOrder: i,
       active: true,
     };
