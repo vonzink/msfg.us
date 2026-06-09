@@ -76,4 +76,10 @@ describe("parseOfficerMarkdown", () => {
     expect(officers[0].bio).toEqual(["First paragraph here.", "Second paragraph here."]);
     expect(officers[1].bio).toEqual([]);
   });
+
+  it("skips an H2 block that has no NMLS line", () => {
+    const md =
+      "## Random Heading\n**Title:** Not an officer\n\n## Real Person\n**NMLS:** 999\n**Licensed:** CO\n";
+    expect(parseOfficerMarkdown(md).map((o) => o.nmls)).toEqual(["999"]);
+  });
 });
