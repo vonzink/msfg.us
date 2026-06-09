@@ -2,29 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, ArrowUp, Banknote, Mic, PiggyBank, RefreshCw } from "lucide-react";
-import { Mark } from "@/components/ui/Mark";
+import { ArrowRight, ArrowUp, Mic } from "lucide-react";
 import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/lib/cn";
-import { AI_PILLS } from "@/content/ai-script";
 import { ChatMarkdown } from "@/components/ai/ChatMarkdown";
 import { IntentReel } from "@/components/home/IntentReel";
 import type { BrainAnswer } from "@/server/ai/brain/types";
-
-const PILL_ICONS: Record<string, React.ReactNode> = {
-  "Start my pre-approval": <ArrowRight className="size-[18px]" strokeWidth={1.8} />,
-  "Lower my rate": <RefreshCw className="size-[18px]" strokeWidth={1.8} />,
-  "Start saving": <PiggyBank className="size-[18px]" strokeWidth={1.8} />,
-  "Get cash": <Banknote className="size-[18px]" strokeWidth={1.8} />,
-};
-
-/** Quick-prompt pills map to a natural first message sent to the assistant. */
-const PILL_PROMPTS: Record<string, string> = {
-  "Start my pre-approval": "I'm looking to start my pre-approval — how does it work?",
-  "Lower my rate": "Can I lower my current mortgage rate?",
-  "Start saving": "How can a refinance help me save money?",
-  "Get cash": "I'd like to get cash from my home — what are my options?",
-};
 
 /** A turn in the transcript. Brain answers carry the full compliance payload;
  *  DeepSeek (pre-Brain) turns are streamed plain text. Both render as Markdown. */
@@ -99,20 +82,23 @@ function AnswerBubble({ data }: { data: BrainAnswer }) {
   );
 }
 
-/** Homepage hero card. Classic mode shows the slot-reel of apply intents; the
- *  AI-mode toggle reveals the assistant. When `brainEnabled`, answers come from
- *  the compliance-bound Mortgage Brain (verbatim + citations); otherwise the
- *  DeepSeek assistant streams (the pre-Brain experience). */
+/** Homepage hero card. Opens in AI mode by default; the toggle flips back to the
+ *  Classic slot-reel of apply intents. When `brainEnabled`, answers come from the
+ *  compliance-bound Mortgage Brain (verbatim + citations); otherwise the DeepSeek
+ *  assistant streams (the pre-Brain experience). `iconSrc` is the MSFG logo we
+ *  crop (object-left) into the small assistant mark. */
 export function AiWidget({
   assistantName,
   shortName,
+  iconSrc,
   brainEnabled = false,
 }: {
   assistantName: string;
   shortName: string;
+  iconSrc: string;
   brainEnabled?: boolean;
 }) {
-  const [aiMode, setAiMode] = useState(false);
+  const [aiMode, setAiMode] = useState(true);
   const [convo, setConvo] = useState<ChatTurn[]>([]);
   const [typing, setTyping] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -314,9 +300,12 @@ export function AiWidget({
       {aiMode ? (
         <div className="p-2">
           <div className="flex items-center gap-3 rounded-lg px-4 py-3.5">
-            <span className="size-[30px] shrink-0">
-              <Mark size={30} label={shortName} />
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={iconSrc}
+              alt={shortName}
+              className="size-[30px] shrink-0 rounded-md object-cover object-left"
+            />
             <input
               className="min-w-0 flex-1 border-0 bg-transparent text-[18px] text-ink outline-none placeholder:text-[#9aa39c]"
               placeholder="Ask me anything, or tell me what you want to do"
@@ -346,24 +335,11 @@ export function AiWidget({
               <ArrowUp className="size-[18px]" strokeWidth={2} />
             </button>
           </div>
-          <div className="flex flex-wrap gap-2.5 px-4 pb-2.5">
-            {AI_PILLS.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => void send(PILL_PROMPTS[p] ?? p)}
-                disabled={busy}
-                className="inline-flex h-10 items-center gap-2 rounded-full border border-line bg-white px-4 text-[14.5px] font-semibold text-ink transition-[border-color,background,transform] duration-150 hover:-translate-y-px hover:border-spring hover:bg-spring-soft disabled:opacity-60"
-              >
-                {PILL_ICONS[p]} {p}
-              </button>
-            ))}
-          </div>
           {/* Recording / privacy disclosure + always-visible human handoff. */}
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-3.5 pt-1">
             <p className="text-[12px] leading-snug text-[#6b756d]">
-              {assistantName} can make mistakes and may be recorded for quality &amp; compliance. Not a
-              commitment to lend.
+              {assistantName}
+              {" can make mistakes and may be recorded for quality & compliance. Not a commitment to lend."}
             </p>
             <Link
               href="/loan-officers"
