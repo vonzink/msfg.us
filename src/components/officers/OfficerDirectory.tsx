@@ -3,19 +3,19 @@
 import { useId, useMemo, useState } from "react";
 import { MapPin } from "lucide-react";
 import { OfficerCard } from "@/components/officers/OfficerCard";
-import { OFFICERS, officerStates, type Officer } from "@/content/officers";
+import { officerStates, type Officer } from "@/content/officers";
 import { cn } from "@/lib/cn";
 
 const ALL = "all";
 
 /**
  * Loan officer directory (Client Component) — the only interactive piece on the
- * page. A single state filter narrows the OFFICERS list live (an officer matches
+ * page. A single state filter narrows the officer list live (an officer matches
  * when licensed in the selected state), then a responsive 3→2→1 card grid
  * renders them. `items-start` keeps neighbors compact when one card grows to
  * reveal its bio.
  */
-export function OfficerDirectory() {
+export function OfficerDirectory({ officers }: { officers: Officer[] }) {
   const [stateFilter, setStateFilter] = useState(ALL);
   const selectId = useId();
 
@@ -30,9 +30,9 @@ export function OfficerDirectory() {
   const filtered = useMemo<Officer[]>(
     () =>
       stateFilter === ALL
-        ? OFFICERS
-        : OFFICERS.filter((o) => o.states.includes(stateFilter)),
-    [stateFilter],
+        ? officers
+        : officers.filter((o) => o.states.includes(stateFilter)),
+    [stateFilter, officers],
   );
 
   return (

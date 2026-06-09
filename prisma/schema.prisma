@@ -77,23 +77,25 @@ enum SyncStatus {
 
 /// A licensed loan officer shown in the /loan-officers directory.
 model LoanOfficer {
-  id           String   @id @default(cuid())
-  tenantId     String
-  name         String
-  nmls         String
-  city         String
-  state        String
-  languages    String[]
-  specialties  String[]
-  ratingAvg    Float    @default(0)
-  ratingCount  Int      @default(0)
-  photoUrl     String?
-  scheduleUrl  String?
-  ghlContactId String?
-  sortOrder    Int      @default(0)
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(cuid())
+  tenantId       String
+  name           String
+  title          String?
+  nmls           String
+  email          String?
+  phone          String?
+  city           String?
+  state          String?
+  licensedStates String[] @default([])
+  bio            String[] @default([])
+  photoUrl       String?
+  applyUrl       String?
+  scheduleUrl    String?
+  ghlContactId   String?
+  sortOrder      Int      @default(0)
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([tenantId, nmls])
   @@index([tenantId])
