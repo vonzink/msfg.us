@@ -6,6 +6,11 @@ export function configTag(tenantId: string): string {
   return `t:${tenantId}:config`;
 }
 
+/** Cache tag for a tenant's per-path SEO overrides. */
+export function seoTag(tenantId: string, path: string): string {
+  return `t:${tenantId}:seo:${path}`;
+}
+
 /**
  * Invalidate a CMS cache tag. In THIS Next build `revalidateTag` REQUIRES a
  * cache-profile arg; `"max"` = stale-while-revalidate (publish marks the tag

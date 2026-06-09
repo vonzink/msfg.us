@@ -5,20 +5,23 @@ import { CtaBand } from "@/components/CtaBand";
 import { RateTable } from "@/components/rates/RateTable";
 import { RATES_UPDATED } from "@/content/rates";
 import { getTenantConfig } from "@/server/tenant/config";
+import { buildMetadata } from "@/lib/seo/buildMetadata";
+import { PageJsonLd } from "@/components/seo/PageJsonLd";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const config = await getTenantConfig();
-  return {
+export function generateMetadata(): Promise<Metadata> {
+  return buildMetadata("/rates", {
     title: "Today's Mortgage Rates",
-    description: `Transparent purchase and refinance mortgage rates from ${config.brand.shortName}, updated every business day. See estimated monthly payments and start your application.`,
-    alternates: { canonical: "/rates" },
-  };
+    description:
+      "Transparent purchase and refinance mortgage rates from MSFG, updated every business day. See estimated monthly payments and start your application.",
+    canonical: "/rates",
+  });
 }
 
 export default async function RatesPage() {
   const config = await getTenantConfig();
   return (
     <>
+      <PageJsonLd path="/rates" />
       {/* 3a. Mini-hero — dark emerald, centered */}
       <section className="hero-bg px-0 pb-[60px] pt-14 text-center text-white">
         <div className="wrap">

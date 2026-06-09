@@ -4,20 +4,23 @@ import { Section } from "@/components/ui/Section";
 import { CtaBand } from "@/components/CtaBand";
 import { OfficerDirectory } from "@/components/officers/OfficerDirectory";
 import { getTenantConfig } from "@/server/tenant/config";
+import { buildMetadata } from "@/lib/seo/buildMetadata";
+import { PageJsonLd } from "@/components/seo/PageJsonLd";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const config = await getTenantConfig();
-  return {
+export function generateMetadata(): Promise<Metadata> {
+  return buildMetadata("/loan-officers", {
     title: "Loan officers",
-    description: `Meet your local experts — seasoned, licensed ${config.brand.shortName} loan officers who live in the communities they serve. Find one by location, language, or specialty.`,
-    alternates: { canonical: "/loan-officers" },
-  };
+    description:
+      "Meet your local experts — seasoned, licensed MSFG loan officers who live in the communities they serve. Find one by location, language, or specialty.",
+    canonical: "/loan-officers",
+  });
 }
 
 export default async function LoanOfficersPage() {
   const config = await getTenantConfig();
   return (
     <>
+      <PageJsonLd path="/loan-officers" />
       {/* 4a. Mini-hero — dark emerald, centered */}
       <section
         className="relative overflow-hidden bg-green-800 px-0 pb-[60px] pt-[56px] text-center text-white"

@@ -1,5 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getTenantOrigin } from "@/server/tenant/config";
+import { getPageSeo } from "@/server/cms/seo";
+import { sitemapEntry } from "./sitemap.helpers";
 
 const ROUTES = [
   "",
@@ -15,9 +17,8 @@ const ROUTES = [
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const origin = await getTenantOrigin();
-  return ROUTES.map((route) => ({
-    url: `${origin}${route}`,
-    changeFrequency: route === "/rates" ? "daily" : "weekly",
-    priority: route === "" ? 1 : route.startsWith("/apply") ? 0.6 : 0.8,
-  }));
+  const entries = await Promise.all(
+    ROUTES.map(async (route) => sitemapEntry(origin, route, await getPageSeo(route))),
+  );
+  return entries.filter((e): e is NonNullable<typeof e> => e !== null);
 }
