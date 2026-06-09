@@ -7,38 +7,34 @@ import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/lib/cn";
 import { ChatMarkdown } from "@/components/ai/ChatMarkdown";
 import { IntentReel } from "@/components/home/IntentReel";
-import type { BrainAnswer } from "@/server/ai/brain/types";
+import type { BrainCitation } from "@/server/ai/brain/types";
 
-/** A turn in the transcript. Brain answers carry the full compliance payload;
- *  DeepSeek (pre-Brain) turns are streamed plain text. Both render as Markdown. */
+/** Grounding payload attached to a streamed answer from the agentic chat route:
+ *  the citations a tool returned plus the compliance disclaimer / escalation flag. */
+type Sources = {
+  citations: BrainCitation[];
+  disclaimer: string;
+  humanEscalationRequired: boolean;
+};
+
+/** A turn in the transcript. The agentic chat route streams the answer text;
+ *  grounded answers additionally carry `sources` (citations + compliance). */
 type ChatTurn =
   | { role: "user"; text: string }
-  | { role: "assistant"; text: string }
-  | { role: "answer"; data: BrainAnswer }
+  | { role: "assistant"; text: string; sources?: Sources }
   | { role: "error"; text: string };
 
-/** Wire format for one SSE event from /api/v1/ai/chat (DeepSeek path). */
+/** Wire format for one SSE event from /api/v1/ai/chat (agentic path). */
 type ChatEvent =
+  | { type: "session"; sessionId: string }
   | { type: "text"; value: string }
   | { type: "tool"; name: string }
-  | { type: "session"; sessionId: string }
+  | { type: "sources"; citations: BrainCitation[]; disclaimer: string; humanEscalationRequired: boolean }
   | { type: "done" }
   | { type: "error" };
 
-/** Stable per-visitor id for the Brain (persisted in sessionStorage). */
-function getVisitorSessionId(): string {
-  if (typeof window === "undefined") return "";
-  const KEY = "msfg.ai.sessionId";
-  let id = window.sessionStorage.getItem(KEY);
-  if (!id) {
-    id = window.crypto?.randomUUID?.() ?? `s_${Date.now()}_${Math.round(Math.random() * 1e9)}`;
-    window.sessionStorage.setItem(KEY, id);
-  }
-  return id;
-}
-
 /** Render a citation line, skipping null fields and sanitizing newlines. */
-function citationLine(c: BrainAnswer["citations"][number]): string {
+function citationLine(c: BrainCitation): string {
   return [
     c.sourceName,
     c.section,
@@ -50,27 +46,27 @@ function citationLine(c: BrainAnswer["citations"][number]): string {
     .join(" · ");
 }
 
-/** Brain answer bubble: verbatim answer (as Markdown) + sources + disclaimer + escalation. */
-function AnswerBubble({ data }: { data: BrainAnswer }) {
+/** Grounding panel rendered under a grounded assistant bubble: the citation list
+ *  (only when present), the always-on compliance disclaimer, and the human-handoff
+ *  CTA (only when escalation is required). */
+function SourcesPanel({ sources }: { sources: Sources }) {
   return (
-    <div className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-left">
-      <ChatMarkdown>{data.answer}</ChatMarkdown>
-
-      {data.citations.length > 0 && (
+    <>
+      {sources.citations.length > 0 && (
         <div className="mt-2 border-t border-line pt-2 text-[12px] text-[#6b756d]">
           <span className="font-semibold">Sources:</span>
           <ul className="mt-1 space-y-0.5">
-            {data.citations.map((c, i) => (
+            {sources.citations.map((c, i) => (
               <li key={i}>{citationLine(c)}</li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Disclaimer is rendered with EVERY answer (compliance — not optional). */}
-      <p className="mt-2 text-[11.5px] leading-snug text-[#6b756d]">{data.disclaimer}</p>
+      {/* Disclaimer is rendered with EVERY grounded answer (compliance — not optional). */}
+      <p className="mt-2 text-[11.5px] leading-snug text-[#6b756d]">{sources.disclaimer}</p>
 
-      {data.humanEscalationRequired && (
+      {sources.humanEscalationRequired && (
         <Link
           href="/loan-officers"
           className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-green-700 px-3.5 py-1.5 text-[13px] font-semibold text-white hover:bg-green-800"
@@ -78,74 +74,38 @@ function AnswerBubble({ data }: { data: BrainAnswer }) {
           Talk to a licensed loan officer <ArrowRight className="size-[15px]" strokeWidth={1.9} />
         </Link>
       )}
-    </div>
+    </>
   );
 }
 
 /** Homepage hero card. Opens in AI mode by default; the toggle flips back to the
- *  Classic slot-reel of apply intents. When `brainEnabled`, answers come from the
- *  compliance-bound Mortgage Brain (verbatim + citations); otherwise the DeepSeek
- *  assistant streams (the pre-Brain experience). `iconSrc` is the MSFG logo we
- *  crop (object-left) into the small assistant mark. */
+ *  Classic slot-reel of apply intents. Every message goes through the agentic
+ *  `/api/v1/ai/chat` route, which streams the answer and (for grounded answers)
+ *  emits a `sources` event we render as a citations + compliance panel. `iconSrc`
+ *  is the MSFG logo we crop (object-left) into the small assistant mark. */
 export function AiWidget({
   assistantName,
   shortName,
   iconSrc,
-  brainEnabled = false,
 }: {
   assistantName: string;
   shortName: string;
   iconSrc: string;
-  brainEnabled?: boolean;
 }) {
   const [aiMode, setAiMode] = useState(true);
   const [convo, setConvo] = useState<ChatTurn[]>([]);
   const [typing, setTyping] = useState(false);
   const [busy, setBusy] = useState(false);
   const [value, setValue] = useState("");
-  const conversationIdRef = useRef<string | undefined>(undefined); // Brain
-  const sessionIdRef = useRef<string | null>(null); // DeepSeek recording session
+  const sessionIdRef = useRef<string | null>(null); // chat recording session
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [convo, typing]);
 
-  /** Brain path: one JSON request, render the verbatim answer. */
-  const sendViaBrain = async (text: string) => {
-    try {
-      const res = await fetch("/api/v1/ai/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sessionId: getVisitorSessionId(),
-          conversationId: conversationIdRef.current,
-          question: text,
-        }),
-      });
-      const data = (await res.json()) as BrainAnswer | { error?: string; kind?: string };
-      if (!res.ok || !("answer" in data) || typeof data.answer !== "string") {
-        const msg =
-          "error" in data && data.error
-            ? data.error
-            : "Sorry — I hit a problem. Please try again, or talk to a loan officer.";
-        setConvo((c) => [...c, { role: "error", text: msg }]);
-        return;
-      }
-      if (data.conversationId) conversationIdRef.current = data.conversationId;
-      setConvo((c) => [...c, { role: "answer", data }]);
-    } catch {
-      setConvo((c) => [
-        ...c,
-        {
-          role: "error",
-          text: "Sorry — I couldn't reach the assistant. Please try again, or talk to a loan officer.",
-        },
-      ]);
-    }
-  };
-
-  /** DeepSeek path (pre-Brain): stream the reply token-by-token into the bubble. */
+  /** Agentic chat path: stream the reply token-by-token into the bubble, and
+   *  attach the grounding payload when the route emits a `sources` event. */
   const sendViaChat = async (text: string) => {
     const history = [
       ...convo.flatMap((t) =>
@@ -153,6 +113,10 @@ export function AiWidget({
       ),
       { role: "user" as const, content: text },
     ];
+    // Tracks whether a trailing assistant bubble exists for THIS turn. It can be
+    // opened by either the first `text` delta OR a `sources` event (which arrives
+    // before the grounded answer streams) — whichever comes first. This guarantees
+    // text and sources land in the SAME bubble.
     let assistantStarted = false;
     const pushDelta = (delta: string) => {
       setConvo((c) => {
@@ -160,7 +124,8 @@ export function AiWidget({
         const next = [...c];
         const last = next[next.length - 1];
         if (last && last.role === "assistant") {
-          next[next.length - 1] = { role: "assistant", text: last.text + delta };
+          // Spread `last` to preserve any `sources` already attached to this bubble.
+          next[next.length - 1] = { ...last, text: last.text + delta };
         }
         return next;
       });
@@ -178,6 +143,30 @@ export function AiWidget({
       const handle = (evt: ChatEvent) => {
         if (evt.type === "session") {
           sessionIdRef.current = evt.sessionId;
+          return;
+        }
+        if (evt.type === "sources") {
+          const sources: Sources = {
+            citations: evt.citations,
+            disclaimer: evt.disclaimer,
+            humanEscalationRequired: evt.humanEscalationRequired,
+          };
+          setTyping(false);
+          setConvo((c) => {
+            const next = [...c];
+            const last = next[next.length - 1];
+            // `sources` precedes the grounded answer text. If the model emitted
+            // preamble text, a trailing assistant bubble already exists — attach to
+            // it. Otherwise open the bubble now so the upcoming text deltas fill it.
+            if (last && last.role === "assistant") {
+              next[next.length - 1] = { ...last, sources };
+            } else {
+              next.push({ role: "assistant", text: "", sources });
+            }
+            return next;
+          });
+          // Mark the bubble open so subsequent `text` deltas append here, not a new one.
+          assistantStarted = true;
           return;
         }
         if (evt.type === "text") {
@@ -218,7 +207,7 @@ export function AiWidget({
     }
   };
 
-  /** Send a user message via whichever assistant is active. */
+  /** Send a user message through the agentic chat front door. */
   const send = async (userText: string) => {
     const text = userText.trim();
     if (!text || busy) return;
@@ -227,8 +216,7 @@ export function AiWidget({
     setTyping(true);
     setBusy(true);
     try {
-      if (brainEnabled) await sendViaBrain(text);
-      else await sendViaChat(text);
+      await sendViaChat(text);
     } finally {
       setTyping(false);
       setBusy(false);
@@ -261,9 +249,10 @@ export function AiWidget({
               return (
                 <div
                   key={i}
-                  className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3"
+                  className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-left"
                 >
                   <ChatMarkdown>{m.text}</ChatMarkdown>
+                  {m.sources && <SourcesPanel sources={m.sources} />}
                 </div>
               );
             }
@@ -283,7 +272,7 @@ export function AiWidget({
                 </div>
               );
             }
-            return <AnswerBubble key={i} data={m.data} />;
+            return null;
           })}
           {typing && (
             <div className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3">

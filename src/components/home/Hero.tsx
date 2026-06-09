@@ -23,7 +23,6 @@ export async function Hero() {
           assistantName={config.brand.assistantName}
           shortName={config.brand.shortName}
           iconSrc={config.brand.logos.horizontal}
-          brainEnabled={config.ai.brain?.enabled ?? false}
         />
 
         <dl className="mt-7 flex justify-center gap-12 max-[980px]:gap-9">
