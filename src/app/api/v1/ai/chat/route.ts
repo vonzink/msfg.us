@@ -18,6 +18,8 @@
  *  - Streams Server-Sent Events to the client (provider-agnostic protocol):
  *      data: {"type":"text","value":"..."}        text deltas
  *      data: {"type":"tool","name":"..."}         a tool started executing
+ *      data: {"type":"sources",citations,disclaimer,humanEscalationRequired}
+ *                                                 grounded tool citations
  *      data: {"type":"session","sessionId":"..."} recording session id
  *      data: {"type":"done"}                       end of turn
  *      data: {"type":"error"}                      failure
@@ -184,14 +186,27 @@ export async function POST(req: Request) {
             } catch {
               parsed = {};
             }
-            // runTool returns a plain string — use it AS-IS, never JSON.stringify.
-            const result = await runTool(tc.name, parsed);
-            await record("tool", result, tc.name);
+            // runTool returns { text, sources? }. Feed result.text back to the
+            // model as the neutral tool result; when sources are present (the
+            // grounded search_guidelines tool) emit a structured `sources` SSE
+            // event for the widget. Never JSON.stringify result.text.
+            const result = await runTool(tc.name, parsed, sessionId ?? "anon");
+            await record("tool", result.text, tc.name);
+            if (result.sources) {
+              controller.enqueue(
+                sse({
+                  type: "sources",
+                  citations: result.sources.citations,
+                  disclaimer: result.sources.disclaimer,
+                  humanEscalationRequired: result.sources.humanEscalationRequired,
+                }),
+              );
+            }
             history.push({
               role: "tool",
               toolCallId: tc.id,
               name: tc.name,
-              result,
+              result: result.text,
             });
           }
         }
