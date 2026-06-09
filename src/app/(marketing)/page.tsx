@@ -7,6 +7,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { localBusinessSchema } from "@/lib/schema";
 import { getTenantConfig, getTenantOrigin } from "@/server/tenant/config";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
+import { PageJsonLd } from "@/components/seo/PageJsonLd";
 
 export function generateMetadata(): Promise<Metadata> {
   return buildMetadata("/");
@@ -20,6 +21,7 @@ export default async function HomePage() {
   return (
     <>
       <JsonLd data={localBusinessSchema(config, origin)} />
+      <PageJsonLd path="/" />
       <Hero />
       <Features />
       <Family />

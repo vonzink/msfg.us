@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { CategoryPage } from "@/components/category/CategoryPage";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
+import { PageJsonLd } from "@/components/seo/PageJsonLd";
 
 export function generateMetadata(): Promise<Metadata> {
   return buildMetadata("/refinance", {
@@ -11,5 +12,10 @@ export function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RefinancePage() {
-  return <CategoryPage cat="refi" />;
+  return (
+    <>
+      <PageJsonLd path="/refinance" />
+      <CategoryPage cat="refi" />
+    </>
+  );
 }

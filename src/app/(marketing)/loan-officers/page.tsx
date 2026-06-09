@@ -5,6 +5,7 @@ import { CtaBand } from "@/components/CtaBand";
 import { OfficerDirectory } from "@/components/officers/OfficerDirectory";
 import { getTenantConfig } from "@/server/tenant/config";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
+import { PageJsonLd } from "@/components/seo/PageJsonLd";
 
 export function generateMetadata(): Promise<Metadata> {
   return buildMetadata("/loan-officers", {
@@ -19,6 +20,7 @@ export default async function LoanOfficersPage() {
   const config = await getTenantConfig();
   return (
     <>
+      <PageJsonLd path="/loan-officers" />
       {/* 4a. Mini-hero — dark emerald, centered */}
       <section
         className="relative overflow-hidden bg-green-800 px-0 pb-[60px] pt-[56px] text-center text-white"
