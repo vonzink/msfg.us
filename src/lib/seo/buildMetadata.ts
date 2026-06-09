@@ -34,9 +34,10 @@ export function mergePageMetadata(
   origin: string,
   isProd: boolean,
   routeDefaults?: RouteDefaults,
+  opts?: { absoluteTitle?: boolean },
 ): Metadata {
   const { seo, brand } = config;
-  const title = page.title ?? routeDefaults?.title ?? seo.titleDefault;
+  const resolvedTitle = page.title ?? routeDefaults?.title ?? seo.titleDefault;
   const description = page.description ?? routeDefaults?.description ?? seo.description;
 
   const robots = isProd
@@ -49,7 +50,9 @@ export function mergePageMetadata(
 
   const meta: Metadata = {
     metadataBase: new URL(origin),
-    title,
+    // `absolute` opts out of the root layout's `%s · MSFG` title template — used
+    // by the home route, whose title is already the full brand title.
+    title: opts?.absoluteTitle ? { absolute: resolvedTitle } : resolvedTitle,
     description,
     applicationName: brand.shortName,
     robots,
@@ -80,6 +83,7 @@ export function mergePageMetadata(
 export async function buildMetadata(
   path: string,
   routeDefaults?: RouteDefaults,
+  opts?: { absoluteTitle?: boolean },
 ): Promise<Metadata> {
   const [config, origin, page] = await Promise.all([
     getTenantConfig(),
@@ -87,5 +91,5 @@ export async function buildMetadata(
     getPageSeo(path),
   ]);
   const isProd = process.env.NEXT_PUBLIC_SITE_ENV === "production";
-  return mergePageMetadata(config, page, origin, isProd, routeDefaults);
+  return mergePageMetadata(config, page, origin, isProd, routeDefaults, opts);
 }

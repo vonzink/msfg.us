@@ -10,7 +10,8 @@ import { buildMetadata } from "@/lib/seo/buildMetadata";
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
 
 export function generateMetadata(): Promise<Metadata> {
-  return buildMetadata("/");
+  // Home title is the full brand title — keep it absolute (no `%s · MSFG` wrap).
+  return buildMetadata("/", undefined, { absoluteTitle: true });
 }
 
 export default async function HomePage() {

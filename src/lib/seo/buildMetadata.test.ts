@@ -57,4 +57,9 @@ describe("mergePageMetadata", () => {
     );
     expect(m.title).toBe("Admin SEO Override Title");
   });
+
+  it("absoluteTitle opts out of the root title template (home route)", () => {
+    const m = mergePageMetadata(cfg, { include: true }, origin, true, undefined, { absoluteTitle: true });
+    expect(m.title).toEqual({ absolute: cfg.seo.titleDefault });
+  });
 });
