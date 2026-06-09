@@ -3,6 +3,7 @@ import { Mark } from "@/components/ui/Mark";
 import { Section } from "@/components/ui/Section";
 import { CtaBand } from "@/components/CtaBand";
 import { OfficerDirectory } from "@/components/officers/OfficerDirectory";
+import { listOfficers } from "@/server/officers/officers";
 import { getTenantConfig } from "@/server/tenant/config";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
@@ -18,6 +19,7 @@ export function generateMetadata(): Promise<Metadata> {
 
 export default async function LoanOfficersPage() {
   const config = await getTenantConfig();
+  const officers = await listOfficers();
   return (
     <>
       <PageJsonLd path="/loan-officers" />
@@ -49,7 +51,7 @@ export default async function LoanOfficersPage() {
 
       {/* 4b. Directory — cream section */}
       <Section>
-        <OfficerDirectory />
+        <OfficerDirectory officers={officers} />
       </Section>
 
       {/* 4c. CTA band */}
