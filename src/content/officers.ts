@@ -283,7 +283,7 @@ export const OFFICERS: Officer[] = [
     phone: "(720) 290-8826",
     states: ["CO"],
     photo: "/officers/sandra-simental.webp",
-    bio: [],
+    bio: ["Awesome Loan Officer"],
     applyHref:
       "https://www.blink.mortgage/app/signup/p/mountainstatefinancialgroupllc/sandrasimental",
   },

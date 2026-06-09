@@ -56,8 +56,8 @@ export function OfficerCard({ officer }: { officer: Officer }) {
         </div>
       </div>
 
-      {/* Licensed states */}
-      <div className="flex items-start gap-1.5 text-[13px] text-muted">
+      {/* Licensed states — reserve 2 lines so every collapsed card is uniform */}
+      <div className="flex min-h-[38px] items-start gap-1.5 text-[13px] leading-snug text-muted">
         <MapPin aria-hidden className="mt-0.5 h-3.5 w-3.5 flex-none" />
         <span>Licensed in {states.map((s) => stateName(s)).join(" · ")}</span>
       </div>
