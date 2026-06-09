@@ -1,0 +1,33 @@
+# Local development Postgres for msfg.us.
+#
+# This is ONLY for local development. Production is a managed AWS RDS reached
+# exclusively via `prisma migrate deploy` — never point this at prod, and never
+# run `prisma migrate dev` against the RDS.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Then set your local .env DATABASE_URL/DIRECT_URL to:
+#   postgresql://dev:dev@localhost:5434/msfg_web?schema=public
+#
+# See docs/DEVELOPMENT.md for the full workflow.
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: msfg-web-pg
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: msfg_web
+    ports:
+      - "5434:5432"
+    volumes:
+      - msfg_web_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dev -d msfg_web"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  msfg_web_pgdata:
