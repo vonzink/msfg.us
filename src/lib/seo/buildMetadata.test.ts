@@ -35,4 +35,26 @@ describe("mergePageMetadata", () => {
     const m = mergePageMetadata(cfg, { include: true, robots: "index,follow" }, origin, false);
     expect(m.robots).toEqual({ index: false, follow: false });
   });
+
+  it("routeDefaults.title shows when page omits title", () => {
+    const m = mergePageMetadata(
+      cfg,
+      { include: true },
+      origin,
+      true,
+      { title: "Buy a Home — Route Default Title | MSFG" },
+    );
+    expect(m.title).toBe("Buy a Home — Route Default Title | MSFG");
+  });
+
+  it("page.title beats routeDefaults.title", () => {
+    const m = mergePageMetadata(
+      cfg,
+      { include: true, title: "Admin SEO Override Title" },
+      origin,
+      true,
+      { title: "Buy a Home — Route Default Title | MSFG" },
+    );
+    expect(m.title).toBe("Admin SEO Override Title");
+  });
 });

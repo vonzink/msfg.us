@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Hero } from "@/components/home/Hero";
 import { Features } from "@/components/home/Features";
 import { Family } from "@/components/home/Family";
@@ -5,6 +6,11 @@ import { CtaBand } from "@/components/CtaBand";
 import { JsonLd } from "@/components/JsonLd";
 import { localBusinessSchema } from "@/lib/schema";
 import { getTenantConfig, getTenantOrigin } from "@/server/tenant/config";
+import { buildMetadata } from "@/lib/seo/buildMetadata";
+
+export function generateMetadata(): Promise<Metadata> {
+  return buildMetadata("/");
+}
 
 export default async function HomePage() {
   const [config, origin] = await Promise.all([
