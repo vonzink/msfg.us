@@ -57,36 +57,31 @@ function parsePoints(points: string): number {
 }
 
 async function seedOfficers() {
+  // NOTE: the content `Officer` shape moved to title/email/phone/states[]/bio,
+  // but the `LoanOfficer` model still carries the older city/state/languages/
+  // specialties/rating columns. Until that model is migrated (add title, email,
+  // phone, states[], bio; drop languages/specialties/rating), we map the new
+  // fields onto the existing columns: primary state, photo, and apply link.
+  // Placeholder columns are explicitly reset so a re-seed clears stale data.
   let i = 0;
   for (const o of OFFICERS) {
+    const fields = {
+      name: o.name,
+      city: "",
+      state: o.states[0] ?? "",
+      languages: [] as string[],
+      specialties: [] as string[],
+      ratingAvg: 0,
+      ratingCount: 0,
+      photoUrl: o.photo,
+      scheduleUrl: o.applyHref,
+      sortOrder: i,
+      active: true,
+    };
     await prisma.loanOfficer.upsert({
       where: { tenantId_nmls: { tenantId: TENANT_ID, nmls: o.nmls } },
-      update: {
-        name: o.name,
-        city: o.city,
-        state: o.state,
-        languages: o.languages,
-        specialties: o.specialties,
-        ratingAvg: o.rating.avg,
-        ratingCount: o.rating.count,
-        scheduleUrl: o.scheduleHref,
-        sortOrder: i,
-        active: true,
-      },
-      create: {
-        tenantId: TENANT_ID,
-        name: o.name,
-        nmls: o.nmls,
-        city: o.city,
-        state: o.state,
-        languages: o.languages,
-        specialties: o.specialties,
-        ratingAvg: o.rating.avg,
-        ratingCount: o.rating.count,
-        scheduleUrl: o.scheduleHref,
-        sortOrder: i,
-        active: true,
-      },
+      update: fields,
+      create: { tenantId: TENANT_ID, nmls: o.nmls, ...fields },
     });
     i++;
   }

@@ -11,7 +11,7 @@ export function generateMetadata(): Promise<Metadata> {
   return buildMetadata("/loan-officers", {
     title: "Loan officers",
     description:
-      "Meet your local experts — seasoned, licensed MSFG loan officers who live in the communities they serve. Find one by location, language, or specialty.",
+      "Meet your local experts — seasoned, licensed MSFG loan officers who live in the communities they serve. Read their bios, then call, text, or apply online.",
     canonical: "/loan-officers",
   });
 }
@@ -38,14 +38,18 @@ export default async function LoanOfficersPage() {
           </h1>
           <p className="mx-auto mt-4 max-w-[50ch] text-[18px] text-on-dark-2">
             Seasoned, licensed loan officers who live in the communities they
-            serve. Pick by location, language, or specialty.
+            serve. Read a bio, then reach out directly — or apply online in
+            minutes.
+          </p>
+          <p className="mt-3 text-[13px] font-semibold text-on-dark-3">
+            Mountain State Financial Group, LLC · Company NMLS #1314257
           </p>
         </div>
       </section>
 
       {/* 4b. Directory — cream section */}
       <Section>
-        <OfficerDirectory states={config.legal.states} />
+        <OfficerDirectory />
       </Section>
 
       {/* 4c. CTA band */}

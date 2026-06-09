@@ -1,106 +1,146 @@
-import { MapPin, Languages, Star } from "lucide-react";
+"use client";
+
+import { useId, useState } from "react";
+import Image from "next/image";
+import {
+  MapPin,
+  Phone,
+  MessageSquareText,
+  Mail,
+  ChevronDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { ScheduleCallButton } from "@/components/integrations/ScheduleCallButton";
-import { officerInitials, type Officer } from "@/content/officers";
-import type { TenantConfig } from "@/content/site";
-
-type StateRef = TenantConfig["legal"]["states"][number];
-
-/** Full state name for a USPS code, falling back to the code itself. */
-function stateName(code: string, states: StateRef[]): string {
-  return states.find((s) => s.code === code)?.name ?? code;
-}
+import { stateName, telDigits, type Officer } from "@/content/officers";
+import { cn } from "@/lib/cn";
 
 /**
- * A single loan officer card (Server Component). White, squared, lifts 3px on
- * hover. Layout ported from the design prototype's `.of-card`.
- * Avatar is an initials tile — [PLACEHOLDER] for a real photo before launch.
+ * A single loan officer card (Client Component — owns its bio-expander state).
+ * White, squared, lifts 3px on hover. Collapsed it stays compact; the "Read
+ * bio" toggle grows the card in place to reveal the bio (animated via a
+ * grid-rows 0fr→1fr reveal). Actions: Apply (primary) plus Call / Text / Email.
  */
-export function OfficerCard({
-  officer,
-  states,
-}: {
-  officer: Officer;
-  states: StateRef[];
-}) {
-  const { name, nmls, city, state, languages, specialties, rating } = officer;
+export function OfficerCard({ officer }: { officer: Officer }) {
+  const { slug, name, title, nmls, email, phone, states, photo, bio, applyHref } =
+    officer;
+  const [open, setOpen] = useState(false);
+  const bioId = useId();
+  const tel = telDigits(phone);
+  const hasBio = bio.length > 0;
 
   return (
-    <article className="flex flex-col gap-3.5 rounded-xl border-[1.5px] border-line bg-white p-[22px] shadow-card transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] hover:shadow-pop">
-      {/* Top: avatar + identity */}
+    <article
+      id={slug}
+      className="flex scroll-mt-24 flex-col gap-3.5 rounded-xl border-[1.5px] border-line bg-white p-[22px] shadow-card transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] hover:shadow-pop"
+    >
+      {/* Top: headshot + identity */}
       <div className="flex items-center gap-3.5">
-        <div
-          aria-hidden
-          className="flex h-16 w-16 flex-none items-center justify-center rounded-[18px] border border-line bg-[linear-gradient(135deg,var(--color-spring-soft),var(--color-paper-2))] text-[22px] font-extrabold text-green-600"
-        >
-          {officerInitials(name)}
+        <div className="relative h-[68px] w-[68px] flex-none overflow-hidden rounded-[18px] border border-line bg-paper-2">
+          <Image
+            src={photo}
+            alt={name}
+            fill
+            sizes="68px"
+            className="object-cover object-top"
+          />
         </div>
         <div className="min-w-0">
           <div className="text-[18px] font-extrabold tracking-[-0.01em]">
             {name}
           </div>
+          <div className="mt-0.5 text-[13px] font-bold text-green-600">
+            {title}
+          </div>
           <div className="mt-0.5 text-[12.5px] font-semibold text-muted">
             NMLS #{nmls}
-          </div>
-          <div className="mt-0.5 flex items-center gap-1.5 text-[13px] font-bold">
-            <Star
-              aria-hidden
-              className="h-3.5 w-3.5 fill-[#F4B740] text-[#F4B740]"
-            />
-            {rating.avg.toFixed(1)}
-            <span className="font-semibold text-muted">({rating.count})</span>
-            <span className="sr-only">
-              average rating from {rating.count} reviews
-            </span>
           </div>
         </div>
       </div>
 
-      {/* Specialty chips */}
-      <div className="flex flex-wrap gap-1.5">
-        {specialties.map((tag) => (
-          <span
-            key={tag}
-            className="rounded-full bg-paper-2 px-2.5 py-1 text-[12px] font-bold text-ink"
+      {/* Licensed states */}
+      <div className="flex items-start gap-1.5 text-[13px] text-muted">
+        <MapPin aria-hidden className="mt-0.5 h-3.5 w-3.5 flex-none" />
+        <span>Licensed in {states.map((s) => stateName(s)).join(" · ")}</span>
+      </div>
+
+      {/* Bio expander — grows the card in place */}
+      {hasBio && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setOpen((v) => !v)}
+            aria-expanded={open}
+            aria-controls={bioId}
+            className="inline-flex items-center gap-1 rounded-sm text-[13px] font-bold text-green-700 transition-colors hover:text-green-600 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-spring-3"
           >
-            {tag}
-          </span>
-        ))}
-      </div>
-
-      {/* Location */}
-      <div className="flex items-center gap-1.5 text-[13px] text-muted">
-        <MapPin aria-hidden className="h-3.5 w-3.5" />
-        {city}, {stateName(state, states)}
-      </div>
-
-      {/* Languages */}
-      <div className="flex items-center gap-1.5 text-[13px] text-muted">
-        <Languages aria-hidden className="h-3.5 w-3.5" />
-        {languages.join(" · ")}
-      </div>
+            {open ? "Hide bio" : "Read bio"}
+            <ChevronDown
+              aria-hidden
+              className={cn(
+                "h-4 w-4 transition-transform duration-200",
+                open && "rotate-180",
+              )}
+            />
+          </button>
+          <div
+            id={bioId}
+            className={cn(
+              "grid transition-[grid-template-rows] duration-300 ease-out",
+              open ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="space-y-2.5 pt-2.5 text-[13.5px] leading-relaxed text-ink/80">
+                {bio.map((paragraph, i) => (
+                  <p key={i}>{paragraph}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Actions */}
-      <div className="mt-0.5 flex gap-2">
-        <ScheduleCallButton
-          calendarId={officer.calendarId}
-          fallbackHref={officer.scheduleHref}
-          dialogLabel={`Schedule a call with ${name}`}
-          size="sm"
-          className="flex-1"
-          aria-label={`Schedule a call with ${name}`}
-        >
-          Schedule
-        </ScheduleCallButton>
+      <div className="flex flex-col gap-2 pt-1">
         <Button
-          href={officer.textHref ?? "#"}
-          variant="ghost"
+          href={applyHref}
+          variant="green"
           size="sm"
-          className="flex-1 border-line"
-          aria-label={`Text ${name}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full"
+          aria-label={`Apply now with ${name}`}
         >
-          Text
+          Apply now
         </Button>
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            href={`tel:${tel}`}
+            variant="ghost"
+            size="sm"
+            className="w-full gap-1.5 border-[1.5px] border-line px-2"
+            aria-label={`Call ${name}`}
+          >
+            <Phone aria-hidden className="h-4 w-4" /> Call
+          </Button>
+          <Button
+            href={`sms:${tel}`}
+            variant="ghost"
+            size="sm"
+            className="w-full gap-1.5 border-[1.5px] border-line px-2"
+            aria-label={`Text ${name}`}
+          >
+            <MessageSquareText aria-hidden className="h-4 w-4" /> Text
+          </Button>
+          <Button
+            href={`mailto:${email}`}
+            variant="ghost"
+            size="sm"
+            className="w-full gap-1.5 border-[1.5px] border-line px-2"
+            aria-label={`Email ${name}`}
+          >
+            <Mail aria-hidden className="h-4 w-4" /> Email
+          </Button>
+        </div>
       </div>
     </article>
   );

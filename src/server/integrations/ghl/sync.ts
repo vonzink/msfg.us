@@ -5,33 +5,31 @@
  * when GHL has no credentials, so this is always safe to call.
  *
  * This is NOT wired to a route or cron yet — it's a building block for an admin
- * action / scheduled job. Officers carry no email/phone in `src/content`, so we
- * synthesize a deterministic placeholder email keyed on NMLS to keep the upsert
- * idempotent; replace with real officer contact details before relying on it.
+ * action / scheduled job. Officers carry real email/phone in `src/content`,
+ * used directly as the contact's identity (email keeps the upsert idempotent).
  */
 import { OFFICERS, type Officer } from "@/content/officers";
 import { ghlClient } from "@/server/integrations/ghl/ghlClient";
 import { ghlConfigured } from "@/lib/env";
 import type { UpsertContactInput } from "@/server/integrations/types";
 
-/** Map an officer → GHL contact upsert input (placeholder contact details). */
+/** Map an officer → GHL contact upsert input. */
 export function officerToContactInput(officer: Officer): UpsertContactInput {
-  const [firstName, ...rest] = officer.name.split(" ");
+  // Drop any credential suffix ("Robert Hoff, CFA" → "Robert Hoff") before
+  // splitting into first/last name.
+  const [firstName, ...rest] = officer.name.replace(/,.*$/, "").trim().split(" ");
   const lastName = rest.join(" ");
   return {
     firstName: firstName ?? officer.name,
     lastName: lastName || "—",
-    // [PLACEHOLDER] deterministic synthetic email keyed on NMLS; swap for the
-    // officer's real email before using this in production.
-    email: `officer-${officer.nmls}@msfg.us`,
-    phone: "",
+    email: officer.email,
+    phone: officer.phone,
     source: "MSFG Web — Officer Directory",
-    tags: ["MSFG Officer", `nmls:${officer.nmls}`, ...officer.specialties],
+    tags: ["MSFG Officer", `nmls:${officer.nmls}`],
     customFields: {
       nmls: officer.nmls,
-      city: officer.city,
-      state: officer.state,
-      languages: officer.languages.join(", "),
+      title: officer.title,
+      states: officer.states.join(", "),
     },
   };
 }

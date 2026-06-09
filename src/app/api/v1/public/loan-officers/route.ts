@@ -1,9 +1,9 @@
 /**
  * GET /api/v1/public/loan-officers — public, open (auth:"none"), rate-limited.
  *
- * Returns ONLY public-facing officer fields: name, nmls, city, state,
- * languages, specialties, and rating. Internal fields (scheduleHref,
- * calendarId, textHref, ghlContactId, etc.) are deliberately OMITTED.
+ * Returns public-facing officer fields: name, title, nmls, license states,
+ * phone, email, headshot, apply link, and bio. Internal/CRM fields
+ * (ghlContactId, etc.) are deliberately OMITTED.
  */
 import { OFFICERS, type Officer } from "@/content/officers";
 import { ok, preflight, withPublicApi } from "@/server/api/respond";
@@ -15,12 +15,14 @@ export const dynamic = "force-dynamic";
 function publicOfficer(o: Officer) {
   return {
     name: o.name,
+    title: o.title,
     nmls: o.nmls,
-    city: o.city,
-    state: o.state,
-    languages: o.languages,
-    specialties: o.specialties,
-    rating: { average: o.rating.avg, count: o.rating.count },
+    states: o.states,
+    phone: o.phone,
+    email: o.email,
+    photo: o.photo,
+    applyUrl: o.applyHref,
+    bio: o.bio,
   };
 }
 
