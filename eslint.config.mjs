@@ -12,7 +12,23 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Gitignored design handoff (prototype HTML/JSX) — not real source.
+    "design-reference/**",
   ]),
+  // `_`-prefixed vars are intentionally unused (exhaustive checks, drained loop values).
+  {
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
+    },
+  },
+  // Test files: mock casts legitimately use `any`.
+  {
+    files: ["**/*.test.ts", "**/*.test.tsx"],
+    rules: { "@typescript-eslint/no-explicit-any": "off" },
+  },
 ]);
 
 export default eslintConfig;

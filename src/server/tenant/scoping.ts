@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { isTenantScopedModel } from "./types";
 
+// Prisma op args are heterogeneous (where/data/create/orderBy/…); a generic bag
+// is the pragmatic shape here — the extension only reads/merges known keys.
+// Proper typing is tracked for the Platform Hardening phase.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyArgs = Record<string, any>;
 
 /**

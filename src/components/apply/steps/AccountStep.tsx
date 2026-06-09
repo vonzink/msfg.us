@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { CheckCircle2, ArrowRight, Loader2 } from "lucide-react";
-import { cn } from "@/lib/cn";
 import { useAuth } from "@/lib/auth/useAuth";
 import { APP_URL } from "@/lib/auth/appLink";
 import type { Intent } from "@/content/flows";
@@ -128,7 +127,11 @@ function SignedIn({
   leadId: string | null;
   shortName: string;
 }) {
-  const [handoff, setHandoff] = useState<"idle" | "sending" | "done">("idle");
+  // Initial status is derived (no synchronous setState in the effect): "done"
+  // when there's nothing to hand off, "sending" while the POST is in flight.
+  const [handoff, setHandoff] = useState<"idle" | "sending" | "done">(
+    contact ? "sending" : "done",
+  );
   const fired = useRef(false);
 
   useEffect(() => {
@@ -136,12 +139,8 @@ function SignedIn({
     // always runs before this step). Failures are swallowed — never block.
     if (fired.current) return;
     fired.current = true;
-    if (!contact) {
-      setHandoff("done");
-      return;
-    }
+    if (!contact) return; // already "done" from the initial state
 
-    setHandoff("sending");
     const controller = new AbortController();
     fetch("/api/v1/applications", {
       method: "POST",

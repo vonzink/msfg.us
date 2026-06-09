@@ -44,6 +44,10 @@ export function buildTenantThemeCss(theme: Theme): string {
     ["--lip", theme.lip],
     ["--font-sans", theme.fontFamily],
   ];
-  const body = v.map(([name, value]) => `${name}:${value};`).join("");
+  // Defense-in-depth: strip any CSS/HTML-breaking chars (the ThemeSchema
+  // allowlist is the primary guard; this neutralizes any value persisted before
+  // validation so it can never break out of the injected <style>).
+  const safe = (s: string) => s.replace(/[<>{};@\\]/g, "");
+  const body = v.map(([name, value]) => `${name}:${safe(value)};`).join("");
   return `:root{${body}}`;
 }

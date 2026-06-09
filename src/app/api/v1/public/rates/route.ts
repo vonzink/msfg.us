@@ -30,7 +30,7 @@ function shapeRow(row: (typeof RATE_DATA)["purchase"][number]) {
 }
 
 export const GET = withPublicApi(
-  (req) =>
+  (_req) =>
     ok(
       {
         updatedAt: RATES_UPDATED,
