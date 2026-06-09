@@ -10,8 +10,12 @@ export function slugify(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
+/** Italic placeholder used in the roster when an officer has no individual bio. */
+const NO_BIO_PLACEHOLDER = /^_no bio/i;
+
 function field(label: string, block: string): string | null {
-  const m = block.match(new RegExp(`\\*\\*${label}:\\*\\*\\s*(.+)`));
+  const safe = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const m = block.match(new RegExp(`\\*\\*${safe}:\\*\\*\\s*(.+)`));
   return m ? m[1].trim() : null;
 }
 
@@ -21,7 +25,8 @@ function field(label: string, block: string): string | null {
  * without an NMLS line is skipped (defensive against stray sections).
  */
 export function parseOfficerMarkdown(md: string): Officer[] {
-  const blocks = md.split(/\n##\s+/).slice(1);
+  // Prepend a newline so an officer block at column 0 (no H1/preamble) still splits.
+  const blocks = ("\n" + md).split(/\n##\s+/).slice(1);
   const officers: Officer[] = [];
   for (const raw of blocks) {
     const block = raw.trim();
@@ -44,7 +49,7 @@ export function parseOfficerMarkdown(md: string): Officer[] {
       bio = (end === -1 ? after : after.slice(0, end))
         .split(/\n\s*\n/)
         .map((p) => p.replace(/\s+/g, " ").trim())
-        .filter((p) => p && !/^_no bio/i.test(p));
+        .filter((p) => p && !NO_BIO_PLACEHOLDER.test(p));
     }
 
     officers.push({
