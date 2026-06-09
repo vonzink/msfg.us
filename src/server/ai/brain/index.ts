@@ -16,7 +16,9 @@ import type { MortgageBrainClient } from "./types";
 
 export async function getMortgageBrain(): Promise<MortgageBrainClient | null> {
   const { ai } = await getTenantConfig();
-  if (!ai.brain.enabled || !ai.brain.baseUrl) return null;
+  // Optional access: a config persisted/cached before the `brain` field existed
+  // has no `ai.brain` — treat that as disabled rather than throwing.
+  if (!ai.brain?.enabled || !ai.brain?.baseUrl) return null;
   const apiKey = (await getTenantSecret("brain_api_key")) ?? undefined;
   return new HttpMortgageBrainClient({ baseUrl: ai.brain.baseUrl, apiKey });
 }

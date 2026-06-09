@@ -1,4 +1,3 @@
-import { Mark } from "@/components/ui/Mark";
 import { AiWidget } from "@/components/home/AiWidget";
 import { getTenantConfig } from "@/server/tenant/config";
 
@@ -7,9 +6,12 @@ export async function Hero() {
   return (
     <section id="top" className="hero-bg px-0 pb-[72px] pt-10 text-white">
       <div className="wrap flex flex-col items-center text-center">
-        <span className="mb-4 inline-flex">
-          <Mark size={64} glow label={config.brand.shortName} />
-        </span>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={config.brand.logos.mark}
+          alt={config.brand.legalName}
+          className="mb-4 h-[132px] w-auto"
+        />
         <h1 className="m-0 max-w-[18ch] text-balance text-[clamp(32px,4.4vw,54px)] font-extrabold leading-[1.04] tracking-[-0.035em] text-mint">
           Expert Mortgage Guidance from Seasoned Professionals
         </h1>
@@ -20,6 +22,8 @@ export async function Hero() {
         <AiWidget
           assistantName={config.brand.assistantName}
           shortName={config.brand.shortName}
+          iconSrc={config.brand.logos.horizontal}
+          brainEnabled={config.ai.brain?.enabled ?? false}
         />
 
         <dl className="mt-7 flex justify-center gap-12 max-[980px]:gap-9">

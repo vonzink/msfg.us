@@ -19,19 +19,14 @@ export async function Nav() {
         <Link
           href="/"
           aria-label={`${config.brand.shortName} home`}
-          className="mr-[18px] flex items-center gap-2.5"
+          className="mr-[18px] flex items-center"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={config.brand.logos.mark}
-            alt=""
-            width={30}
-            height={30}
-            className="size-[30px]"
+            src={config.brand.logos.horizontal}
+            alt={`${config.brand.shortName} Home Loans`}
+            className="h-[38px] w-auto"
           />
-          <span className="text-[23px] font-extrabold tracking-[-0.03em] text-white">
-            {config.brand.shortName}
-          </span>
         </Link>
 
         <nav

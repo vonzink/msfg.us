@@ -191,9 +191,9 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     foundedYear: 1998,
     assistantName: "MSFG AI",
     logos: {
-      horizontal: "/brand/msfg-horizontal.svg",
+      horizontal: "/brand/msfg-color.png",
       white: "/brand/msfg-white.svg",
-      mark: "/brand/msfg-mark.svg",
+      mark: "/brand/msfg-hl-clearbg.png",
     },
   },
   theme: ThemeSchema.parse({}),
