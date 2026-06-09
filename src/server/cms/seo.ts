@@ -1,5 +1,10 @@
 import "server-only";
 import { z } from "zod";
+import { unstable_cache } from "next/cache";
+import { draftMode } from "next/headers";
+import { getTenant } from "@/server/tenant/resolve";
+import { getPublishedData, getDraftData } from "./versioning";
+import { seoTag } from "./cache";
 
 /**
  * Per-page SEO overrides (PAGE_SEO editable, keyed by route path). Every field is
@@ -31,4 +36,30 @@ export type PageSeo = z.infer<typeof PageSeoSchema>;
 export function parsePageSeo(raw: unknown): PageSeo {
   const result = PageSeoSchema.safeParse(raw ?? {});
   return result.success ? result.data : { include: true };
+}
+
+function publishedSeoReader(tenantId: string, path: string) {
+  return unstable_cache(
+    async () => parsePageSeo(await getPublishedData(tenantId, "PAGE_SEO", path)),
+    ["page-seo", tenantId, path],
+    { tags: [seoTag(tenantId, path)] },
+  );
+}
+
+/** Resolve a route's SEO overrides. Draft-Mode editors see the working draft. */
+export async function getPageSeo(path: string): Promise<PageSeo> {
+  const tenant = await getTenant();
+
+  let isDraft = false;
+  try {
+    isDraft = (await draftMode()).isEnabled;
+  } catch {
+    isDraft = false; // outside a request scope (e.g. sitemap build, unit tests)
+  }
+  if (isDraft) {
+    const draft = await getDraftData(tenant.id, "PAGE_SEO", path);
+    if (draft != null) return parsePageSeo(draft);
+  }
+
+  return publishedSeoReader(tenant.id, path)();
 }
