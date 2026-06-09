@@ -1,10 +1,10 @@
 /**
  * POST /api/v1/ai/chat — streaming provider-agnostic assistant (DeepSeek/Claude).
  *
- * DORMANT as of the Mortgage Brain integration: the marketing AiWidget now calls
- * /api/v1/ai/ask (the compliance-bound brain). This route + getAiProvider + the
- * tools are intentionally retained (reversible / available for other platform
- * uses) but are no longer invoked by the homepage widget.
+ * PRIMARY front door for the homepage AiWidget: streams grounded mortgage answers
+ * via a manual agentic tool loop. The `search_guidelines` tool grounds regulated
+ * answers in the Mortgage Brain; the route emits a structured `sources` SSE event
+ * (citations + disclaimer + escalation flag) that the widget renders deterministically.
  *
  * Body: { sessionId?: string, messages: Array<{role:"user"|"assistant", content:string}> }
  *

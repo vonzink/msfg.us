@@ -37,6 +37,7 @@ type ChatEvent =
 function citationLine(c: BrainCitation): string {
   return [
     c.sourceName,
+    c.documentName,
     c.section,
     c.pageNumber ? `p. ${c.pageNumber}` : null,
     c.effectiveDate ? `eff. ${c.effectiveDate}` : null,
