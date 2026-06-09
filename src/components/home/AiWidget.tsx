@@ -256,23 +256,20 @@ export function AiWidget({
                 </div>
               );
             }
-            if (m.role === "error") {
-              return (
-                <div
-                  key={i}
-                  className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-[15px] leading-normal text-ink"
+            return (
+              <div
+                key={i}
+                className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3 text-[15px] leading-normal text-ink"
+              >
+                {m.text}{" "}
+                <Link
+                  href="/loan-officers"
+                  className="font-semibold text-green-700 underline-offset-2 hover:underline"
                 >
-                  {m.text}{" "}
-                  <Link
-                    href="/loan-officers"
-                    className="font-semibold text-green-700 underline-offset-2 hover:underline"
-                  >
-                    Talk to a loan officer
-                  </Link>
-                </div>
-              );
-            }
-            return null;
+                  Talk to a loan officer
+                </Link>
+              </div>
+            );
           })}
           {typing && (
             <div className="max-w-[82%] self-start rounded-2xl rounded-bl-[5px] bg-paper-2 px-4 py-3">

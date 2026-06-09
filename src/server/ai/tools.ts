@@ -25,6 +25,7 @@ import type { LeadInput } from "@/validation/lead";
 import {
   runSearchGuidelines,
   type GuidelineSources,
+  type SearchGuidelinesInput,
 } from "@/server/ai/tools/searchGuidelines";
 
 /**
@@ -436,7 +437,7 @@ export async function runTool(
       case "capture_lead":
         return { text: await runCaptureLead(input) };
       case "search_guidelines":
-        return await runSearchGuidelines(input as never, sessionId);
+        return await runSearchGuidelines(input as SearchGuidelinesInput, sessionId);
       default:
         return { text: `Unknown tool "${name}".` };
     }
