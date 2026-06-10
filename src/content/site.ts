@@ -194,7 +194,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   brand: {
     shortName: "MSFG",
     legalName: "Mountain State Financial Group, LLC",
-    foundedYear: 1998,
+    foundedYear: 2007,
     assistantName: "MSFG AI",
     logos: {
       horizontal: "/brand/msfg-color.png",
@@ -240,7 +240,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   },
   marketing: {
     tagline:
-      "A family of companies serving every step of your homeownership journey — since 1998.",
+      "A family of companies serving every step of your homeownership journey — since 2007.",
     stats: [
       { num: "$1.4B+", label: "funded loans" },
       { num: "4,200+", label: "families served" },
@@ -279,16 +279,26 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
       },
     ],
     footerFamily: [
-      { rest: "Mortgage", desc: "Apply 100% online, with expert customer support." },
       {
-        rest: "Real Estate",
-        desc: "Connect with a local partner agent to find out how much you can save.",
+        rest: "Mortgage",
+        desc: "Conventional, FHA, VA, jumbo, and first-time buyer loans with expert guidance from application to closing.",
       },
       {
-        rest: "Insurance",
-        desc: "Shop, bundle, and save on home, auto, and life coverage.",
+        rest: "Veterans",
+        desc: "VA purchase, refinance, and benefit-focused lending options built for veterans, active-duty military, and eligible surviving spouses.",
       },
-      { rest: "Inspect", desc: "Free repair estimates and 24-hour report turnarounds." },
+      {
+        rest: "Reverse",
+        desc: "Reverse mortgage guidance for homeowners 62+ who want to access home equity while staying in their home.",
+      },
+      {
+        rest: "Investment",
+        desc: "Financing options for rental properties, DSCR loans, second homes, and real estate investors building long-term wealth.",
+      },
+      {
+        rest: "Commercial",
+        desc: "Commercial lending solutions for business properties, mixed-use buildings, multifamily, and investor-owned real estate.",
+      },
     ],
     testimonials: [{ names: "Drew & Anya", rating: 5 }],
   },
