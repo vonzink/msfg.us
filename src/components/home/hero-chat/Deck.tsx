@@ -189,13 +189,16 @@ export function Deck({
   }
 
   // ----- Desktop: the fan -----------------------------------------------------
+  // Card height tracks the viewport (~640px at a typical 900px-tall screen,
+  // taller on big monitors, shorter on small ones); the fan container leaves
+  // 70px above for peeking tabs and 100px below before the footer row.
   return (
-    <div className="relative z-30 mx-auto mt-7 flex w-full max-w-[720px] flex-col items-center">
+    <div className="relative z-30 mx-auto mt-7 flex w-full max-w-[720px] flex-col items-center [--deck-card-h:clamp(560px,70vh,880px)]">
       <div
         ref={deckRef}
         onMouseMove={onMove}
         onMouseLeave={onLeave}
-        className="relative h-[810px] w-full"
+        className="relative h-[calc(var(--deck-card-h)_+_170px)] w-full"
       >
         {/* eslint-disable react-hooks/refs -- render-prop receives a forwarded ref (not a .current read) */}
         {threads.map((t, i) => {
@@ -217,7 +220,7 @@ export function Deck({
                 canClose={threads.length > 1}
                 onActivate={() => onActivate(t.id)}
                 onClose={() => onClose(t.id)}
-                className={isActive ? "h-[640px]" : undefined}
+                className={isActive ? "h-[var(--deck-card-h)]" : undefined}
               >
                 {isActive && renderConvo(t, composerRef)}
               </ThreadCard>
