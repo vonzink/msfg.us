@@ -144,9 +144,11 @@ export function Deck({
           {threads.map((t) => (
             <button
               key={t.id}
+              id={`hero-thread-tab-${t.id}`}
               type="button"
               role="tab"
               aria-selected={t.id === activeId}
+              aria-controls="hero-thread-panel"
               onClick={() => onActivate(t.id)}
               className={cn(
                 "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 py-2 text-[13.5px] font-semibold transition-colors",
@@ -162,17 +164,24 @@ export function Deck({
           ))}
         </div>
         {active && (
-          <ThreadCard
-            thread={active}
-            index={activePos}
-            isActive
-            canClose={threads.length > 1}
-            onActivate={() => {}}
-            onClose={() => onClose(active.id)}
-            className="w-full [&>div:last-child]:max-h-[60vh]"
+          <div
+            role="tabpanel"
+            id="hero-thread-panel"
+            aria-labelledby={`hero-thread-tab-${active.id}`}
+            className="w-full"
           >
-            {renderConvo(active, composerRef)}
-          </ThreadCard>
+            <ThreadCard
+              thread={active}
+              index={activePos}
+              isActive
+              canClose={threads.length > 1}
+              onActivate={() => {}}
+              onClose={() => onClose(active.id)}
+              className="w-full [&>div:last-child]:max-h-[60vh]"
+            >
+              {renderConvo(active, composerRef)}
+            </ThreadCard>
+          </div>
         )}
         {footer}
       </div>
