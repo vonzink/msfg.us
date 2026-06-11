@@ -6,7 +6,7 @@ import { ArrowRight, ArrowUp, Mic } from "lucide-react";
 import { Switch } from "@/components/ui/Switch";
 import { cn } from "@/lib/cn";
 import { ChatMarkdown } from "@/components/ai/ChatMarkdown";
-import { IntentReel } from "@/components/home/IntentReel";
+import { IntentTabs } from "@/components/home/IntentTabs";
 import type { BrainCitation } from "@/server/ai/brain/types";
 
 /** Grounding payload attached to a streamed answer from the agentic chat route:
@@ -80,7 +80,7 @@ function SourcesPanel({ sources }: { sources: Sources }) {
 }
 
 /** Homepage hero card. Opens in AI mode by default; the toggle flips back to the
- *  Classic slot-reel of apply intents. Every message goes through the agentic
+ *  Classic folder-tab picker of apply intents. Every message goes through the agentic
  *  `/api/v1/ai/chat` route, which streams the answer and (for grounded answers)
  *  emits a `sources` event we render as a citations + compliance panel. `iconSrc`
  *  is the MSFG logo we crop (object-left) into the small assistant mark. */
@@ -337,7 +337,7 @@ export function AiWidget({
           </div>
         </div>
       ) : (
-        <IntentReel />
+        <IntentTabs />
       )}
 
       <div className="flex items-center border-t border-line bg-[#fafbf8] px-[18px] py-3.5">
