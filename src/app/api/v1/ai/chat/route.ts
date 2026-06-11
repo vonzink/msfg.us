@@ -1,10 +1,11 @@
 /**
  * POST /api/v1/ai/chat — streaming provider-agnostic assistant (DeepSeek/Claude).
  *
- * PRIMARY front door for the homepage AiWidget: streams grounded mortgage answers
- * via a manual agentic tool loop. The `search_guidelines` tool grounds regulated
- * answers in the Mortgage Brain; the route emits a structured `sources` SSE event
- * (citations + disclaimer + escalation flag) that the widget renders deterministically.
+ * PRIMARY front door for the homepage hero chat (each deck thread is its own
+ * conversation): streams grounded mortgage answers via a manual agentic tool loop.
+ * The `search_guidelines` tool grounds regulated answers in the Mortgage Brain; the
+ * route emits a structured `sources` SSE event (citations + disclaimer + escalation
+ * flag) that the hero's Convo renders deterministically.
  *
  * Body: { sessionId?: string, messages: Array<{role:"user"|"assistant", content:string}> }
  *
