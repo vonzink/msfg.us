@@ -234,6 +234,72 @@
   .step-in {
     animation: msfg-step-in 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  /* Hero headline collapse while the chat deck is bloomed. min-height: 0 is
+     required (flex item) for max-height: 0 to actually collapse it. Toggle
+     via class — inline-style transitions proved unreliable (design handoff). */
+  .hero-fade {
+    min-height: 0;
+    max-height: 480px;
+    overflow: hidden;
+    transition:
+      max-height 0.6s ease,
+      opacity 0.5s ease,
+      filter 0.5s ease;
+  }
+  .hero-fade.is-bloomed {
+    max-height: 0;
+    opacity: 0;
+    filter: blur(3px);
+    pointer-events: none;
+  }
+
+  /* Ambient topographic ring drift (hero bg). Duration/delay set per ring
+     via CSS vars. */
+  .ring-drift {
+    animation: msfg-ring-drift var(--ring-dur, 30s) ease-in-out var(--ring-delay, 0s) infinite alternate;
+    transform-origin: 500px 430px;
+  }
+
+  /* Gentle 7s breathing loop on the hero logo mark. */
+  .logo-breath {
+    animation: msfg-logo-breath 7s ease-in-out infinite;
+    transform-origin: 50% 80%;
+  }
+
+  /* Chat message list: always-visible thin scrollbar (authored scrollbar
+     colors opt out of the macOS overlay style, so long answers visibly
+     scroll inside the card instead of growing it). */
+  .chat-scroll {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+    scrollbar-gutter: stable;
+  }
+  .chat-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .chat-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 999px;
+  }
+
+  /* Blinking mint caret at the end of a streaming AI answer. */
+  .stream-caret {
+    display: inline-block;
+    width: 7px;
+    height: 16px;
+    margin-left: 2px;
+    border-radius: 1px;
+    background: var(--color-mint);
+    vertical-align: -2px;
+    animation: msfg-caret 1s step-start infinite;
+  }
+
+  /* Mint glow under the hero "Start an application" pill. */
+  .pill-glow {
+    box-shadow: 0 12px 30px -12px rgba(127, 227, 168, 0.5);
+  }
 }
 
 @keyframes msfg-blink {
@@ -257,5 +323,30 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes msfg-ring-drift {
+  from {
+    transform: scale(1) translateY(0);
+  }
+  to {
+    transform: scale(1.06) translateY(-8px);
+  }
+}
+
+@keyframes msfg-logo-breath {
+  0%,
+  100% {
+    transform: scale(1) translateY(0);
+  }
+  50% {
+    transform: scale(1.025) translateY(-3px);
+  }
+}
+
+@keyframes msfg-caret {
+  50% {
+    opacity: 0;
   }
 }

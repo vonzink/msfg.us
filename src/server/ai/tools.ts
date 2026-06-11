@@ -6,9 +6,11 @@
  *
  * Exports:
  *  - TOOLS:   Provider-neutral AiTool[] passed to provider.streamTurn().
- *  - runTool(name, input): executes one tool call and returns a TEXT string
- *    (what we hand back as the tool message content). The route JSON-parses the
- *    model's `arguments` string into an object before calling this.
+ *  - runTool(name, input, sessionId): executes one tool call and returns a
+ *    ToolResult ({ text, sources? }) — `text` is what we hand back as the tool
+ *    message content; `sources` carries structured citations for grounded
+ *    lookups. The route JSON-parses the model's `arguments` string into an
+ *    object before calling this.
  *
  * Tools must never throw: a thrown executor would break the loop. Each catches
  * and returns a short error string the model can recover from.
@@ -20,6 +22,18 @@ import { RATE_DATA, RATES_PRINCIPAL, type RateTab } from "@/content/rates";
 import { CATS, type CategoryKey, type Program } from "@/content/categories";
 import { captureLead } from "@/server/leads/leadService";
 import type { LeadInput } from "@/validation/lead";
+import {
+  runSearchGuidelines,
+  type GuidelineSources,
+  type SearchGuidelinesInput,
+} from "@/server/ai/tools/searchGuidelines";
+
+/**
+ * A tool's result: the `text` we feed back to the model as the tool message,
+ * plus optional structured `sources` (citations/disclaimer/escalation) that the
+ * UI renders. Most tools return `{ text }`; `search_guidelines` adds `sources`.
+ */
+export type ToolResult = { text: string; sources?: GuidelineSources };
 
 // ---------------------------------------------------------------------------
 // Tool schemas (provider-neutral AiTool format)
@@ -149,6 +163,29 @@ export const TOOLS: AiTool[] = [
         "intent",
         "consentTcpa",
       ],
+    },
+  },
+  {
+    name: "search_guidelines",
+    description:
+      "Look up grounded answers to mortgage GUIDELINE, eligibility, pricing (LLPA), program, or required-document questions from MSFG's source library. Use for any specific 'do I qualify', max-LTV, rate-adjustment, or 'what documents' question. Returns an answer with cited sources and a disclaimer.",
+    parameters: {
+      type: "object",
+      properties: {
+        question: {
+          type: "string",
+          description: "The borrower's mortgage question, self-contained.",
+        },
+        loanType: {
+          type: "string",
+          description: "Optional: FHA, VA, Conventional, USDA, Jumbo.",
+        },
+        state: {
+          type: "string",
+          description: "Optional: 2-letter US state.",
+        },
+      },
+      required: ["question"],
     },
   },
 ];
@@ -376,29 +413,41 @@ async function runCaptureLead(input: unknown): Promise<string> {
 }
 
 /**
- * Execute one tool call by name. Returns the text we hand back as the tool
- * message content. Always resolves (never rejects) so the agentic loop keeps
- * running even if a tool hits an unexpected error.
+ * Execute one tool call by name. Returns a {@link ToolResult}: the `text` we
+ * hand back as the tool message content, plus optional structured `sources`
+ * (only `search_guidelines` populates these). Always resolves (never rejects)
+ * so the agentic loop keeps running even if a tool hits an unexpected error.
+ *
+ * `sessionId` scopes grounded lookups to the conversation; it defaults so the
+ * existing 2-arg call site keeps compiling until it's updated.
  */
-export async function runTool(name: string, input: unknown): Promise<string> {
+export async function runTool(
+  name: string,
+  input: unknown,
+  sessionId: string = "anon",
+): Promise<ToolResult> {
   try {
     switch (name) {
       case "calculate_payment":
-        return runCalculatePayment(input);
+        return { text: runCalculatePayment(input) };
       case "lookup_rates":
-        return runLookupRates(input);
+        return { text: runLookupRates(input) };
       case "explain_program":
-        return runExplainProgram(input);
+        return { text: runExplainProgram(input) };
       case "capture_lead":
-        return await runCaptureLead(input);
+        return { text: await runCaptureLead(input) };
+      case "search_guidelines":
+        return await runSearchGuidelines(input as SearchGuidelinesInput, sessionId);
       default:
-        return `Unknown tool "${name}".`;
+        return { text: `Unknown tool "${name}".` };
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return `The ${name} tool hit an error: ${message.slice(
-      0,
-      200,
-    )}. Please offer general guidance or a loan officer instead.`;
+    return {
+      text: `The ${name} tool hit an error: ${message.slice(
+        0,
+        200,
+      )}. Please offer general guidance or a loan officer instead.`,
+    };
   }
 }
