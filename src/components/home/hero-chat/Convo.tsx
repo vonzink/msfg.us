@@ -51,7 +51,7 @@ export function Convo({
       ) : (
         <div
           ref={scrollRef}
-          className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 pb-2 pt-1 text-left"
+          className="chat-scroll flex min-h-0 flex-1 flex-col gap-3 px-1 pb-2 pt-1 text-left"
         >
           {thread.msgs.map((m) => {
             if (m.role === "user") {

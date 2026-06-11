@@ -267,6 +267,23 @@
     transform-origin: 50% 80%;
   }
 
+  /* Chat message list: always-visible thin scrollbar (authored scrollbar
+     colors opt out of the macOS overlay style, so long answers visibly
+     scroll inside the card instead of growing it). */
+  .chat-scroll {
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line) transparent;
+    scrollbar-gutter: stable;
+  }
+  .chat-scroll::-webkit-scrollbar {
+    width: 8px;
+  }
+  .chat-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 999px;
+  }
+
   /* Blinking mint caret at the end of a streaming AI answer. */
   .stream-caret {
     display: inline-block;

@@ -177,7 +177,7 @@ export function Deck({
               canClose={threads.length > 1}
               onActivate={() => {}}
               onClose={() => onClose(active.id)}
-              className="w-full [&>div:last-child]:max-h-[60vh]"
+              className="w-full max-h-[65vh]"
             >
               {renderConvo(active, composerRef)}
             </ThreadCard>
@@ -217,7 +217,7 @@ export function Deck({
                 canClose={threads.length > 1}
                 onActivate={() => onActivate(t.id)}
                 onClose={() => onClose(t.id)}
-                className={isActive ? "[&>div:last-child]:h-[580px]" : undefined}
+                className={isActive ? "h-[640px]" : undefined}
               >
                 {isActive && renderConvo(t, composerRef)}
               </ThreadCard>

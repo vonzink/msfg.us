@@ -39,14 +39,9 @@ export async function Hero() {
     <section id="top" className="hero-bg relative px-0 pb-[72px] pt-10 text-white">
       <TopoRings />
       <div className="wrap relative flex flex-col items-center text-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={config.brand.logos.mark}
-          alt={config.brand.legalName}
-          className="logo-breath mb-4 h-[132px] w-auto"
-        />
-
         <HeroBloomShell
+          logoSrc={config.brand.logos.mark}
+          logoAlt={config.brand.legalName}
           assistantName={config.brand.assistantName}
           shortName={config.brand.shortName}
           iconSrc={config.brand.logos.horizontal}
