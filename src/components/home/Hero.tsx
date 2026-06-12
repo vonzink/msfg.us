@@ -55,22 +55,23 @@ export async function Hero() {
               </p>
             </>
           }
+          stats={
+            <dl className="mt-7 flex justify-center gap-12 max-[980px]:gap-9">
+              {config.marketing?.stats.map((s) => (
+                <div key={s.label}>
+                  <dd className="m-0 whitespace-nowrap text-[clamp(34px,4vw,46px)] font-extrabold tracking-[-0.03em] text-on-dark-3">
+                    {s.num}
+                  </dd>
+                  <dt className="mt-0.5 text-[14px] text-on-dark-2">{s.label}</dt>
+                </div>
+              ))}
+            </dl>
+          }
         />
-
-        <dl className="mt-7 flex justify-center gap-12 max-[980px]:gap-9">
-          {config.marketing?.stats.map((s) => (
-            <div key={s.label}>
-              <dd className="m-0 whitespace-nowrap text-[clamp(34px,4vw,46px)] font-extrabold tracking-[-0.03em] text-on-dark-3">
-                {s.num}
-              </dd>
-              <dt className="mt-0.5 text-[14px] text-on-dark-2">{s.label}</dt>
-            </div>
-          ))}
-        </dl>
 
         <Link
           href="/apply/buy"
-          className="pill-glow mt-8 inline-flex items-center gap-2 rounded-full bg-mint px-6 py-[13px] text-[17px] font-semibold text-green-900 transition-transform hover:-translate-y-0.5"
+          className="pill-glow mt-4 inline-flex items-center gap-2 rounded-full bg-mint px-6 py-[13px] text-[17px] font-semibold text-green-900 transition-transform hover:-translate-y-0.5"
         >
           Start an application <ArrowRight className="size-[17px]" strokeWidth={2.4} />
         </Link>

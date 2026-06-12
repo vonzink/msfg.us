@@ -71,8 +71,10 @@ export function Deck({
   const active = threads[activePos];
 
   // Focus the active card's composer whenever the front thread changes.
+  // preventScroll: the page position is owned by the bloom scroll (hero
+  // shell) — without it the browser yanks the viewport to the composer.
   useEffect(() => {
-    composerRef.current?.focus();
+    composerRef.current?.focus({ preventScroll: true });
   }, [activeId]);
 
   useEffect(() => {
@@ -102,7 +104,7 @@ export function Deck({
   };
 
   const footer = (
-    <div className="mt-[18px] flex w-full flex-wrap items-center justify-center gap-[22px]">
+    <div className="mt-3 flex w-full flex-wrap items-center justify-center gap-[22px]">
       <span className="flex items-center gap-1.5">
         {threads.map((t) => (
           <span
@@ -189,16 +191,17 @@ export function Deck({
   }
 
   // ----- Desktop: the fan -----------------------------------------------------
-  // Card height tracks the viewport (~640px at a typical 900px-tall screen,
-  // taller on big monitors, shorter on small ones); the fan container leaves
-  // 70px above for peeking tabs and 100px below before the footer row.
+  // Card height is budgeted so the WHOLE bloomed hero — nav, logo, deck,
+  // footer row, and the "Start an application" pill — fits one viewport
+  // (520px ≈ nav + grown logo + gaps + deck footer + pill). The fan container
+  // leaves 70px above for peeking tabs and 30px below before the footer row.
   return (
-    <div className="relative z-30 mx-auto mt-7 flex w-full max-w-[720px] flex-col items-center [--deck-card-h:clamp(560px,70vh,880px)]">
+    <div className="relative z-30 mx-auto mt-3 flex w-full max-w-[720px] flex-col items-center [--deck-card-h:clamp(420px,calc(100vh_-_520px),880px)]">
       <div
         ref={deckRef}
         onMouseMove={onMove}
         onMouseLeave={onLeave}
-        className="relative h-[calc(var(--deck-card-h)_+_170px)] w-full"
+        className="relative h-[calc(var(--deck-card-h)_+_88px)] w-full"
       >
         {/* eslint-disable react-hooks/refs -- render-prop receives a forwarded ref (not a .current read) */}
         {threads.map((t, i) => {
@@ -208,7 +211,7 @@ export function Deck({
               key={t.id}
               style={fanStyle(i, activePos)}
               className={cn(
-                "absolute inset-x-0 top-[70px] origin-bottom",
+                "absolute inset-x-0 top-[58px] origin-bottom",
                 !reduced && "transition-transform duration-[550ms] [transition-timing-function:cubic-bezier(0.18,0.9,0.2,1.05)]",
                 !isActive && "cursor-pointer",
               )}
