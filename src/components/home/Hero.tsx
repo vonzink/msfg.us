@@ -56,7 +56,7 @@ export async function Hero() {
             </>
           }
           stats={
-            <dl className="mt-7 flex justify-center gap-12 max-[980px]:gap-9">
+            <dl className="mt-5 flex justify-center gap-12 max-[980px]:gap-9">
               {config.marketing?.stats.map((s) => (
                 <div key={s.label}>
                   <dd className="m-0 whitespace-nowrap text-[clamp(34px,4vw,46px)] font-extrabold tracking-[-0.03em] text-on-dark-3">
@@ -71,7 +71,7 @@ export async function Hero() {
 
         <Link
           href="/apply/buy"
-          className="pill-glow mt-4 inline-flex items-center gap-2 rounded-full bg-mint px-6 py-[13px] text-[17px] font-semibold text-green-900 transition-transform hover:-translate-y-0.5"
+          className="mt-4 inline-flex items-center gap-2 rounded-full border border-mint/50 bg-transparent px-6 py-[11px] text-[16px] font-semibold text-mint transition-colors hover:bg-mint/10"
         >
           Start an application <ArrowRight className="size-[17px]" strokeWidth={2.4} />
         </Link>

@@ -155,7 +155,7 @@ export function Convo({
           <ArrowUp className="size-4" strokeWidth={2.2} />
         </button>
       </form>
-      <p className="mt-1.5 text-[11px] leading-snug text-[#6b756d]">
+      <p className="mt-1.5 text-[11px] leading-snug text-[#9aa39c]">
         {assistantName}
         {" can make mistakes and may be recorded for quality & compliance. Not a commitment to lend."}
       </p>

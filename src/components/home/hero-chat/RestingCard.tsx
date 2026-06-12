@@ -73,7 +73,7 @@ export function RestingCard({
               <ArrowUp className="size-[18px]" strokeWidth={2.2} />
             </button>
           </div>
-          <p className="mx-auto mt-4 max-w-[560px] text-center text-[14.5px] leading-[1.45] text-muted">
+          <p className="mx-auto mt-4 max-w-[560px] text-center text-[12px] leading-[1.45] text-[#9aa39c]">
             {assistantName}
             {" can make mistakes and may be recorded for quality & compliance. Not a commitment to lend."}
           </p>

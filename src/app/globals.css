@@ -296,10 +296,6 @@
     animation: msfg-caret 1s step-start infinite;
   }
 
-  /* Mint glow under the hero "Start an application" pill. */
-  .pill-glow {
-    box-shadow: 0 12px 30px -12px rgba(127, 227, 168, 0.5);
-  }
 }
 
 @keyframes msfg-blink {

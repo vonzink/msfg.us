@@ -55,7 +55,7 @@ export function HeroBloomShell({
         alt={logoAlt}
         className={cn(
           "logo-breath mb-2 w-auto scroll-mt-[80px] transition-[height] duration-500 ease-out",
-          bloomed ? "h-[165px]" : "h-[132px]",
+          bloomed ? "h-[145px]" : "h-[116px]",
         )}
       />
       <div
@@ -63,6 +63,7 @@ export function HeroBloomShell({
         aria-hidden={bloomed}
       >
         {headline}
+        {stats}
       </div>
       <HeroChat
         assistantName={assistantName}
@@ -70,12 +71,6 @@ export function HeroBloomShell({
         iconSrc={iconSrc}
         onBloom={onBloom}
       />
-      <div
-        className={cn("hero-fade flex w-full flex-col items-center", bloomed && "is-bloomed")}
-        aria-hidden={bloomed}
-      >
-        {stats}
-      </div>
     </>
   );
 }
