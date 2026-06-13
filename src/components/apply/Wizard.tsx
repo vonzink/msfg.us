@@ -94,6 +94,11 @@ export function Wizard({
   }, [answers, intent, next, steps]);
 
   const fields = buildLeadFields(steps, answers);
+  // LOS hand-off payload: prefer the named fields (refi has `field` keys), but
+  // fall back to the raw index-keyed answers for flows without them (buy/cash),
+  // so the authenticated hand-off never sends an empty answer set.
+  const losAnswers: Record<string, AnswerValue> =
+    Object.keys(fields).length > 0 ? fields : Object.fromEntries(Object.entries(answers));
   const placeIdx = steps.findIndex((s) => s.type === "place" || s.type === "address");
   const location = toLocation(placeIdx >= 0 ? answers[placeIdx] : undefined);
 
@@ -148,7 +153,7 @@ export function Wizard({
               <ContactStep onDone={onContactDone} consentTcpa={consentTcpa} />
             )}
             {(step.type === "finish" || step.type === "account") && (
-              <FinishStep intent={intent} contact={contact} fields={fields} location={location} leadId={leadId} shortName={shortName} calendarHref={calendarHref} />
+              <FinishStep intent={intent} contact={contact} fields={losAnswers} location={location} leadId={leadId} shortName={shortName} calendarHref={calendarHref} />
             )}
           </div>
         </DeckStage>
