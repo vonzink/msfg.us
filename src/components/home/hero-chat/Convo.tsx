@@ -6,6 +6,7 @@ import { ArrowUp, Mic } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { ChatMarkdown } from "@/components/ai/ChatMarkdown";
 import { SourcesPanel } from "./SourcesPanel";
+import { GrowTextarea } from "./GrowTextarea";
 import type { Thread } from "./threads";
 
 /**
@@ -28,7 +29,7 @@ export function Convo({
   assistantName: string;
   onDraft: (v: string) => void;
   onSend: () => void;
-  composerRef?: RefObject<HTMLInputElement | null>;
+  composerRef?: RefObject<HTMLTextAreaElement | null>;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -58,7 +59,7 @@ export function Convo({
               return (
                 <div
                   key={m.id}
-                  className="max-w-[86%] self-end rounded-2xl rounded-br-[5px] bg-green-700 px-3.5 py-2.5 text-[15px] leading-[1.42] text-white"
+                  className="max-w-[86%] self-end whitespace-pre-wrap [overflow-wrap:anywhere] rounded-2xl rounded-br-[5px] bg-green-700 px-3.5 py-2.5 text-[15px] leading-[1.42] text-white"
                 >
                   {m.text}
                 </div>
@@ -74,7 +75,7 @@ export function Convo({
                     aria-hidden
                     className="mt-1 size-5 shrink-0 rounded object-cover object-left"
                   />
-                  <div className="max-w-[90%] rounded-2xl rounded-tl-[5px] bg-paper-2 px-3.5 py-2.5">
+                  <div className="max-w-[90%] [overflow-wrap:anywhere] rounded-2xl rounded-tl-[5px] bg-paper-2 px-3.5 py-2.5">
                     {m.text === "" && !m.done ? (
                       <span className="inline-flex gap-1">
                         <span className="typing-dot" />
@@ -120,19 +121,20 @@ export function Convo({
       )}
 
       <form
-        className="flex items-center gap-1.5 rounded-[15px] border border-line bg-white py-[5px] pl-3.5 pr-[5px]"
+        className="flex items-end gap-1.5 rounded-[15px] border border-line bg-white py-[7px] pl-3.5 pr-[5px]"
         onSubmit={(e) => {
           e.preventDefault();
           onSend();
         }}
       >
-        <input
-          ref={composerRef}
+        <GrowTextarea
+          inputRef={composerRef}
           value={thread.draft}
-          onChange={(e) => onDraft(e.target.value)}
+          onChange={onDraft}
+          onSubmit={onSend}
           placeholder="Continue this thread…"
-          aria-label={`Message ${assistantName} in ${thread.title}`}
-          className="min-w-0 flex-1 border-0 bg-transparent text-[15px] text-ink outline-none placeholder:text-[#9aa39c]"
+          ariaLabel={`Message ${assistantName} in ${thread.title}`}
+          className="max-h-[30vh] flex-1 self-center overflow-y-auto text-[15px] leading-snug text-ink"
         />
         <button
           type="button"

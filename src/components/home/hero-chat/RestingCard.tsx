@@ -6,6 +6,7 @@ import { ArrowUp, Mic } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Switch } from "@/components/ui/Switch";
 import { IntentTabs } from "@/components/home/IntentTabs";
+import { GrowTextarea } from "./GrowTextarea";
 
 /**
  * The hero card at rest — the familiar single chat box (design handoff
@@ -37,20 +38,21 @@ export function RestingCard({
     <div className="mx-auto mt-7 w-full max-w-[760px] overflow-hidden rounded-[30px] bg-white text-ink shadow-hero">
       {aiMode ? (
         <div className="px-[22px] pt-[22px]">
-          <div className="flex items-center gap-3.5">
+          <div className="flex items-end gap-3.5">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={iconSrc}
               alt={shortName}
               className="size-[34px] shrink-0 rounded-md object-cover object-left"
             />
-            <input
-              className="min-w-0 flex-1 border-0 bg-transparent text-[22px] text-ink outline-none placeholder:text-[#9aa39c] max-[600px]:text-[17px]"
-              placeholder="Ask me anything, or tell me what you want to do"
+            <GrowTextarea
               value={value}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && go()}
-              aria-label={`Ask ${assistantName}`}
+              onChange={setValue}
+              onSubmit={go}
+              autoFocus
+              placeholder="Ask me anything, or tell me what you want to do"
+              ariaLabel={`Ask ${assistantName}`}
+              className="max-h-[40vh] flex-1 overflow-y-auto py-1 text-[22px] leading-snug text-ink max-[600px]:text-[17px]"
             />
             <button
               type="button"
