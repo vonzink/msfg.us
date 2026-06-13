@@ -47,8 +47,8 @@ export function DeckStage({
   return (
     <div className="relative w-full">
       {ghost && (
-        <div key={`ghost-${ghost.key}`} className={`absolute inset-0 ${exit}`} aria-hidden>
-          <div className="pointer-events-none">{ghost.node}</div>
+        <div key={`ghost-${ghost.key}`} className={`pointer-events-none absolute inset-0 ${exit}`} aria-hidden>
+          {ghost.node}
         </div>
       )}
       <div key={`cur-${current.key}`} className={enter}>
