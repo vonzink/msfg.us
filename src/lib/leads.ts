@@ -8,11 +8,29 @@ export type LeadContact = {
   phone: string;
 };
 
+/** A structured property address captured by the `address` step. */
+export type StructuredAddress = {
+  line1: string;
+  /** Apt / unit / suite. */
+  line2?: string;
+  city: string;
+  state: string;
+  zip: string;
+  /** Provider place id (Google), when an autocomplete suggestion was chosen. */
+  placeId?: string;
+};
+
+/** Any value a wizard step can store. Index-keyed in the wizard; the named
+ *  normalizer (`buildLeadFields`) turns these into meaningful lead fields. */
+export type AnswerValue = string | string[] | number | StructuredAddress | null;
+
 export type LeadPayload = {
   intent: Intent;
   contact: LeadContact;
-  /** The collected step answers, keyed by step index. */
-  answers: Record<number, string>;
+  /** Raw step answers, keyed by step index. */
+  answers: Record<number, AnswerValue>;
+  /** Named, normalized fields (built by buildLeadFields) for CRM/LOS/LO use. */
+  fields?: Record<string, AnswerValue>;
   /** The `place` answer string, if one was captured. */
   location?: string;
   consentTcpa: true;

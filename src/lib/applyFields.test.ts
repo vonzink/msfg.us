@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import { buildLeadFields, parseCurrency, formatCurrency } from "./applyFields";
+import type { Step } from "@/content/flows";
+
+const STEPS: Step[] = [
+  { type: "multi", q: "Goals?", field: "goals", opts: [] },
+  { type: "address", q: "Address?", field: "address" },
+  { type: "choice", q: "Use?", field: "propertyUse", opts: [] },
+  { type: "currency", q: "Value?", field: "homeValue" },
+  { type: "currency", q: "Income?", field: "income", optional: true },
+  { type: "form", q: "Contact" },
+];
+
+describe("parseCurrency", () => {
+  it("strips formatting to a number", () => {
+    expect(parseCurrency("$485,000")).toBe(485000);
+    expect(parseCurrency("485000")).toBe(485000);
+  });
+  it("returns null for empty/garbage", () => {
+    expect(parseCurrency("")).toBeNull();
+    expect(parseCurrency("abc")).toBeNull();
+  });
+});
+
+describe("formatCurrency", () => {
+  it("groups thousands; null → empty", () => {
+    expect(formatCurrency(485000)).toBe("485,000");
+    expect(formatCurrency(null)).toBe("");
+  });
+});
+
+describe("buildLeadFields", () => {
+  it("maps answers to each step's field key, skipping empties and fieldless steps", () => {
+    const answers = {
+      0: ["Lower my monthly payment", "Take cash out"],
+      1: { line1: "9035 Wadsworth Pkwy", city: "Broomfield", state: "CO", zip: "80021" },
+      2: "Primary residence",
+      3: 485000,
+      4: null,
+    };
+    expect(buildLeadFields(STEPS, answers)).toEqual({
+      goals: ["Lower my monthly payment", "Take cash out"],
+      address: { line1: "9035 Wadsworth Pkwy", city: "Broomfield", state: "CO", zip: "80021" },
+      propertyUse: "Primary residence",
+      homeValue: 485000,
+    });
+  });
+  it("omits a field whose answer is an empty string", () => {
+    expect(buildLeadFields([{ type: "choice", q: "x", field: "propertyUse", opts: [] }], { 0: "" })).toEqual({});
+  });
+});
