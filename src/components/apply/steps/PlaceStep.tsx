@@ -3,14 +3,14 @@
 import { useId } from "react";
 
 export function PlaceStep({
-  field,
+  fieldLabel,
   placeholder,
   value,
   onChange,
   onNext,
 }: {
   /** Floating-label text (e.g. "City, State, or ZIP code"). */
-  field: string;
+  fieldLabel: string;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
@@ -26,7 +26,7 @@ export function PlaceStep({
           htmlFor={id}
           className="pointer-events-none absolute left-[18px] top-3 text-[12.5px] font-semibold text-muted"
         >
-          {field}
+          {fieldLabel}
         </label>
         <input
           id={id}

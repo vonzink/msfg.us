@@ -44,6 +44,8 @@ type ChoiceStep = {
   type: "choice";
   /** Big h1 question. */
   q: string;
+  /** Named lead-field key (e.g. "propertyUse"); omit for non-captured choices. */
+  field?: string;
   opts: ChoiceOption[];
   /** Optional muted sub-line under the options. */
   sub?: string;
@@ -54,6 +56,7 @@ type ChoiceStep = {
 type BinaryStep = {
   type: "binary";
   q: string;
+  field?: string;
   /** Optional underlined helper link text (non-navigating placeholder). */
   help?: string;
   /** When true, show the USA TODAY trust badge below the Yes/No buttons. */
@@ -63,8 +66,10 @@ type BinaryStep = {
 type PlaceStep = {
   type: "place";
   q: string;
-  /** Floating-label text for the single City/State/ZIP input. */
-  field: string;
+  /** Named lead-field key. */
+  field?: string;
+  /** Floating-label text for the input. */
+  fieldLabel: string;
   /** Input placeholder example. */
   placeholder: string;
 };
@@ -79,11 +84,50 @@ type AccountStep = {
   q: string;
 };
 
-export type Step = ChoiceStep | BinaryStep | PlaceStep | FormStep | AccountStep;
+/** Multi-select (checkboxes). Stores string[]. */
+type MultiStep = {
+  type: "multi";
+  q: string;
+  field: string;
+  opts: ChoiceOption[];
+  sub?: string;
+};
+
+/** Currency ($) input. Stores number | null. `optional` adds a Skip control. */
+type CurrencyStep = {
+  type: "currency";
+  q: string;
+  field: string;
+  placeholder?: string;
+  optional?: boolean;
+  help?: string;
+};
+
+/** Street-address autocomplete (+ Apt/Unit + ZIP). Stores StructuredAddress. */
+type AddressStep = {
+  type: "address";
+  q: string;
+  field: string;
+  help?: string;
+};
+
+/** Two-door finish (Continue in the app / Talk to a loan officer). */
+type FinishStep = { type: "finish"; q: string };
+
+export type Step =
+  | ChoiceStep
+  | BinaryStep
+  | PlaceStep
+  | FormStep
+  | AccountStep
+  | MultiStep
+  | CurrencyStep
+  | AddressStep
+  | FinishStep;
 
 /**
  * Per-intent step sequences. Ported exactly from apply.jsx `FLOW`:
- * - buy: 7 steps, refi: 5 steps, cash: 4 steps.
+ * - buy: 7 steps, refi: 10 steps, cash: 4 steps.
  */
 export const FLOW: Record<Intent, Step[]> = {
   buy: [
@@ -127,7 +171,7 @@ export const FLOW: Record<Intent, Step[]> = {
     {
       type: "place",
       q: "Where are you looking to buy?",
-      field: "City, State, or ZIP code",
+      fieldLabel: "City, State, or ZIP code",
       placeholder: "e.g. Westminster, CO 80031",
     },
     { type: "form", q: "Let's start personalizing your offer!" },
@@ -135,18 +179,27 @@ export const FLOW: Record<Intent, Step[]> = {
   ],
   refi: [
     {
-      type: "choice",
-      q: "What's your refinance goal?",
+      type: "multi",
+      q: "What are your refinance goals?",
+      field: "goals",
+      sub: "Select all that apply.",
       opts: [
         { label: "Lower my monthly payment", icon: "invest" },
-        { label: "Shorten my loan term", icon: "cal", badge: "15" },
+        { label: "Long-term savings", icon: "cal", badge: "15" },
         { label: "Take cash out", icon: "house" },
-        { label: "Not sure yet", icon: "help" },
+        { label: "Just checking rates", icon: "help" },
       ],
     },
     {
+      type: "address",
+      q: "What home are you refinancing?",
+      field: "address",
+      help: "Why do we need this?",
+    },
+    {
       type: "choice",
-      q: "How will you use this home?",
+      q: "How do you use this property?",
+      field: "propertyUse",
       opts: [
         { label: "Primary residence", icon: "mailbox" },
         { label: "Second home", icon: "palm" },
@@ -154,13 +207,51 @@ export const FLOW: Record<Intent, Step[]> = {
       ],
     },
     {
-      type: "place",
-      q: "Where is the property?",
-      field: "City, State, or ZIP code",
-      placeholder: "e.g. Fargo, ND 58102",
+      type: "choice",
+      q: "What type of property is it?",
+      field: "propertyType",
+      opts: [
+        { label: "Single Family", icon: "house" },
+        { label: "Condo", icon: "condo" },
+        { label: "Townhouse", icon: "coop" },
+        { label: "Manufactured home", icon: "manuf" },
+      ],
+      review: true,
+    },
+    {
+      type: "currency",
+      q: "What's your estimated home value?",
+      field: "homeValue",
+      placeholder: "e.g. 485,000",
+    },
+    {
+      type: "currency",
+      q: "What's your current mortgage balance?",
+      field: "mortgageBalance",
+      placeholder: "e.g. 312,000",
+    },
+    {
+      type: "choice",
+      q: "What's your estimated credit score?",
+      field: "creditBand",
+      sub: "A self-estimate is fine — this won't affect your credit.",
+      opts: [
+        { label: "Excellent (740+)", icon: "invest" },
+        { label: "Good (680–739)", icon: "house" },
+        { label: "Fair (620–679)", icon: "cal", badge: "F" },
+        { label: "Below 620", icon: "help" },
+        { label: "Not sure", icon: "help" },
+      ],
+    },
+    {
+      type: "currency",
+      q: "What's your household income?",
+      field: "income",
+      placeholder: "e.g. 120,000",
+      optional: true,
     },
     { type: "form", q: "Let's start personalizing your offer!" },
-    { type: "account", q: "Looks like you have an account with us already" },
+    { type: "finish", q: "You're all set — what's next?" },
   ],
   cash: [
     {
@@ -176,7 +267,7 @@ export const FLOW: Record<Intent, Step[]> = {
     {
       type: "place",
       q: "Where is the property?",
-      field: "City, State, or ZIP code",
+      fieldLabel: "City, State, or ZIP code",
       placeholder: "e.g. Bismarck, ND 58501",
     },
     { type: "form", q: "Let's start personalizing your offer!" },

@@ -190,7 +190,7 @@ export function Wizard({
 
           {step.type === "place" && (
             <PlaceStep
-              field={step.field}
+              fieldLabel={step.fieldLabel}
               placeholder={step.placeholder}
               value={answers[idx] ?? ""}
               onChange={setPlace}
