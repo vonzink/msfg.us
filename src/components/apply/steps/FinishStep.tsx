@@ -47,7 +47,13 @@ export function FinishStep({
       body: JSON.stringify({ intent, contact, answers: fields, location, leadId: leadId ?? undefined }),
     }).catch(() => {}).finally(() => setHandoff("done"));
     return () => controller.abort();
-  }, [auth.loading, auth.configured, auth.authenticated, contact, intent, fields, location, leadId]);
+    // Fire exactly once when auth resolves to authenticated. The payload
+    // (intent/contact/fields/location/leadId) is complete by the time this
+    // step mounts and is guarded by `fired`; keeping `fields` (a fresh object
+    // each render) out of the deps prevents a re-render from aborting the
+    // in-flight POST before it completes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.loading, auth.configured, auth.authenticated, contact]);
 
   const continueHref =
     auth.configured && !auth.authenticated
