@@ -37,6 +37,9 @@ follow-up; **refi is deepened now**.
 - Soft/hard **credit pull**, SSN capture, FCRA authorization.
 - **Account-management portal**: change email/phone, 2FA, password reset,
   communication preferences.
+- **Mid-funnel account gate / sign-in** ("Looks like you have an account" as a
+  blocking step). Recognition is handled at the finish (see below); a mid-funnel
+  prompt is a future upgrade, not this spec.
 - The full **1003** (income/employment/assets/REO/liabilities/declarations/HMDA),
   document upload, e-sign.
 - Borrower **account creation on the website** is deferred (the borrower Cognito
@@ -123,16 +126,38 @@ component calls our own endpoints; a server-side provider talks to Google.
 
 ## Finish: prefill hand-off + booking
 
+Account recognition happens **here**, not mid-funnel (locked decision): the funnel
+never forces a login; the LOS is the borrower's real account home, so sign-in /
+resume belongs at the hand-off.
+
 - **Continue in the app:** build a `LosPrefill` payload from
   `buildRefiLeadFields` + contact, then:
-  - signed-in (Cognito) → `losClient` prefill call (`LOS_API_BASE`, id_token
-    Bearer, best-effort) + SSO deep-link to `app.msfgco.com`;
-  - else → deep-link with the lead reference (`leadId`) so the LOS can rehydrate;
+  - **already signed in** (Cognito session) → greet by name; `losClient` prefill
+    call (`LOS_API_BASE`, id_token Bearer, best-effort) + SSO deep-link that
+    **resumes** their existing application in `app.msfgco.com`;
+  - **not signed in** → deep-link with the lead reference (`leadId`) so the LOS
+    can rehydrate; the borrower signs in or creates their account **in the LOS**
+    (Hosted UI), where account existence is resolved natively;
   - `LOS_API_BASE` unset (today) → deep-link only, no prefill call. Graceful at
     every stage.
 - **Talk to a loan officer:** the Phase-3 GHL calendar (`ScheduleCallButton` /
   `GhlCalendar`); falls back to a tel/contact link when unconfigured.
 - A short "what happens next" confirmation either way.
+
+### Returning-borrower recognition (best-effort, non-blocking)
+
+So the loan officer knows a lead is a returning contact, `captureLead` sets a
+**`returning` flag** by matching the email server-side, in priority order, all
+best-effort and never blocking the user:
+
+1. an authenticated Cognito session on the request (definitive — we know them);
+2. an existing tenant `Lead` with the same email in Postgres (they've been here
+   before);
+3. a GHL contact match by email, when the GHL integration is configured.
+
+`AdminGetUser` against a Cognito pool is **deferred** (needs server AWS creds + a
+resolved authoritative borrower pool) — listed as a follow-up, not built now. The
+flag rides in `Lead.answers` (no migration) and maps to a GHL custom field.
 
 ## Compliance
 
@@ -157,7 +182,8 @@ component calls our own endpoints; a server-side provider talks to Google.
   missing answers); currency parse/format/`null`; `StructuredAddress` shape;
   step-progression (auto-advance vs explicit Continue; Skip on optional);
   `AddressProvider` suggest/details mapping (mocked HTTP); graceful-degrade
-  (no key → text field).
+  (no key → text field); the **`returning` matcher** (signed-in / prior-lead /
+  GHL precedence; no match → false; never throws).
 - **Browser (preview):** full refi run end-to-end — goals multi-select, Google
   autocomplete (and the text fallback), currency masks, optional-income skip,
   split contact + "Hi {name}!" + TCPA, lead fires on phone, both finish doors
@@ -166,7 +192,9 @@ component calls our own endpoints; a server-side provider talks to Google.
 ## Open follow-ups (not this spec)
 
 - Borrower account creation on the website (resume the paused borrower Cognito
-  pool work) — would let "Continue in the app" create the account pre-handoff.
+  pool work) — would let "Continue in the app" create the account pre-handoff,
+  and unlock **mid-funnel recognition** (server `AdminGetUser` against an
+  authoritative borrower pool → a non-blocking "welcome back" prompt).
 - `buy` / `cash` flow deepening using the new step types.
 - Optional "instant estimate" teaser (new payment / cash available) from value +
   balance + goal on the contact or finish screen — conversion booster.
