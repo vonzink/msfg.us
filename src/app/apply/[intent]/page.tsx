@@ -4,6 +4,7 @@ import { Wizard } from "@/components/apply/Wizard";
 import { FLOW, INTENTS, type Intent } from "@/content/flows";
 import { getTenantConfig } from "@/server/tenant/config";
 import { buildConsentTcpa, buildTestimonialCaption } from "@/content/site";
+import { calendarEmbedUrl } from "@/components/integrations/GhlCalendar";
 
 /** Pre-render buy / refi / cash at build time. */
 export function generateStaticParams() {
@@ -49,6 +50,7 @@ export default async function ApplyIntentPage({
       assistantName={config.brand.assistantName}
       shortName={config.brand.shortName}
       testimonial={testimonial}
+      calendarHref={calendarEmbedUrl() ?? ""}
     />
   );
 }
