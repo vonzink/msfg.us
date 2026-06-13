@@ -93,6 +93,30 @@ step types; credit band reuses `choice`.
 New types live in `src/components/apply/steps/` next to the existing renderers;
 `flows.ts` gains the new step shapes + a deepened `FLOW.refi`.
 
+### Step presentation — deck motion (linear)
+
+The wizard keeps **one focused step at a time** (forms want focus; it is not a
+fannable multi-card deck), but adopts the **hero deck's motion vocabulary** so
+moving between steps feels like the hero's cards:
+
+- Each step is a white card that **springs in** using the deck's curve
+  (`transform .55s cubic-bezier(.18,.9,.2,1.05)`); the outgoing step briefly
+  **peeks behind** (slight `translateY` + `scale(<1)` + lowered z) before
+  settling — the deck's depth language, applied to a sequential flow.
+- **Direction-aware:** forward = next card rises from behind/below; **Back** =
+  the current card recedes and the previous one returns to front (a card
+  "flip-back"), so the existing Back button reads as deck navigation.
+- Replaces the current `.step-in` entrance in `Wizard.tsx` with this
+  forward/back card transition; the step **config, state engine, progress bar,
+  and Back semantics are unchanged** — this is presentation only.
+- **Reduced motion:** under `prefers-reduced-motion: reduce` the spring/peek
+  collapses to an instant swap (mirrors the hero deck + the global CSS rule).
+- Accessibility: only the active step is in the tab order / accessible tree;
+  peeking neighbors are `aria-hidden` and non-interactive. Visible focus rings
+  and real labels preserved.
+- Reuse the hero's motion tokens (the deck transition timing) rather than
+  reinventing — shared curve, one source of truth.
+
 ## Address autocomplete — provider interface
 
 The Google key **never reaches the browser**. A thin client `AddressAutocomplete`
