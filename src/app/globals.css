@@ -235,6 +235,21 @@
     animation: msfg-step-in 0.35s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  /* Apply-wizard deck motion: the incoming step springs forward; the outgoing
+     step briefly recedes/peeks behind (hero-deck depth language, linear flow). */
+  .deck-enter-fwd {
+    animation: deck-enter-fwd 0.5s cubic-bezier(0.18, 0.9, 0.2, 1.05) both;
+  }
+  .deck-enter-back {
+    animation: deck-enter-back 0.5s cubic-bezier(0.18, 0.9, 0.2, 1.05) both;
+  }
+  .deck-exit-fwd {
+    animation: deck-exit-fwd 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+  .deck-exit-back {
+    animation: deck-exit-back 0.5s cubic-bezier(0.4, 0, 0.2, 1) both;
+  }
+
   /* Hero headline collapse while the chat deck is bloomed. min-height: 0 is
      required (flex item) for max-height: 0 to actually collapse it. Toggle
      via class — inline-style transitions proved unreliable (design handoff). */
@@ -345,4 +360,21 @@
   50% {
     opacity: 0;
   }
+}
+
+@keyframes deck-enter-fwd {
+  from { opacity: 0; transform: translateY(34px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes deck-enter-back {
+  from { opacity: 0; transform: translateY(-22px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes deck-exit-fwd {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-18px) scale(0.97); }
+}
+@keyframes deck-exit-back {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(26px) scale(0.97); }
 }
