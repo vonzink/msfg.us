@@ -85,7 +85,7 @@ export function privacyNoticeDoc(config: TenantConfig): LegalDoc {
         ],
       },
       {
-        heading: "Sharing at a glance",
+        heading: "How we share",
         blocks: [
           {
             kind: "h3",
