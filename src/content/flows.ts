@@ -29,7 +29,12 @@ export type StepIconKey =
   | "house"
   | "condo"
   | "coop"
-  | "manuf";
+  | "manuf"
+  | "doc"
+  | "offer"
+  | "dooropen"
+  | "search"
+  | "units";
 
 export type ChoiceOption = {
   /** Visible option label (also the stored answer value). */

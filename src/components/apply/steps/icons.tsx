@@ -1,12 +1,17 @@
 import {
+  Building,
   Building2,
   Castle,
+  DoorOpen,
+  FileSignature,
+  Handshake,
   HelpCircle,
   Home,
   Inbox,
   LineChart,
   Mailbox,
   Palmtree,
+  Search,
   Warehouse,
 } from "lucide-react";
 import type { StepIconKey } from "@/content/flows";
@@ -81,6 +86,16 @@ export function StepIcon({
       return <Castle className="size-6" strokeWidth={1.8} />;
     case "manuf":
       return <Warehouse className="size-6" strokeWidth={1.8} />;
+    case "doc":
+      return <FileSignature className="size-6" strokeWidth={1.8} />;
+    case "offer":
+      return <Handshake className="size-6" strokeWidth={1.8} />;
+    case "dooropen":
+      return <DoorOpen className="size-6" strokeWidth={1.8} />;
+    case "search":
+      return <Search className="size-6" strokeWidth={1.8} />;
+    case "units":
+      return <Building className="size-6" strokeWidth={1.8} />;
     default:
       // Exhaustive fallback; keeps the union honest.
       return <Inbox className="size-6" strokeWidth={1.8} />;
