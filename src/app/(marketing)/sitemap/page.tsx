@@ -20,6 +20,7 @@ export default function SiteMapPage() {
     <>
       <PageJsonLd path="/sitemap" />
       <Section>
+        <h1 className="sr-only">Site Map</h1>
         <SectionHead eyebrow="Site Map" title="Everything on msfg.us" />
         <div className="grid gap-10 min-[981px]:grid-cols-2">
           {groups.map((g) => (
