@@ -35,10 +35,10 @@ export function CurrencyStep({
       <div className="relative mb-3.5 text-left">
         <label htmlFor={id} className="sr-only">{field}</label>
         {!isPct && (
-          <span className="pointer-events-none absolute left-[18px] top-1/2 -translate-y-1/2 text-[18px] font-semibold text-muted">$</span>
+          <span aria-hidden className="pointer-events-none absolute left-[18px] top-1/2 -translate-y-1/2 text-[18px] font-semibold text-muted">$</span>
         )}
         {isPct && (
-          <span className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-[18px] font-semibold text-muted">%</span>
+          <span aria-hidden className="pointer-events-none absolute right-[18px] top-1/2 -translate-y-1/2 text-[18px] font-semibold text-muted">%</span>
         )}
         <input
           id={id}
