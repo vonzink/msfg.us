@@ -8,6 +8,13 @@ export function parseCurrency(input: string): number | null {
   return Number(digits);
 }
 
+/** Parse a user-typed percentage to a 0–100 whole number, or null. */
+export function parsePercent(input: string): number | null {
+  const digits = input.replace(/[^0-9]/g, "");
+  if (!digits) return null;
+  return Math.min(100, Number(digits));
+}
+
 /** Format a number with thousands separators for display; null → "". */
 export function formatCurrency(n: number | null): string {
   return n == null ? "" : n.toLocaleString("en-US");

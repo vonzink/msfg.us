@@ -93,7 +93,9 @@ type MultiStep = {
   sub?: string;
 };
 
-/** Currency ($) input. Stores number | null. `optional` adds a Skip control. */
+/** Currency input. Stores number | null. `optional` adds a Skip control.
+ *  `unit` selects the affix + parser: "$" (default, thousands-formatted) or
+ *  "%" (0–100, trailing % suffix). */
 type CurrencyStep = {
   type: "currency";
   q: string;
@@ -101,6 +103,7 @@ type CurrencyStep = {
   placeholder?: string;
   optional?: boolean;
   help?: string;
+  unit?: "$" | "%";
 };
 
 /** Street-address autocomplete (+ Apt/Unit + ZIP). Stores StructuredAddress. */

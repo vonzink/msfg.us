@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLeadFields, parseCurrency, formatCurrency } from "./applyFields";
+import { buildLeadFields, parseCurrency, formatCurrency, parsePercent } from "./applyFields";
 import type { Step } from "@/content/flows";
 
 const STEPS: Step[] = [
@@ -47,5 +47,20 @@ describe("buildLeadFields", () => {
   });
   it("omits a field whose answer is an empty string", () => {
     expect(buildLeadFields([{ type: "choice", q: "x", field: "propertyUse", opts: [] }], { 0: "" })).toEqual({});
+  });
+});
+
+describe("parsePercent", () => {
+  it("strips non-digits to a number", () => {
+    expect(parsePercent("20%")).toBe(20);
+    expect(parsePercent("5")).toBe(5);
+  });
+  it("clamps to 0–100", () => {
+    expect(parsePercent("150")).toBe(100);
+    expect(parsePercent("0")).toBe(0);
+  });
+  it("returns null for empty/garbage", () => {
+    expect(parsePercent("")).toBeNull();
+    expect(parsePercent("abc")).toBeNull();
   });
 });
