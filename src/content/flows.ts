@@ -29,7 +29,12 @@ export type StepIconKey =
   | "house"
   | "condo"
   | "coop"
-  | "manuf";
+  | "manuf"
+  | "doc"
+  | "offer"
+  | "dooropen"
+  | "search"
+  | "units";
 
 export type ChoiceOption = {
   /** Visible option label (also the stored answer value). */
@@ -93,7 +98,9 @@ type MultiStep = {
   sub?: string;
 };
 
-/** Currency ($) input. Stores number | null. `optional` adds a Skip control. */
+/** Currency input. Stores number | null. `optional` adds a Skip control.
+ *  `unit` selects the affix + parser: "$" (default, thousands-formatted) or
+ *  "%" (0–100, trailing % suffix). */
 type CurrencyStep = {
   type: "currency";
   q: string;
@@ -101,6 +108,7 @@ type CurrencyStep = {
   placeholder?: string;
   optional?: boolean;
   help?: string;
+  unit?: "$" | "%";
 };
 
 /** Street-address autocomplete (+ Apt/Unit + ZIP). Stores StructuredAddress. */
@@ -127,37 +135,47 @@ export type Step =
 
 /**
  * Per-intent step sequences. Ported exactly from apply.jsx `FLOW`:
- * - buy: 7 steps, refi: 10 steps, cash: 4 steps.
+ * - buy: 11 steps, refi: 10 steps, cash: 4 steps.
  */
 export const FLOW: Record<Intent, Step[]> = {
   buy: [
     {
       type: "choice",
-      q: "When do you plan to buy?",
+      q: "Where are you in the home buying process?",
+      field: "buyStage",
       opts: [
-        { label: "0–3 months", icon: "cal", badge: "0–3" },
-        { label: "3–6 months", icon: "cal", badge: "3–6" },
-        { label: "6+ months", icon: "cal", badge: "6+" },
-        { label: "Not sure", icon: "help" },
+        { label: "Signed a purchase agreement", icon: "doc" },
+        { label: "Making offers", icon: "offer" },
+        { label: "Going to open houses", icon: "dooropen" },
+        { label: "Just researching", icon: "search" },
       ],
+    },
+    {
+      type: "address",
+      q: "What's the address of the new property?",
+      field: "address",
+      help: "Why do we need this?",
     },
     {
       type: "choice",
       q: "How will you use this home?",
+      field: "propertyUse",
       opts: [
         { label: "Primary residence", icon: "mailbox" },
         { label: "Second home", icon: "palm" },
         { label: "Investment property", icon: "invest" },
       ],
-      sub: "Our fast, digital process has helped 4,200+ families save time and money. You're next!",
+      sub: "Our fast, digital process has helped thousands of buyers save time and money. You're next!",
     },
     {
       type: "choice",
       q: "What type of home?",
+      field: "propertyType",
       opts: [
         { label: "Single Family", icon: "house" },
         { label: "Condo", icon: "condo" },
         { label: "Co-op", icon: "coop" },
+        { label: "2 to 4 units", icon: "units" },
         { label: "Manufactured home", icon: "manuf" },
       ],
       review: true,
@@ -165,17 +183,44 @@ export const FLOW: Record<Intent, Step[]> = {
     {
       type: "binary",
       q: "Have you owned any property in the last three years?",
+      field: "ownedLast3yr",
       help: "What is a first-time home buyer?",
-      usatoday: true,
     },
     {
-      type: "place",
-      q: "Where are you looking to buy?",
-      fieldLabel: "City, State, or ZIP code",
-      placeholder: "e.g. Westminster, CO 80031",
+      type: "currency",
+      q: "What's the purchase price?",
+      field: "purchasePrice",
+      placeholder: "e.g. 425,000",
+    },
+    {
+      type: "currency",
+      q: "How much are you putting down?",
+      field: "downPaymentPct",
+      unit: "%",
+      placeholder: "e.g. 20",
+    },
+    {
+      type: "choice",
+      q: "What's your estimated credit score?",
+      field: "creditBand",
+      sub: "A self-estimate is fine — this won't affect your credit.",
+      opts: [
+        { label: "Excellent (740+)", icon: "invest" },
+        { label: "Good (680–739)", icon: "house" },
+        { label: "Fair (620–679)", icon: "cal", badge: "F" },
+        { label: "Below 620", icon: "help" },
+        { label: "Not sure", icon: "help" },
+      ],
+    },
+    {
+      type: "currency",
+      q: "What's your household income?",
+      field: "income",
+      placeholder: "e.g. 120,000",
+      optional: true,
     },
     { type: "form", q: "Let's start personalizing your offer!" },
-    { type: "account", q: "Looks like you have an account with us already" },
+    { type: "finish", q: "You're all set — what's next?" },
   ],
   refi: [
     {

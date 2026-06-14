@@ -147,7 +147,7 @@ export function Wizard({
               <AddressStep value={(answers[idx] as StructuredAddress) ?? null} onChange={setAnswer} onNext={next} />
             )}
             {step.type === "currency" && (
-              <CurrencyStep field={step.field} placeholder={step.placeholder} optional={step.optional} value={typeof answers[idx] === "number" ? (answers[idx] as number) : null} onChange={setAnswer} onNext={next} onSkip={() => { setAnswer(null); next(); }} />
+              <CurrencyStep field={step.field} placeholder={step.placeholder} optional={step.optional} unit={step.unit} value={typeof answers[idx] === "number" ? (answers[idx] as number) : null} onChange={setAnswer} onNext={next} onSkip={() => { setAnswer(null); next(); }} />
             )}
             {step.type === "form" && (
               <ContactStep onDone={onContactDone} consentTcpa={consentTcpa} />
