@@ -109,6 +109,28 @@ export async function captureLead(
     where: { idempotencyKey: input.idempotencyKey },
   });
 
+  // Returning-borrower recognition (best-effort; never blocks). The route may
+  // pass the signed-in email (sessionEmail) when a Cognito session is present.
+  const priorLead = await db.lead.findFirst({
+    where: { email: input.contact.email, NOT: { idempotencyKey: input.idempotencyKey } },
+    select: { id: true },
+  });
+  const { resolveReturning } = await import("./returning");
+  const recognition = resolveReturning({
+    sessionEmailMatches:
+      Boolean(input.sessionEmail) &&
+      input.sessionEmail!.toLowerCase() === input.contact.email.toLowerCase(),
+    priorLeadExists: Boolean(priorLead),
+    ghlContactExists: false, // GHL existence lookup deferred (no find-by-email yet)
+  });
+
+  const mergedAnswers = {
+    ...(input.answers as Record<string, unknown>),
+    ...(input.fields ? { fields: input.fields } : {}),
+    returning: recognition.returning,
+    returningReason: recognition.reason,
+  };
+
   // tenantId is injected by the scoping extension at runtime; type the payload
   // as the create input minus tenantId (full field-checking) and cast at the
   // boundary so Prisma's static "tenantId required" is satisfied.
@@ -120,7 +142,8 @@ export async function captureLead(
     intent: toIntentEnum(input.intent),
     source: input.source,
     location: input.location ?? null,
-    answers: input.answers as object,
+    answers: mergedAnswers as object,
+    cognitoSub: input.cognitoSub ?? null,
     consentTcpa: input.consentTcpa,
     consentAt,
     idempotencyKey: input.idempotencyKey,

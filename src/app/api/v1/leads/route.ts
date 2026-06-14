@@ -33,7 +33,15 @@ export async function POST(req: Request) {
   }
 
   try {
-    const { leadId, syncStatus } = await captureLead(parsed.data);
+    // Never trust client-supplied identity; derive from the session if present.
+    const { getSession } = await import("@/lib/auth/session");
+    const session = await getSession().catch(() => null);
+    const data = {
+      ...parsed.data,
+      sessionEmail: session?.email,   // SessionUser: { sub, email?, name? }
+      cognitoSub: session?.sub,
+    };
+    const { leadId, syncStatus } = await captureLead(data);
     return NextResponse.json({ ok: true, leadId, syncStatus });
   } catch (err) {
     // Capture should not throw, but if Postgres itself is down we must still

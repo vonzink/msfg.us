@@ -37,6 +37,11 @@ export const leadInputSchema = z.object({
   // Free-form wizard answers (keyed by step index or name). Default {} so a
   // minimal payload still validates.
   answers: z.record(z.string(), z.unknown()).default({}),
+  /** Named, normalized fields (built client-side by buildLeadFields). */
+  fields: z.record(z.string(), z.unknown()).optional(),
+  /** Set server-side from the session — never trusted from the public client. */
+  sessionEmail: z.email().optional(),
+  cognitoSub: z.string().min(1).optional(),
   location: z.string().trim().min(1).optional(),
   consentTcpa: z.boolean(),
   idempotencyKey: idempotencyKeySchema,

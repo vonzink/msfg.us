@@ -66,6 +66,11 @@ const envSchema = z.object({
   DEEPSEEK_BASE_URL: z.string().url().default("https://api.deepseek.com"),
   DEEPSEEK_MODEL: z.string().min(1).default("deepseek-chat"),
 
+  // Google Places (New) server key — optional. When absent, the address step
+  // degrades to a validated free-text field. Restrict the key to the Places
+  // API in Google Cloud.
+  GOOGLE_PLACES_API_KEY: z.string().min(1).optional(),
+
   // -------------------------------------------------------------------------
   // AWS Cognito SSO (OPTIONAL — every var is optional so the site builds/runs
   // with NO auth configured). Auth is treated as "configured" only when an app
