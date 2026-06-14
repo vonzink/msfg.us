@@ -15,7 +15,7 @@ export const AI_SCRIPT: Record<string, AiScriptEntry> = {
       lead: "Starting a pre-approval with MSFG is simple and fast. Here's the gist:",
       bullets: [
         "Begin right here — a few questions about you, your income, and the home you're after.",
-        "We run a soft credit check that won't affect your score.",
+        "No credit pull happens here — a licensed loan officer reviews credit later, only when you're ready.",
         "You get a pre-approval letter that shows sellers and agents you're serious.",
         "We tailor real loan options and rates to your profile.",
       ],
