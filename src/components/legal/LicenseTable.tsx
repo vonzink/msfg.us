@@ -7,8 +7,8 @@ export function LicenseTable({ config }: { config: TenantConfig }) {
       <table className="w-full border-collapse text-left text-[15px] text-ink">
         <thead>
           <tr className="border-b-2 border-line">
-            <th className="py-2 pr-4 font-bold">State</th>
-            <th className="py-2 font-bold">License</th>
+            <th scope="col" className="py-2 pr-4 font-bold">State</th>
+            <th scope="col" className="py-2 font-bold">License</th>
           </tr>
         </thead>
         <tbody>

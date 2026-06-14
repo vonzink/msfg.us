@@ -6,15 +6,21 @@ export type GlbaShareRow = {
 };
 
 /** The standardized GLBA financial-privacy sharing table. */
-export function GlbaFactsTable({ rows }: { rows: GlbaShareRow[] }) {
+export function GlbaFactsTable({
+  rows,
+  shortName,
+}: {
+  rows: GlbaShareRow[];
+  shortName: string;
+}) {
   return (
     <div className="mt-3 overflow-x-auto">
       <table className="w-full border-collapse text-left text-[15px] text-ink">
         <thead>
           <tr className="border-b-2 border-line">
-            <th className="py-2 pr-4 font-bold">Reasons we can share your personal information</th>
-            <th className="py-2 pr-4 font-bold">Does {`MSFG`} share?</th>
-            <th className="py-2 font-bold">Can you limit this sharing?</th>
+            <th scope="col" className="py-2 pr-4 font-bold">Reasons we can share your personal information</th>
+            <th scope="col" className="py-2 pr-4 font-bold">Does {shortName} share?</th>
+            <th scope="col" className="py-2 font-bold">Can you limit this sharing?</th>
           </tr>
         </thead>
         <tbody>
