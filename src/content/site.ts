@@ -19,7 +19,12 @@ import { z } from "zod";
 // Schema
 // ---------------------------------------------------------------------------
 
-const StateSchema = z.object({ code: z.string(), name: z.string() });
+const StateSchema = z.object({
+  code: z.string(),
+  name: z.string(),
+  /** State mortgage license name/number. [PLACEHOLDER] until real data lands. */
+  licenseNumber: z.string().optional(),
+});
 
 const BrandSchema = z.object({
   shortName: z.string(),
@@ -98,6 +103,12 @@ const LegalSchema = z.object({
   states: z.array(StateSchema),
   texasNotice: z.string(),
   ratesDisclaimer: z.string(),
+  /** Registered office address for legal pages. [PLACEHOLDER] until provided. */
+  address: z.string().optional(),
+  /** Distinct privacy/compliance contact; pages fall back to contact.email. */
+  privacyEmail: z.string().optional(),
+  /** Per-doc "last updated" strings, keyed by route slug (e.g. "terms"). */
+  effectiveDates: z.record(z.string(), z.string()).optional(),
 });
 
 const SeoSchema = z.object({
@@ -212,18 +223,19 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   },
   legal: {
     states: [
-      { code: "CO", name: "Colorado" },
-      { code: "ND", name: "North Dakota" },
-      { code: "SD", name: "South Dakota" },
-      { code: "MN", name: "Minnesota" },
-      { code: "TX", name: "Texas" },
-      { code: "MI", name: "Michigan" },
-      { code: "IN", name: "Indiana" },
+      { code: "CO", name: "Colorado", licenseNumber: "[PLACEHOLDER]" },
+      { code: "ND", name: "North Dakota", licenseNumber: "[PLACEHOLDER]" },
+      { code: "SD", name: "South Dakota", licenseNumber: "[PLACEHOLDER]" },
+      { code: "MN", name: "Minnesota", licenseNumber: "[PLACEHOLDER]" },
+      { code: "TX", name: "Texas", licenseNumber: "[PLACEHOLDER]" },
+      { code: "MI", name: "Michigan", licenseNumber: "[PLACEHOLDER]" },
+      { code: "IN", name: "Indiana", licenseNumber: "[PLACEHOLDER]" },
     ],
     texasNotice:
       "Texas Consumer Complaint and Recovery Fund Notice available upon request. Figure: Consumers wishing to file a complaint against a mortgage company or licensed residential mortgage loan originator should complete and send a complaint form to the Texas Department of Savings and Mortgage Lending.",
     ratesDisclaimer:
       "Rates shown are indicative, assume a 740+ FICO score, a $300,000 loan on a single-family primary residence, and are not a commitment to lend. Your actual rate depends on your credit, property, loan amount, and a complete application. Rates and points are subject to change without notice.",
+    address: "[PLACEHOLDER] — registered office address",
   },
   seo: {
     titleDefault: "MSFG — Expert Mortgage Guidance from Seasoned Professionals",
@@ -254,22 +266,22 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
       },
       {
         rest: "Veterans",
-        href: "/",
+        href: "/coming-soon",
         desc: "VA purchase, refinance, and benefit-focused lending options built for veterans, active-duty military, and eligible surviving spouses.",
       },
       {
         rest: "Reverse",
-        href: "/",
+        href: "/coming-soon",
         desc: "Reverse mortgage guidance for homeowners 62+ who want to access home equity while staying in their home.",
       },
       {
         rest: "Investment",
-        href: "/",
+        href: "/coming-soon",
         desc: "Financing options for rental properties, DSCR loans, second homes, and real estate investors building long-term wealth.",
       },
       {
         rest: "Commercial",
-        href: "/",
+        href: "/coming-soon",
         desc: "Commercial lending solutions for business properties, mixed-use buildings, multifamily, and investor-owned real estate.",
       },
       {
@@ -327,6 +339,11 @@ export function statesLine(c: TenantConfig): string {
 /** Full footer legal strip. Identical to the pre-Phase-B LEGAL_STRIP for MSFG. */
 export function buildLegalStrip(c: TenantConfig): string {
   return `${c.brand.legalName}. NMLS #${c.contact.nmls} [PLACEHOLDER]. Equal Housing Lender. Licensed in ${statesLine(c)}. Loans subject to credit and property approval. Rates and terms subject to change without notice. ${c.brand.assistantName} provides general information and estimates only and is not a commitment to lend. © ${c.brand.foundedYear}–2026 ${c.brand.shortName}, LLC.`;
+}
+
+/** "Last updated" string for a legal doc slug; placeholder until real dates land. */
+export function effectiveDate(c: TenantConfig, slug: string): string {
+  return c.legal.effectiveDates?.[slug] ?? "[PLACEHOLDER]";
 }
 
 /** Short marketing/automated-contact consent microcopy (TCPA). */
