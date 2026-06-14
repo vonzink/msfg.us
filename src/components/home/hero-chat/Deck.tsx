@@ -56,12 +56,12 @@ export function Deck({
   onActivate: (tid: string) => void;
   onClose: (tid: string) => void;
   onAdd: () => void;
-  renderConvo: (t: Thread, composerRef: RefObject<HTMLInputElement | null>) => React.ReactNode;
+  renderConvo: (t: Thread, composerRef: RefObject<HTMLTextAreaElement | null>) => React.ReactNode;
 }) {
   const narrow = useMedia("(max-width: 980px)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const deckRef = useRef<HTMLDivElement>(null);
-  const composerRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
   const raf = useRef(0);
 
   const activePos = Math.max(
@@ -179,7 +179,7 @@ export function Deck({
               canClose={threads.length > 1}
               onActivate={() => {}}
               onClose={() => onClose(active.id)}
-              className="w-full max-h-[65vh]"
+              className="w-full h-[64vh] overflow-hidden"
             >
               {renderConvo(active, composerRef)}
             </ThreadCard>
@@ -191,17 +191,17 @@ export function Deck({
   }
 
   // ----- Desktop: the fan -----------------------------------------------------
-  // Card height is budgeted so the WHOLE bloomed hero — nav, logo, deck,
-  // footer row, and the "Start an application" pill — fits one viewport
-  // (520px ≈ nav + grown logo + gaps + deck footer + pill). The fan container
-  // leaves 70px above for peeking tabs and 30px below before the footer row.
+  // On bloom the logo + headline collapse and the stats are gone, so the deck
+  // grows to fill the viewport: card height ≈ 100vh minus the nav, the peek
+  // gap, the footer row, and the apply pill (~300px total). The card's own
+  // "thread title" header is the heading on top.
   return (
-    <div className="relative z-30 mx-auto mt-3 flex w-full max-w-[720px] flex-col items-center [--deck-card-h:clamp(420px,calc(100vh_-_520px),880px)]">
+    <div className="relative z-30 mx-auto mt-1 flex w-full max-w-[860px] flex-col items-center [--deck-card-h:clamp(340px,calc(100vh_-_360px),1100px)]">
       <div
         ref={deckRef}
         onMouseMove={onMove}
         onMouseLeave={onLeave}
-        className="relative h-[calc(var(--deck-card-h)_+_88px)] w-full"
+        className="relative h-[calc(var(--deck-card-h)_+_76px)] w-full"
       >
         {/* eslint-disable react-hooks/refs -- render-prop receives a forwarded ref (not a .current read) */}
         {threads.map((t, i) => {
@@ -223,7 +223,7 @@ export function Deck({
                 canClose={threads.length > 1}
                 onActivate={() => onActivate(t.id)}
                 onClose={() => onClose(t.id)}
-                className={isActive ? "h-[var(--deck-card-h)]" : undefined}
+                className={isActive ? "h-[var(--deck-card-h)] overflow-hidden" : undefined}
               >
                 {isActive && renderConvo(t, composerRef)}
               </ThreadCard>
