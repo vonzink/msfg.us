@@ -23,4 +23,18 @@ describe("sitemap helpers", () => {
     const e = sitemapEntry("https://msfg.us", "", { include: true });
     expect(e).toEqual({ url: "https://msfg.us", priority: 1, changeFrequency: "weekly" });
   });
+
+  it("legal pages get low priority + yearly changefreq", () => {
+    expect(defaultPriority("/privacy-policy")).toBeLessThan(0.5);
+    expect(defaultChangefreq("/terms")).toBe("yearly");
+  });
+
+  it("marketing pages keep their priority", () => {
+    expect(defaultPriority("/buy")).toBe(0.8);
+    expect(defaultPriority("")).toBe(1);
+  });
+
+  it("respects PAGE_SEO include=false", () => {
+    expect(sitemapEntry("https://x", "/buy", { include: false })).toBeNull();
+  });
 });

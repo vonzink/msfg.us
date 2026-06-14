@@ -10,9 +10,17 @@ const ROUTES = [
   "/home-equity",
   "/rates",
   "/loan-officers",
+  "/developers",
   "/apply/buy",
   "/apply/refi",
   "/apply/cash",
+  "/licensing",
+  "/privacy-notice",
+  "/privacy-policy",
+  "/terms",
+  "/accessibility",
+  "/nmls-consumer-access",
+  "/sitemap",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

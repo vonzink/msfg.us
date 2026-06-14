@@ -4,14 +4,22 @@ import type { PageSeo } from "@/server/cms/seo";
 type Entry = MetadataRoute.Sitemap[number];
 type Changefreq = NonNullable<Entry["changeFrequency"]>;
 
+const LEGAL_ROUTES = new Set([
+  "/licensing", "/privacy-notice", "/privacy-policy", "/terms",
+  "/accessibility", "/nmls-consumer-access", "/sitemap",
+]);
+
 export function defaultPriority(route: string): number {
   if (route === "") return 1;
+  if (LEGAL_ROUTES.has(route)) return 0.3;
   if (route.startsWith("/apply")) return 0.6;
   return 0.8;
 }
 
 export function defaultChangefreq(route: string): Changefreq {
-  return route === "/rates" ? "daily" : "weekly";
+  if (route === "/rates") return "daily";
+  if (LEGAL_ROUTES.has(route)) return "yearly";
+  return "weekly";
 }
 
 /** Build one sitemap entry, applying PAGE_SEO overrides. null => excluded. */
