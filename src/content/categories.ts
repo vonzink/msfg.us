@@ -296,4 +296,132 @@ export const CATS: Partial<Record<CategoryKey, CategoryConfig>> & Record<"buy" |
       },
     ],
   },
+
+  veterans: {
+    intent: "buy",
+    tag: "MSFG Veterans",
+    crumb: "Veterans",
+    h1: ["Your VA benefit. ", "Maximized."],
+    sub: "VA purchase, refinance, and IRRRL — benefit-focused lending for veterans, active-duty service members, and eligible surviving spouses.",
+    cta: "Get pre-approved",
+    stats: [
+      ["$0", "down payment"],
+      ["No PMI", "ever"],
+      ["4.9★", "612 reviews"], // [PLACEHOLDER]
+    ],
+    quote: {
+      title: "Estimate your payment",
+      apr: 6.375, // [PLACEHOLDER]
+      principal: "priceDown",
+      termMonths: 360,
+      inputs: [
+        { label: "Home price", kind: "price", default: 485000 },
+        { label: "Down payment", kind: "downPct", default: 0 },
+      ],
+    },
+    steps: [
+      ["Confirm eligibility", "We help you obtain your Certificate of Eligibility (COE) and confirm your entitlement."],
+      ["Get pre-approved", "A few quick questions and a licensed VA-savvy loan officer — no credit pull on this site."],
+      ["Find your home", "Shop with a $0-down, no-PMI pre-approval sellers take seriously."],
+      ["Close & move in", "We drive appraisal, title, and conditions to a smooth closing."],
+    ],
+    optsTitle: "VA loan options",
+    opts: [
+      { icon: "va", title: "VA purchase", desc: "0% down, no monthly PMI, competitive rates.", audience: "Buyers" },
+      { icon: "va", title: "VA IRRRL", desc: "Streamlined rate-reduction refinance of an existing VA loan.", audience: "Lower payment" },
+      { icon: "cashout", title: "VA cash-out", desc: "Tap equity or refinance a non-VA loan into a VA loan.", audience: "Access equity" },
+      { icon: "jumbo", title: "VA jumbo", desc: "High-balance VA financing above conforming limits.", audience: "High-cost areas" },
+    ],
+  },
+
+  investment: {
+    intent: "buy",
+    tag: "MSFG Investment",
+    crumb: "Investment",
+    h1: ["Build wealth, ", "one property at a time."],
+    sub: "Financing for rental properties, DSCR loans, second homes, and portfolio investors — qualify on the property's cash flow, not just your W-2.",
+    cta: "Start my application",
+    stats: [
+      ["DSCR", "qualify on rent"],
+      ["1–4 units", "& portfolios"], // [PLACEHOLDER]
+      ["4.9★", "612 reviews"], // [PLACEHOLDER]
+    ],
+    quote: {
+      title: "Estimate your payment",
+      apr: 7.125, // [PLACEHOLDER]
+      principal: "priceDown",
+      termMonths: 360,
+      inputs: [
+        { label: "Purchase price", kind: "price", default: 425000 },
+        { label: "Down payment", kind: "downPct", default: 25 },
+      ],
+    },
+    steps: [
+      ["Tell us the deal", "Property, rents, and your goals — we match the right program."],
+      ["Get pre-approved", "DSCR options qualify on the property's cash flow; full-doc options also available."],
+      ["Lock & underwrite", "We coordinate appraisal, rent schedule, and conditions."],
+      ["Close & scale", "Fund this one, then come back for the next."],
+    ],
+    optsTitle: "Investment loan options",
+    opts: [
+      { icon: "cashout", title: "DSCR", desc: "Qualify on the property's rental cash flow — no personal income docs.", audience: "Rental investors" },
+      { icon: "conv", title: "Conventional investment", desc: "Up to 4 financed units with competitive conventional terms.", audience: "Full-doc buyers" },
+      { icon: "fha", title: "Second home", desc: "Financing for a vacation or secondary residence.", audience: "Second homes" },
+      { icon: "jumbo", title: "Portfolio & jumbo", desc: "Higher loan amounts and multi-property portfolios.", audience: "Scaling investors" },
+    ],
+  },
+
+  reverse: {
+    // No apply funnel + no payment estimator — specialist consult.
+    ctaHref: "/loan-officers",
+    tag: "MSFG Reverse",
+    crumb: "Reverse",
+    h1: ["Tap your equity. ", "Stay in your home."],
+    sub: "A reverse mortgage (HECM) lets homeowners 62+ convert home equity into cash — with no required monthly mortgage payment, while you keep the title to your home.",
+    cta: "Talk to a reverse specialist",
+    stats: [
+      ["62+", "eligible age"],
+      ["$0", "required monthly payment"], // [PLACEHOLDER]
+      ["FHA-insured", "HECM"], // [PLACEHOLDER]
+    ],
+    steps: [
+      ["See if you qualify", "Homeowners 62+ with sufficient equity in a primary residence may be eligible."],
+      ["Independent counseling", "A HUD-approved counselor reviews the program with you — required and protective."],
+      ["Appraisal & approval", "We order the appraisal and confirm your available proceeds."],
+      ["Receive your funds", "Take a lump sum, line of credit, monthly draws, or a combination."],
+    ],
+    optsTitle: "Reverse mortgage options",
+    opts: [
+      { icon: "heloc", title: "HECM", desc: "The FHA-insured Home Equity Conversion Mortgage for 62+.", audience: "Most common" },
+      { icon: "conv", title: "HECM for Purchase", desc: "Buy a more suitable home and use a reverse mortgage in one step.", audience: "Right-sizing" },
+      { icon: "cashout", title: "Reverse refinance", desc: "Refinance an existing reverse mortgage to better terms or more proceeds.", audience: "Existing borrowers" },
+    ],
+  },
+
+  commercial: {
+    // No consumer apply funnel — specialist consult.
+    ctaHref: "/loan-officers",
+    tag: "MSFG Commercial",
+    crumb: "Commercial",
+    h1: ["Financing for ", "business real estate."],
+    sub: "Lending solutions for commercial property, multifamily, mixed-use, and investor-owned real estate — structured around your business and your asset.",
+    cta: "Talk to a commercial specialist",
+    stats: [
+      ["Multifamily", "5+ units"], // [PLACEHOLDER]
+      ["Mixed-use", "& retail"], // [PLACEHOLDER]
+      ["Investor", "focused"], // [PLACEHOLDER]
+    ],
+    steps: [
+      ["Tell us the project", "Property type, business plan, and goals frame the right structure."],
+      ["Review scenarios", "We compare programs, rates, and terms across our lender network."],
+      ["Underwrite & appraise", "We coordinate the commercial appraisal and due diligence."],
+      ["Fund & grow", "Close with a partner who's ready for your next acquisition."],
+    ],
+    optsTitle: "Commercial loan options",
+    opts: [
+      { icon: "conv", title: "Multifamily", desc: "Apartment buildings and 5+ unit residential properties.", audience: "Multifamily" },
+      { icon: "jumbo", title: "Mixed-use & retail", desc: "Storefronts, offices, and mixed-use buildings.", audience: "Mixed-use" },
+      { icon: "cashout", title: "Investor / DSCR commercial", desc: "Cash-flow-based financing for investor-owned commercial real estate.", audience: "Investors" },
+    ],
+  },
 };
