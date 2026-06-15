@@ -20,7 +20,7 @@ export const NAV: NavItem[] = [
       { label: "Mortgage calculator", href: "/coming-soon" },
       { label: "Rent vs buy calculator", href: "/coming-soon" },
       { label: "Find an agent", href: "/loan-officers" },
-      { label: "VA loans", href: "/buy", badge: "New" },
+      { label: "VA loans", href: "/buy" },
     ],
   },
   {
@@ -33,12 +33,15 @@ export const NAV: NavItem[] = [
     ],
   },
   {
-    label: "Home Equity",
-    href: "/home-equity",
+    label: "Services",
+    href: "/#services",
     items: [
-      { label: "Apply now", href: "/apply/cash" },
-      { label: "Calculate your cash", href: "/coming-soon" },
-      { label: "HELOC vs. cash-out", href: "/home-equity" },
+      { label: "MSFG Mortgage", href: "/buy" },
+      { label: "MSFG Veterans", href: "/veterans" },
+      { label: "MSFG Reverse", href: "/reverse" },
+      { label: "MSFG Investment", href: "/investment" },
+      { label: "MSFG Commercial", href: "/commercial" },
+      { label: "MSFG Equity", href: "/home-equity" },
     ],
   },
   {
@@ -58,7 +61,6 @@ export const NAV: NavItem[] = [
     items: [
       { label: "Meet the team", href: "/loan-officers" },
       { label: "Find by location", href: "/loan-officers" },
-      { label: "Find by language", href: "/loan-officers" },
       { label: "Schedule a call", href: "/loan-officers" },
     ],
   },
