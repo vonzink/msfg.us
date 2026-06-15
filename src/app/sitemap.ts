@@ -25,6 +25,7 @@ const ROUTES = [
   "/accessibility",
   "/nmls-consumer-access",
   "/sitemap",
+  "/about",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
