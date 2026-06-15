@@ -22,10 +22,11 @@ function listPrograms() {
   }> = [];
   (Object.keys(CATS) as CategoryKey[]).forEach((category) => {
     const cat = CATS[category];
+    if (!cat) return;
     for (const program of cat.opts) {
       out.push({
         category,
-        intent: cat.intent,
+        intent: cat.intent ?? category,
         name: program.title,
         blurb: program.desc,
         bestFor: program.audience,

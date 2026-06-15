@@ -31,8 +31,8 @@ const prisma = new PrismaClient({ adapter });
 // request (no tenant context), so it stamps tenantId explicitly on every row.
 const TENANT_ID = "tenant_msfg";
 
-/** content CategoryKey → Prisma Category enum. */
-const CATEGORY_ENUM: Record<CategoryKey, "BUY" | "REFI" | "EQUITY"> = {
+/** content CategoryKey → Prisma Category enum (only DB-backed categories). */
+const CATEGORY_ENUM: Record<"buy" | "refi" | "equity", "BUY" | "REFI" | "EQUITY"> = {
   buy: "BUY",
   refi: "REFI",
   equity: "EQUITY",
@@ -85,21 +85,25 @@ async function seedOfficers() {
 async function seedPrograms() {
   let count = 0;
   for (const key of Object.keys(CATS) as CategoryKey[]) {
-    const cat = CATS[key];
+    // Only seed DB-backed categories (buy/refi/equity); sub-brands are marketing-only.
+    if (!(key in CATEGORY_ENUM)) continue;
+    const dbKey = key as "buy" | "refi" | "equity";
+    const cat = CATS[dbKey];
+    if (!cat) continue;
     let i = 0;
     for (const opt of cat.opts) {
       await prisma.loanProgram.upsert({
         where: {
           tenantId_category_name: {
             tenantId: TENANT_ID,
-            category: CATEGORY_ENUM[key],
+            category: CATEGORY_ENUM[dbKey],
             name: opt.title,
           },
         },
         update: { blurb: opt.desc, bestFor: opt.audience, sortOrder: i },
         create: {
           tenantId: TENANT_ID,
-          category: CATEGORY_ENUM[key],
+          category: CATEGORY_ENUM[dbKey],
           name: opt.title,
           blurb: opt.desc,
           bestFor: opt.audience,

@@ -38,14 +38,16 @@ const PROGRAM_ICONS: Record<ProgramIcon, ComponentType<IconProps>> = {
  */
 export async function CategoryPage({ cat }: { cat: CategoryKey }) {
   const config = await getTenantConfig();
-  const c = CATS[cat];
-  const applyHref = `/apply/${c.intent}`;
+  const c = CATS[cat]!;
+  const primaryHref = c.ctaHref ?? (c.intent ? `/apply/${c.intent}` : "/loan-officers");
 
   return (
     <>
       {/* 2a. Hero — dark emerald, 2-column */}
       <section className="cat-hero relative overflow-hidden bg-green-800 py-16 text-white max-[980px]:py-12">
-        <div className="wrap relative grid grid-cols-[1.15fr_0.85fr] items-center gap-14 max-[980px]:grid-cols-1 max-[980px]:gap-9">
+        <div className={c.quote
+          ? "wrap relative grid grid-cols-[1.15fr_0.85fr] items-center gap-14 max-[980px]:grid-cols-1 max-[980px]:gap-9"
+          : "wrap relative"}>
           <div>
             <span className="mb-4 inline-flex items-center gap-2.5 text-[13px] font-semibold text-mint">
               <Mark size={18} label={config.brand.shortName} /> {c.tag}
@@ -58,7 +60,7 @@ export async function CategoryPage({ cat }: { cat: CategoryKey }) {
               {c.sub}
             </p>
             <div className="mt-[30px] flex flex-wrap gap-3">
-              <Button href={applyHref} size="lg">
+              <Button href={primaryHref} size="lg">
                 {c.cta}
               </Button>
               <Button href="/loan-officers" variant="ghostDark" size="lg">
@@ -77,9 +79,11 @@ export async function CategoryPage({ cat }: { cat: CategoryKey }) {
             </dl>
           </div>
 
-          <div id="estimate">
-            <QuickEstimate q={c.quote} intent={c.intent} />
-          </div>
+          {c.quote && c.intent && (
+            <div id="estimate">
+              <QuickEstimate q={c.quote} intent={c.intent} />
+            </div>
+          )}
         </div>
       </section>
 
@@ -110,7 +114,7 @@ export async function CategoryPage({ cat }: { cat: CategoryKey }) {
             return (
               <Link
                 key={p.title}
-                href={applyHref}
+                href={primaryHref}
                 className="flex items-start gap-4 rounded-lg border-[1.5px] border-line bg-white p-[22px] shadow-3d transition-[transform,box-shadow] duration-150 hover:-translate-y-0.5 hover:shadow-pop"
               >
                 <span className="flex size-[46px] flex-none items-center justify-center rounded-[12px] bg-spring-soft text-green-600">

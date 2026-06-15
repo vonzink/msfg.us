@@ -80,7 +80,9 @@ export type Program = {
 
 export type CategoryConfig = {
   /** Apply-flow intent (`/apply/{intent}`). */
-  intent: Intent;
+  intent?: Intent;
+  /** Primary CTA + program-card href. Defaults to /apply/{intent}. Set for products with no apply funnel (e.g. /loan-officers). */
+  ctaHref?: string;
   /** Eyebrow tag (next to the Mark). */
   tag: string;
   /** Short crumb label. */
@@ -93,8 +95,8 @@ export type CategoryConfig = {
   cta: string;
   /** Hero stat pairs: [number, label]. */
   stats: ReadonlyArray<readonly [num: string, label: string]>;
-  /** Live-estimator config. */
-  quote: QuickEstimateConfig;
+  /** Live-estimator config; omit for products without a payment estimate (the hero renders single-column). */
+  quote?: QuickEstimateConfig;
   /** "How it works" — exactly four steps. */
   steps: readonly [Step, Step, Step, Step];
   /** Loan-programs section heading. */
@@ -103,9 +105,9 @@ export type CategoryConfig = {
   opts: readonly Program[];
 };
 
-export type CategoryKey = "buy" | "refi" | "equity";
+export type CategoryKey = "buy" | "refi" | "equity" | "veterans" | "reverse" | "investment" | "commercial";
 
-export const CATS: Record<CategoryKey, CategoryConfig> = {
+export const CATS: Partial<Record<CategoryKey, CategoryConfig>> & Record<"buy" | "refi" | "equity", CategoryConfig> = {
   buy: {
     intent: "buy",
     tag: "Buy a home",
