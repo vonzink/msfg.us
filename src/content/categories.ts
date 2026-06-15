@@ -131,7 +131,7 @@ export const CATS: Record<CategoryKey, CategoryConfig> = {
     steps: [
       [
         "Get pre-approved",
-        "Answer a few questions for a soft-pull pre-approval — no credit impact.",
+        "Answer a few quick questions and connect with a licensed loan officer to get pre-approved — no credit pull on this site.",
       ],
       [
         "Find your home",

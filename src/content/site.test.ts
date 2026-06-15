@@ -6,6 +6,7 @@ import {
   buildConsentTcpa,
   buildTestimonialCaption,
   statesLine,
+  effectiveDate,
 } from "./site";
 
 // The exact strings MSFG renders today (copied from the pre-Phase-B site.ts).
@@ -153,6 +154,38 @@ describe("config.ai.brain", () => {
 
   it("ships brain disabled in DEFAULT_TENANT_CONFIG", () => {
     expect(DEFAULT_TENANT_CONFIG.ai.brain).toEqual({ enabled: false, baseUrl: "" });
+  });
+});
+
+describe("legal config additions", () => {
+  it("every default state carries a license-number placeholder", () => {
+    for (const s of DEFAULT_TENANT_CONFIG.legal.states) {
+      expect(s.licenseNumber).toBeTruthy();
+    }
+  });
+
+  it("default legal carries address + lastUpdated placeholders", () => {
+    expect(DEFAULT_TENANT_CONFIG.legal.address).toContain("PLACEHOLDER");
+  });
+
+  it("effectiveDate falls back to a placeholder when no date is set", () => {
+    expect(effectiveDate(DEFAULT_TENANT_CONFIG, "terms")).toContain("PLACEHOLDER");
+  });
+
+  it("a stored config missing the new fields still parses", () => {
+    const stripped = JSON.parse(JSON.stringify(DEFAULT_TENANT_CONFIG));
+    stripped.legal.states = stripped.legal.states.map(
+      (s: { code: string; name: string }) => ({ code: s.code, name: s.name }),
+    );
+    delete stripped.legal.address;
+    delete stripped.legal.effectiveDates;
+    expect(TenantConfigSchema.safeParse(stripped).success).toBe(true);
+  });
+
+  it("no family-of-companies card points to the bare home placeholder", () => {
+    for (const card of DEFAULT_TENANT_CONFIG.marketing!.familyOfCompanies) {
+      expect(card.href).not.toBe("/");
+    }
   });
 });
 

@@ -12,7 +12,7 @@ export function generateMetadata(): Promise<Metadata> {
   return buildMetadata("/rates", {
     title: "Today's Mortgage Rates",
     description:
-      "Transparent purchase and refinance mortgage rates from MSFG, updated every business day. See estimated monthly payments and start your application.",
+      "Transparent purchase and refinance mortgage rates from MSFG across seven states, updated every business day. See estimated monthly payments and apply online.",
     canonical: "/rates",
   });
 }

@@ -2,8 +2,8 @@
  * Navigation model — header mega-nav and footer columns.
  * Routing rules (from PAGES.md): Buy/Refi/Equity -> category pages,
  * Rates -> /rates, Loan Officers -> /loan-officers, "Apply now"/CTAs ->
- * /apply/{intent}. Secondary links (calculators, etc.) point at the closest
- * real route for now; wire to dedicated tools/anchors before launch.
+ * /apply/{intent}. Secondary links without a page yet (calculators, About,
+ * Careers, etc.) point at /coming-soon until those features ship.
  */
 
 export type NavLink = { label: string; href: string; badge?: string };
@@ -16,9 +16,9 @@ export const NAV: NavItem[] = [
     items: [
       { label: "Apply now", href: "/apply/buy" },
       { label: "Purchase rates", href: "/rates" },
-      { label: "Affordability calculator", href: "/buy" },
-      { label: "Mortgage calculator", href: "/buy" },
-      { label: "Rent vs buy calculator", href: "/buy" },
+      { label: "Affordability calculator", href: "/coming-soon" },
+      { label: "Mortgage calculator", href: "/coming-soon" },
+      { label: "Rent vs buy calculator", href: "/coming-soon" },
       { label: "Find an agent", href: "/loan-officers" },
       { label: "VA loans", href: "/buy", badge: "New" },
     ],
@@ -29,7 +29,7 @@ export const NAV: NavItem[] = [
     items: [
       { label: "Apply now", href: "/apply/refi" },
       { label: "Refinance rates", href: "/rates" },
-      { label: "Cash-out calculator", href: "/refinance" },
+      { label: "Cash-out calculator", href: "/coming-soon" },
     ],
   },
   {
@@ -37,7 +37,7 @@ export const NAV: NavItem[] = [
     href: "/home-equity",
     items: [
       { label: "Apply now", href: "/apply/cash" },
-      { label: "Calculate your cash", href: "/home-equity" },
+      { label: "Calculate your cash", href: "/coming-soon" },
       { label: "HELOC vs. cash-out", href: "/home-equity" },
     ],
   },
@@ -70,32 +70,35 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Resources",
     links: [
-      { label: "Affordability calculator", href: "/buy" },
-      { label: "Mortgage calculator", href: "/buy" },
-      { label: "Rent vs buy calculator", href: "/buy" },
-      { label: "HELOC calculator", href: "/home-equity" },
+      { label: "Affordability calculator", href: "/coming-soon" },
+      { label: "Mortgage calculator", href: "/coming-soon" },
+      { label: "Rent vs buy calculator", href: "/coming-soon" },
+      { label: "HELOC calculator", href: "/coming-soon" },
       { label: "Buy a home", href: "/buy" },
-      { label: "Get home inspection", href: "/" },
+      { label: "Get home inspection", href: "/coming-soon" },
     ],
   },
   {
     heading: "Company",
     links: [
-      { label: "About us", href: "/" },
-      { label: "Careers", href: "/" },
-      { label: "Media", href: "/" },
-      { label: "Partner with us", href: "/" },
+      { label: "About us", href: "/coming-soon" },
+      { label: "Careers", href: "/coming-soon" },
+      { label: "Media", href: "/coming-soon" },
+      { label: "Partner with us", href: "/coming-soon" },
       { label: "Loan officers", href: "/loan-officers" },
       { label: "Developers", href: "/developers" },
-      { label: "FAQs", href: "/" },
+      { label: "FAQs", href: "/coming-soon" },
     ],
   },
 ];
 
 /** Contact & legal links column (rendered with live contact details). */
 export const FOOTER_LEGAL_LINKS: NavLink[] = [
-  { label: "NMLS Consumer Access", href: "https://www.nmlsconsumeraccess.org/" },
-  { label: "Privacy Policy", href: "/" },
-  { label: "Terms of Use", href: "/" },
-  { label: "Disclosures & Licensing", href: "/" },
+  { label: "Licensing & Disclosures", href: "/licensing" },
+  { label: "Privacy Notice", href: "/privacy-notice" },
+  { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Terms of Use", href: "/terms" },
+  { label: "Accessibility", href: "/accessibility" },
+  { label: "NMLS Consumer Access", href: "/nmls-consumer-access" },
+  { label: "Site Map", href: "/sitemap" },
 ];

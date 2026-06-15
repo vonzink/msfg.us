@@ -5,6 +5,7 @@ import {
   FOOTER_COLUMNS,
   FOOTER_LEGAL_LINKS,
 } from "@/content/nav";
+import { EqualHousing } from "@/components/legal/EqualHousing";
 
 export async function Footer() {
   const config = await getTenantConfig();
@@ -93,9 +94,12 @@ export async function Footer() {
           </div>
         </div>
 
-        <p className="mt-12 border-t border-line pt-6 text-[12.5px] leading-relaxed text-muted">
-          {legalStrip} Hosted on AWS.
-        </p>
+        <div className="mt-12 flex items-start gap-3 border-t border-line pt-6">
+          <EqualHousing size={30} className="mt-0.5 shrink-0 text-muted" />
+          <p className="text-[12.5px] leading-relaxed text-muted">
+            {legalStrip} Hosted on AWS.
+          </p>
+        </div>
       </div>
     </footer>
   );

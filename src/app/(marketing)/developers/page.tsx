@@ -5,14 +5,15 @@ import { Button } from "@/components/ui/Button";
 import { CtaBand } from "@/components/CtaBand";
 import { getTenantConfig, getTenantOrigin } from "@/server/tenant/config";
 import { SwaggerEmbed } from "./SwaggerEmbed";
+import { buildMetadata } from "@/lib/seo/buildMetadata";
 
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getTenantConfig();
-  return {
+  return buildMetadata("/developers", {
     title: "Developers — Public API",
-    description: `${config.brand.shortName} public API for partners: versioned, API-key authenticated, rate-limited, and OpenAPI-documented. Rates, programs, loan officers, and partner lead intake.`,
-    alternates: { canonical: "/developers" },
-  };
+    description: `${config.brand.shortName} public API for partners: versioned, key-authenticated, rate-limited, and OpenAPI-documented. Rates, programs, loan officers, and lead intake.`,
+    canonical: "/developers",
+  });
 }
 
 /** A labeled, accessible code/pre block. */
