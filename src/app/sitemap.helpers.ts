@@ -6,7 +6,7 @@ type Changefreq = NonNullable<Entry["changeFrequency"]>;
 
 const LEGAL_ROUTES = new Set([
   "/licensing", "/privacy-notice", "/privacy-policy", "/terms",
-  "/accessibility", "/nmls-consumer-access", "/sitemap",
+  "/accessibility", "/texas-required-notice", "/nmls-consumer-access", "/sitemap",
 ]);
 
 export function defaultPriority(route: string): number {

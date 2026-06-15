@@ -98,6 +98,7 @@ export const FOOTER_LEGAL_LINKS: NavLink[] = [
   { label: "Privacy Policy", href: "/privacy-policy" },
   { label: "Terms of Use", href: "/terms" },
   { label: "Accessibility", href: "/accessibility" },
+  { label: "Texas Consumer Notice", href: "/texas-required-notice" },
   { label: "NMLS Consumer Access", href: "/nmls-consumer-access" },
   { label: "Site Map", href: "/sitemap" },
 ];

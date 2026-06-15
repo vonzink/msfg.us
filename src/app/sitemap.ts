@@ -23,6 +23,7 @@ const ROUTES = [
   "/privacy-policy",
   "/terms",
   "/accessibility",
+  "/texas-required-notice",
   "/nmls-consumer-access",
   "/sitemap",
   "/about",
