@@ -18,13 +18,16 @@ const LEGAL: NavLink[] = [
 ];
 
 /** Keep only internal, real destinations — drop externals, the bare-home
- *  placeholder, and the Coming Soon catch-all; de-dupe by href. */
+ *  placeholder, the Coming Soon catch-all, and in-page anchors (e.g. the
+ *  "/#services" nav link is the home page, not a distinct route); de-dupe by
+ *  href. */
 function clean(links: NavLink[]): { label: string; href: string }[] {
   const seen = new Set<string>();
   const out: { label: string; href: string }[] = [];
   for (const l of links) {
     if (l.href.startsWith("http")) continue;
     if (l.href === "/" || l.href === "/coming-soon") continue;
+    if (l.href.includes("#")) continue;
     if (seen.has(l.href)) continue;
     seen.add(l.href);
     out.push({ label: l.label, href: l.href });

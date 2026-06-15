@@ -29,7 +29,9 @@ describe("nav/footer links", () => {
   it("every internal link resolves to a known route", () => {
     for (const l of allLinks()) {
       if (l.href.startsWith("http")) continue;
-      expect(KNOWN.has(l.href), `${l.label} -> ${l.href}`).toBe(true);
+      // Anchor links (e.g. "/#services") resolve to their base page.
+      const path = l.href.split("#")[0] || "/";
+      expect(KNOWN.has(path), `${l.label} -> ${l.href}`).toBe(true);
     }
   });
 
