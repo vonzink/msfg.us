@@ -8,6 +8,10 @@ const ROUTES = [
   "/buy",
   "/refinance",
   "/home-equity",
+  "/veterans",
+  "/reverse",
+  "/investment",
+  "/commercial",
   "/rates",
   "/loan-officers",
   "/developers",
@@ -19,8 +23,12 @@ const ROUTES = [
   "/privacy-policy",
   "/terms",
   "/accessibility",
+  "/texas-required-notice",
   "/nmls-consumer-access",
   "/sitemap",
+  "/about",
+  "/careers",
+  "/know-your-lender",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {

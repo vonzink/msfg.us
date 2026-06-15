@@ -327,7 +327,7 @@ function runExplainProgram(input: unknown): string {
   // Flatten the program catalog with its owning category.
   const all: Array<{ cat: CategoryKey; program: Program }> = [];
   (Object.keys(CATS) as CategoryKey[]).forEach((cat) => {
-    CATS[cat].opts.forEach((program) => all.push({ cat, program }));
+    CATS[cat]?.opts.forEach((program) => all.push({ cat, program }));
   });
 
   // 1) Specific program name → best matches across categories.

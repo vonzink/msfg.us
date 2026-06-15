@@ -5,7 +5,9 @@ const KNOWN = new Set([
   "/", "/buy", "/refinance", "/home-equity", "/rates", "/loan-officers", "/developers",
   "/apply/buy", "/apply/refi", "/apply/cash", "/coming-soon",
   "/licensing", "/privacy-notice", "/privacy-policy", "/terms", "/accessibility",
-  "/nmls-consumer-access", "/sitemap",
+  "/texas-required-notice", "/nmls-consumer-access", "/sitemap",
+  "/veterans", "/reverse", "/investment", "/commercial",
+  "/about", "/careers", "/know-your-lender",
 ]);
 
 function allLinks(): NavLink[] {

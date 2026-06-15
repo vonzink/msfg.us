@@ -75,16 +75,15 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Rent vs buy calculator", href: "/coming-soon" },
       { label: "HELOC calculator", href: "/coming-soon" },
       { label: "Buy a home", href: "/buy" },
-      { label: "Get home inspection", href: "/coming-soon" },
     ],
   },
   {
     heading: "Company",
     links: [
-      { label: "About us", href: "/coming-soon" },
-      { label: "Careers", href: "/coming-soon" },
+      { label: "About us", href: "/about" },
+      { label: "Careers", href: "/careers" },
       { label: "Media", href: "/coming-soon" },
-      { label: "Partner with us", href: "/coming-soon" },
+      { label: "Know Your Lender", href: "/know-your-lender" },
       { label: "Loan officers", href: "/loan-officers" },
       { label: "Developers", href: "/developers" },
       { label: "FAQs", href: "/coming-soon" },
@@ -99,6 +98,7 @@ export const FOOTER_LEGAL_LINKS: NavLink[] = [
   { label: "Privacy Policy", href: "/privacy-policy" },
   { label: "Terms of Use", href: "/terms" },
   { label: "Accessibility", href: "/accessibility" },
+  { label: "Texas Consumer Notice", href: "/texas-required-notice" },
   { label: "NMLS Consumer Access", href: "/nmls-consumer-access" },
   { label: "Site Map", href: "/sitemap" },
 ];

@@ -60,9 +60,24 @@ async function main() {
     address: "9035 Wadsworth Parkway, Suite 3400, Westminster, CO 80021",
   };
 
+  // Repoint the sub-brand family-of-companies cards to their new pages (the
+  // homepage cards read this published revision, not the src/content default).
+  const SUBBRAND_HREFS = {
+    Veterans: "/veterans",
+    Reverse: "/reverse",
+    Investment: "/investment",
+    Commercial: "/commercial",
+  };
+  if (data.marketing && Array.isArray(data.marketing.familyOfCompanies)) {
+    data.marketing.familyOfCompanies = data.marketing.familyOfCompanies.map((c) =>
+      c && SUBBRAND_HREFS[c.rest] ? { ...c, href: SUBBRAND_HREFS[c.rest] } : c,
+    );
+  }
+
   await prisma.revision.update({ where: { id: rev.id }, data: { data } });
   console.log(
-    `Updated published CONFIG revision v${rev.version}: NMLS 1314257, phone (720) 838-1246, Westminster CO address.\n` +
+    `Updated published CONFIG revision v${rev.version}: NMLS 1314257, phone (720) 838-1246,\n` +
+      "Westminster CO address, and family-of-companies cards repointed to the sub-brand pages.\n" +
       "Now run: pm2 restart msfg-web --update-env",
   );
 }

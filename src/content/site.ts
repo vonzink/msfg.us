@@ -14,6 +14,7 @@
  * apex (production) launch.
  */
 import { z } from "zod";
+import { TEXAS_CONSUMER_NOTICE } from "@/content/legal/texasNotice";
 
 // ---------------------------------------------------------------------------
 // Schema
@@ -231,8 +232,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
       { code: "MI", name: "Michigan", licenseNumber: "[PLACEHOLDER]" },
       { code: "IN", name: "Indiana", licenseNumber: "[PLACEHOLDER]" },
     ],
-    texasNotice:
-      "Texas Consumer Complaint and Recovery Fund Notice available upon request. Figure: Consumers wishing to file a complaint against a mortgage company or licensed residential mortgage loan originator should complete and send a complaint form to the Texas Department of Savings and Mortgage Lending.",
+    texasNotice: TEXAS_CONSUMER_NOTICE,
     ratesDisclaimer:
       "Rates shown are indicative, assume a 740+ FICO score, a $300,000 loan on a single-family primary residence, and are not a commitment to lend. Your actual rate depends on your credit, property, loan amount, and a complete application. Rates and points are subject to change without notice.",
     address: "9035 Wadsworth Parkway, Suite 3400, Westminster, CO 80021",
@@ -266,22 +266,22 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
       },
       {
         rest: "Veterans",
-        href: "/coming-soon",
+        href: "/veterans",
         desc: "VA purchase, refinance, and benefit-focused lending options built for veterans, active-duty military, and eligible surviving spouses.",
       },
       {
         rest: "Reverse",
-        href: "/coming-soon",
+        href: "/reverse",
         desc: "Reverse mortgage guidance for homeowners 62+ who want to access home equity while staying in their home.",
       },
       {
         rest: "Investment",
-        href: "/coming-soon",
+        href: "/investment",
         desc: "Financing options for rental properties, DSCR loans, second homes, and real estate investors building long-term wealth.",
       },
       {
         rest: "Commercial",
-        href: "/coming-soon",
+        href: "/commercial",
         desc: "Commercial lending solutions for business properties, mixed-use buildings, multifamily, and investor-owned real estate.",
       },
       {
