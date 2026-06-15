@@ -26,6 +26,7 @@ const ROUTES = [
   "/nmls-consumer-access",
   "/sitemap",
   "/about",
+  "/careers",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
