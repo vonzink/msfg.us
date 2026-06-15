@@ -28,7 +28,7 @@ export default async function KnowYourLenderPage() {
     { label: "MSFG on Facebook", href: "https://www.facebook.com/MSFGhomeloans" },
     { label: "Chamber of Commerce", href: "[PLACEHOLDER — Chamber listing URL]" },
     { label: "Better Business Bureau", href: "[PLACEHOLDER — BBB profile URL]" },
-    { label: "Colorado eLicense lookup", href: "https://colorado.gov" },
+    { label: "Colorado eLicense lookup", href: "https://apps.colorado.gov/dora/licensing/Lookup/LicenseLookup.aspx" },
     { label: "NMLS Consumer Access", href: config.contact.nmlsConsumerAccessUrl },
   ];
   const VERIFY: string[] = [
