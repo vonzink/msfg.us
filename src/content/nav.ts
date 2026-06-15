@@ -2,8 +2,8 @@
  * Navigation model — header mega-nav and footer columns.
  * Routing rules (from PAGES.md): Buy/Refi/Equity -> category pages,
  * Rates -> /rates, Loan Officers -> /loan-officers, "Apply now"/CTAs ->
- * /apply/{intent}. Secondary links (calculators, etc.) point at the closest
- * real route for now; wire to dedicated tools/anchors before launch.
+ * /apply/{intent}. Secondary links without a page yet (calculators, About,
+ * Careers, etc.) point at /coming-soon until those features ship.
  */
 
 export type NavLink = { label: string; href: string; badge?: string };

@@ -64,7 +64,7 @@ export async function LegalPage({
               className="mb-10 rounded-lg border border-line bg-paper-2 px-4 py-3 text-[13.5px] leading-[1.5] text-muted"
             >
               <strong className="font-bold text-ink">Draft for review.</strong> This page is a
-              working template pending {config.brand.shortName} legal &amp; compliance approval and
+              working template pending {config.brand.shortName}{" "}legal &amp; compliance approval and
               is not yet legal advice. Bracketed <code className="text-[12.5px]">[PLACEHOLDER]</code>{" "}
               values will be replaced with verified information before launch.
             </div>
