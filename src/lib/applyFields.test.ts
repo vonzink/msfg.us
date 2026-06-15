@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildLeadFields, parseCurrency, formatCurrency, parsePercent } from "./applyFields";
-import type { Step } from "@/content/flows";
+import { FLOW, type Step } from "@/content/flows";
 
 const STEPS: Step[] = [
   { type: "multi", q: "Goals?", field: "goals", opts: [] },
@@ -47,6 +47,23 @@ describe("buildLeadFields", () => {
   });
   it("omits a field whose answer is an empty string", () => {
     expect(buildLeadFields([{ type: "choice", q: "x", field: "propertyUse", opts: [] }], { 0: "" })).toEqual({});
+  });
+});
+
+describe("refi flow — loan-officer step", () => {
+  const refi = FLOW.refi;
+  const officerIdx = refi.findIndex((s) => s.type === "officer");
+  const formIdx = refi.findIndex((s) => s.type === "form");
+
+  it("places the officer step before the contact form, so the choice is captured on the initial lead", () => {
+    expect(officerIdx).toBeGreaterThanOrEqual(0);
+    expect(formIdx).toBeGreaterThanOrEqual(0);
+    expect(officerIdx).toBeLessThan(formIdx);
+  });
+
+  it("captures the chosen officer as the loanOfficer lead field", () => {
+    const answers = { [officerIdx]: "zachary-zink" };
+    expect(buildLeadFields(refi, answers).loanOfficer).toBe("zachary-zink");
   });
 });
 

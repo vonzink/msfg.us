@@ -87,6 +87,13 @@ export function ContactStep({
       <p className="-mt-1 mb-6 text-[18px] font-bold text-ink">Hi {f.firstName}! What&apos;s your phone number?</p>
       {field("phone", "Phone number", "tel", "tel", "tel")}
       {cta("Next", pane1ok, () => pane1ok && onDone(f))}
+      <button
+        type="button"
+        onClick={() => onDone(f)}
+        className="mx-auto mt-4 block rounded-sm text-[15px] font-semibold text-muted underline underline-offset-2 transition-colors hover:text-ink"
+      >
+        Skip for now
+      </button>
       <p className="mt-[18px] text-left text-xs leading-relaxed text-muted">{consentTcpa}</p>
     </>
   );

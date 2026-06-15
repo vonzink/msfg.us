@@ -20,6 +20,7 @@ export function FinishStep({
   leadId,
   shortName,
   calendarHref,
+  officer,
 }: {
   intent: Intent;
   contact: LeadContact | null;
@@ -28,6 +29,8 @@ export function FinishStep({
   leadId: string | null;
   shortName: string;
   calendarHref: string;
+  /** Officer the user chose in the preceding step, if any (null = no preference). */
+  officer?: { slug: string; name: string } | null;
 }) {
   const auth = useAuth();
   const fired = useRef(false);
@@ -61,7 +64,11 @@ export function FinishStep({
       : APP_URL;
   const continueLabel =
     auth.configured && !auth.authenticated ? "Sign in & continue your application" : `Continue in the ${shortName} app`;
-  const bookHref = calendarHref || "/loan-officers";
+  // When an officer was chosen, route to their directory card; otherwise the
+  // generic booking calendar (or the directory as a last resort).
+  const officerFirst = officer?.name.split(" ")[0];
+  const bookHref = officer ? `/loan-officers#${officer.slug}` : calendarHref || "/loan-officers";
+  const bookLabel = officer ? `Connect with ${officerFirst}` : "Talk to a loan officer";
 
   if (auth.loading) {
     return (
@@ -73,10 +80,19 @@ export function FinishStep({
 
   return (
     <>
-      {auth.authenticated && auth.user?.email && (
-        <p className="-mt-1 mb-6 text-[16px] text-muted">
-          Welcome back, <span className="font-semibold text-ink">{auth.user.email}</span> — pick up right where you left off.
-        </p>
+      {(officer || (auth.authenticated && auth.user?.email)) && (
+        <div className="-mt-1 mb-6 space-y-1 text-[16px] text-muted">
+          {officer && (
+            <p>
+              You&apos;ll be working with <span className="font-semibold text-ink">{officer.name}</span>.
+            </p>
+          )}
+          {auth.authenticated && auth.user?.email && (
+            <p>
+              Welcome back, <span className="font-semibold text-ink">{auth.user.email}</span> — pick up right where you left off.
+            </p>
+          )}
+        </div>
       )}
 
       <a
@@ -96,7 +112,7 @@ export function FinishStep({
         className="flex h-16 w-full items-center justify-center gap-2.5 rounded-lg border-[1.5px] border-line bg-white text-[16px] font-bold text-ink shadow-3d transition-colors duration-150 hover:bg-paper-2"
       >
         <CalendarDays className="size-5 text-green-600" strokeWidth={2} aria-hidden="true" />
-        Talk to a loan officer
+        {bookLabel}
       </a>
 
       <div className="mt-4 min-h-[18px] text-[13px] text-muted" aria-live="polite">

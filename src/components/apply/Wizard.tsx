@@ -16,6 +16,7 @@ import { FinishStep } from "./steps/FinishStep";
 import { MultiStep } from "./steps/MultiStep";
 import { CurrencyStep } from "./steps/CurrencyStep";
 import { AddressStep } from "./steps/AddressStep";
+import { OfficerStep, NO_PREFERENCE, type ApplyOfficer } from "./steps/OfficerStep";
 import { ApplyChatPanel } from "./ask-ai/ApplyChatPanel";
 import { APPLY_CHAT_STARTERS } from "@/content/applyChatStarters";
 
@@ -41,6 +42,7 @@ export function Wizard({
   iconSrc,
   testimonial,
   calendarHref,
+  officers,
 }: {
   intent: Intent;
   phoneHref: string;
@@ -51,6 +53,7 @@ export function Wizard({
   iconSrc: string;
   testimonial?: TestimonialDisplay;
   calendarHref: string;
+  officers: ApplyOfficer[];
 }) {
   const router = useRouter();
   const steps = FLOW[intent];
@@ -108,13 +111,27 @@ export function Wizard({
   const placeIdx = steps.findIndex((s) => s.type === "place" || s.type === "address");
   const location = toLocation(placeIdx >= 0 ? answers[placeIdx] : undefined);
 
+  // Subject-property state (from the address step) drives the officer filter.
+  const addrAnswer = placeIdx >= 0 ? answers[placeIdx] : undefined;
+  const propertyState =
+    addrAnswer && typeof addrAnswer === "object" && "state" in addrAnswer
+      ? (addrAnswer as StructuredAddress).state || undefined
+      : undefined;
+  // Officer chosen in the officer step (slug) → {slug,name} for the finish step.
+  const officerIdx = steps.findIndex((s) => s.type === "officer");
+  const officerSlug =
+    officerIdx >= 0 && typeof answers[officerIdx] === "string" ? (answers[officerIdx] as string) : undefined;
+  const chosenOfficer =
+    officerSlug && officerSlug !== NO_PREFERENCE ? officers.find((o) => o.slug === officerSlug) ?? null : null;
+
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-20 bg-paper">
         <div className="wrap">
           <div className="flex h-[70px] items-center gap-4">
-            <button type="button" onClick={back} aria-label="Back" className="flex size-11 items-center justify-center rounded-full border border-line bg-white text-ink transition-colors duration-150 hover:bg-paper-2">
-              <ChevronLeft className="size-5" strokeWidth={1.8} />
+            <button type="button" onClick={back} aria-label="Back" className="flex h-11 items-center gap-1 rounded-full border border-line bg-white pl-2.5 pr-4 text-[15px] font-bold text-ink transition-colors duration-150 hover:bg-paper-2">
+              <ChevronLeft className="size-5" strokeWidth={2} />
+              Back
             </button>
             <a href={phoneHref} className="ml-auto flex items-center gap-2.5 text-[16px] font-bold text-ink">
               <span className="flex size-9 items-center justify-center rounded-full bg-spring-soft text-green-600">
@@ -158,8 +175,17 @@ export function Wizard({
             {step.type === "form" && (
               <ContactStep onDone={onContactDone} consentTcpa={consentTcpa} />
             )}
+            {step.type === "officer" && (
+              <OfficerStep
+                officers={officers}
+                propertyState={propertyState}
+                sub={step.sub}
+                selected={typeof answers[idx] === "string" ? (answers[idx] as string) : undefined}
+                onPick={pickAuto}
+              />
+            )}
             {(step.type === "finish" || step.type === "account") && (
-              <FinishStep intent={intent} contact={contact} fields={losAnswers} location={location} leadId={leadId} shortName={shortName} calendarHref={calendarHref} />
+              <FinishStep intent={intent} contact={contact} fields={losAnswers} location={location} leadId={leadId} shortName={shortName} calendarHref={calendarHref} officer={chosenOfficer} />
             )}
           </div>
         </DeckStage>

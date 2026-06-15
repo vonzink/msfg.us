@@ -12,12 +12,17 @@ import { z } from "zod";
 export const intentSchema = z.enum(["buy", "refi", "cash"]);
 export type LeadIntent = z.infer<typeof intentSchema>;
 
-/** Contact block captured by the wizard's `form` step. */
+/** Contact block captured by the wizard's `form` step. Phone is OPTIONAL — the
+ *  phone pane has a "Skip for now" control, so an empty phone is accepted; a
+ *  non-empty phone must still look valid (≥7 chars). */
 export const contactSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
   lastName: z.string().trim().min(1, "Last name is required"),
   email: z.email("A valid email is required").trim().toLowerCase(),
-  phone: z.string().trim().min(7, "A valid phone is required"),
+  phone: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || v.length >= 7, "A valid phone is required"),
 });
 export type LeadContactInput = z.infer<typeof contactSchema>;
 

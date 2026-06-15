@@ -122,6 +122,17 @@ type AddressStep = {
 /** Two-door finish (Continue in the app / Talk to a loan officer). */
 type FinishStep = { type: "finish"; q: string };
 
+/** Loan-officer picker shown right before the finish step. Stores the chosen
+ *  officer's `slug` (or the sentinel "no-preference"). Rendered by OfficerStep
+ *  with the per-tenant roster, defaulting to officers licensed in the property
+ *  state (from the address step) with a "show all" fallback. */
+type OfficerStep = {
+  type: "officer";
+  q: string;
+  field: string;
+  sub?: string;
+};
+
 export type Step =
   | ChoiceStep
   | BinaryStep
@@ -131,6 +142,7 @@ export type Step =
   | MultiStep
   | CurrencyStep
   | AddressStep
+  | OfficerStep
   | FinishStep;
 
 /**
@@ -230,7 +242,6 @@ export const FLOW: Record<Intent, Step[]> = {
       sub: "Select all that apply.",
       opts: [
         { label: "Lower my monthly payment", icon: "invest" },
-        { label: "Long-term savings", icon: "cal", badge: "15" },
         { label: "Take cash out", icon: "house" },
         { label: "Just checking rates", icon: "help" },
       ],
@@ -260,6 +271,7 @@ export const FLOW: Record<Intent, Step[]> = {
         { label: "Condo", icon: "condo" },
         { label: "Townhouse", icon: "coop" },
         { label: "Manufactured home", icon: "manuf" },
+        { label: "Other", icon: "help" },
       ],
       review: true,
     },
@@ -294,6 +306,12 @@ export const FLOW: Record<Intent, Step[]> = {
       field: "income",
       placeholder: "e.g. 120,000",
       optional: true,
+    },
+    {
+      type: "officer",
+      q: "Who would you like to work with?",
+      field: "loanOfficer",
+      sub: "Pick a loan officer, or let us match you with the right fit.",
     },
     { type: "form", q: "Let's start personalizing your offer!" },
     { type: "finish", q: "You're all set — what's next?" },
