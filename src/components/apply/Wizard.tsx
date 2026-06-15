@@ -17,6 +17,7 @@ import { MultiStep } from "./steps/MultiStep";
 import { CurrencyStep } from "./steps/CurrencyStep";
 import { AddressStep } from "./steps/AddressStep";
 import { ApplyChatPanel } from "./ask-ai/ApplyChatPanel";
+import { APPLY_CHAT_STARTERS } from "@/content/applyChatStarters";
 
 const AUTO_ADVANCE_MS = 260;
 
@@ -179,7 +180,7 @@ export function Wizard({
       <ApplyChatPanel
         open={chatOpen}
         onClose={() => setChatOpen(false)}
-        intent={intent}
+        starters={APPLY_CHAT_STARTERS[intent]}
         assistantName={assistantName}
         shortName={shortName}
         iconSrc={iconSrc}

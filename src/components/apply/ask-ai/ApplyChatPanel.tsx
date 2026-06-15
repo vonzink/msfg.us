@@ -3,9 +3,8 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import type { Intent } from "@/content/flows";
 import { Convo } from "@/components/home/hero-chat/Convo";
-import { APPLY_CHAT_STARTERS, stepHelpPrompt } from "@/content/applyChatStarters";
+import { stepHelpPrompt } from "@/content/applyChatStarters";
 import { useApplyChat } from "./useApplyChat";
 
 /** In-application Ask-AI panel: right drawer on desktop (≥981px), full-screen
@@ -15,7 +14,7 @@ import { useApplyChat } from "./useApplyChat";
 export function ApplyChatPanel({
   open,
   onClose,
-  intent,
+  starters,
   assistantName,
   shortName,
   iconSrc,
@@ -24,11 +23,11 @@ export function ApplyChatPanel({
 }: {
   open: boolean;
   onClose: () => void;
-  intent: Intent;
+  starters: string[];
   assistantName: string;
   shortName: string;
   iconSrc: string;
-  stepQuestion: string;
+  stepQuestion?: string;
   returnFocusRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const chat = useApplyChat();
@@ -69,7 +68,6 @@ export function ApplyChatPanel({
     else returnFocusRef?.current?.focus();
   }, [open, returnFocusRef]);
 
-  const starters = APPLY_CHAT_STARTERS[intent] ?? [];
   const chipClass =
     "rounded-full border border-line bg-white px-3 py-1.5 text-[13.5px] font-semibold text-green-700 transition-colors hover:bg-paper-2";
 
@@ -84,9 +82,11 @@ export function ApplyChatPanel({
             {s}
           </button>
         ))}
-        <button type="button" onClick={() => chat.send(stepHelpPrompt(stepQuestion))} className={chipClass}>
-          Help me with this step
-        </button>
+        {stepQuestion && (
+          <button type="button" onClick={() => chat.send(stepHelpPrompt(stepQuestion))} className={chipClass}>
+            Help me with this step
+          </button>
+        )}
       </div>
     </div>
   );
