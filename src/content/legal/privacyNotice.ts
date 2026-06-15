@@ -33,6 +33,11 @@ export function glbaRows(config: TenantConfig): GlbaShareRow[] {
       canLimit: "We don't share",
     },
     {
+      reason: `For our affiliates to market to you. [PLACEHOLDER — confirm affiliate marketing]`,
+      shares: "No",
+      canLimit: "We don't share",
+    },
+    {
       reason: `For nonaffiliates to market to you. [PLACEHOLDER — confirm nonaffiliate sharing]`,
       shares: "No",
       canLimit: "We don't share",
@@ -102,7 +107,7 @@ export function privacyNoticeDoc(config: TenantConfig): LegalDoc {
         blocks: [
           {
             kind: "p",
-            text: `Who is providing this notice: ${legalName}, NMLS #${nmls} [PLACEHOLDER].`,
+            text: `Who is providing this notice: ${legalName}, NMLS #${nmls}.`,
           },
         ],
       },

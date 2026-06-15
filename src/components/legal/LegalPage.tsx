@@ -16,6 +16,20 @@ function Block({ block }: { block: LegalBlock }) {
         ))}
       </ul>
     );
+  if (block.kind === "link")
+    return (
+      <p className="text-[16px] leading-[1.6]">
+        <a
+          href={block.href}
+          {...(block.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+          className="font-semibold text-spring-3 underline-offset-2 hover:underline"
+        >
+          {block.text}
+        </a>
+      </p>
+    );
+  if (block.kind === "ehl")
+    return <EqualHousing size={36} className="text-ink" />;
   return <p className="text-[16px] leading-[1.6] text-ink">{block.text}</p>;
 }
 

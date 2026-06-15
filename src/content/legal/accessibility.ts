@@ -14,7 +14,7 @@ export function accessibilityDoc(config: TenantConfig): LegalDoc {
         blocks: [
           {
             kind: "p",
-            text: `${shortName} is committed to ensuring digital accessibility for people with disabilities. We aim to conform to the Web Content Accessibility Guidelines (WCAG) 2.1 Level AA so that our website is usable by the widest possible audience, regardless of ability or technology.`,
+            text: `${shortName} is committed to ensuring digital accessibility for people with disabilities. msfg.us partially conforms with the Web Content Accessibility Guidelines (WCAG) 2.1 Level AA — "partially conforms" means that some parts of the content do not yet fully meet the standard. We are actively working toward full conformance so the site is usable by the widest possible audience, regardless of ability or technology.`,
           },
           {
             kind: "p",

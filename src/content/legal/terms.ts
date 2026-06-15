@@ -101,11 +101,11 @@ export function termsDoc(config: TenantConfig): LegalDoc {
         blocks: [
           {
             kind: "p",
-            text: `These Terms shall be governed by and construed in accordance with the laws of the State of [PLACEHOLDER — governing-law state; confirm with counsel], without regard to its conflict-of-law provisions.`,
+            text: `These Terms are governed by and construed in accordance with the laws of the State of [PLACEHOLDER], without regard to its conflict-of-law provisions, and you agree to the exclusive jurisdiction and venue of the state and federal courts located there for any dispute not otherwise subject to arbitration.`,
           },
           {
             kind: "p",
-            text: `[PLACEHOLDER — arbitration clause and class-action waiver: confirm with counsel before including. If arbitration is used, include required consumer disclosures and opt-out procedures per applicable law.]`,
+            text: `Dispute-resolution terms — including whether disputes are resolved by binding arbitration and any class-action waiver — are being finalized and will be added here before launch.`,
           },
         ],
       },

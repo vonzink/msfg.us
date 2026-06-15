@@ -2,7 +2,9 @@
 export type LegalBlock =
   | { kind: "p"; text: string }
   | { kind: "ul"; items: string[] }
-  | { kind: "h3"; text: string };
+  | { kind: "h3"; text: string }
+  | { kind: "link"; text: string; href: string; external?: boolean }
+  | { kind: "ehl" };
 
 /** A titled section of a legal document. */
 export type LegalSection = { heading: string; blocks: LegalBlock[] };

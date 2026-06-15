@@ -10,7 +10,7 @@ export function licensingDoc(config: TenantConfig): LegalDoc {
         blocks: [
           {
             kind: "p",
-            text: `${brand.legalName}, NMLS #${contact.nmls} [PLACEHOLDER]. ${legal.address ?? "[PLACEHOLDER] — registered office address"}.`,
+            text: `${brand.legalName}, NMLS #${contact.nmls}. ${legal.address ?? "[PLACEHOLDER] — registered office address"}.`,
           },
         ],
       },
@@ -26,6 +26,7 @@ export function licensingDoc(config: TenantConfig): LegalDoc {
       {
         heading: "Equal Housing Lender",
         blocks: [
+          { kind: "ehl" },
           {
             kind: "p",
             text: `${brand.shortName} is an Equal Housing Lender. We do business in accordance with the Fair Housing Act and the Equal Credit Opportunity Act. We do not discriminate on the basis of race, color, national origin, religion, sex, familial status, disability, age, or any other characteristic protected by applicable law.`,
@@ -61,7 +62,22 @@ export function licensingDoc(config: TenantConfig): LegalDoc {
         blocks: [
           {
             kind: "p",
-            text: `You can verify ${brand.shortName}'s license and look up individual loan originators on NMLS Consumer Access, the free, official database maintained by the Nationwide Multistate Licensing System. Visit our NMLS Consumer Access page at /nmls-consumer-access for a direct link to the official registry or search ${contact.nmlsConsumerAccessUrl} directly.`,
+            text: `You can verify ${brand.shortName}'s company license and look up any of our loan originators on NMLS Consumer Access — the free, official registry maintained by the Nationwide Multistate Licensing System.`,
+          },
+          {
+            kind: "p",
+            text: `Each ${brand.shortName} loan originator has a unique NMLS ID that appears on their loan officer profile and on your loan documents, as required by the federal SAFE Act.`,
+          },
+          {
+            kind: "link",
+            text: "Verify on NMLS Consumer Access ↗",
+            href: contact.nmlsConsumerAccessUrl,
+            external: true,
+          },
+          {
+            kind: "link",
+            text: "Our NMLS Consumer Access page",
+            href: "/nmls-consumer-access",
           },
         ],
       },

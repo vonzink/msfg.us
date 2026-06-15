@@ -29,6 +29,11 @@ export function ConfigEditor({
     v: TenantConfig["contact"][K],
   ) => setCfg((c) => ({ ...c, contact: { ...c.contact, [k]: v } }));
 
+  const setLegal = <K extends keyof TenantConfig["legal"]>(
+    k: K,
+    v: TenantConfig["legal"][K],
+  ) => setCfg((c) => ({ ...c, legal: { ...c.legal, [k]: v } }));
+
   const setSeo = <K extends keyof TenantConfig["seo"]>(
     k: K,
     v: TenantConfig["seo"][K],
@@ -42,6 +47,7 @@ export function ConfigEditor({
   const patch = () => ({
     brand: cfg.brand,
     contact: cfg.contact,
+    legal: cfg.legal,
     seo: cfg.seo,
     features: cfg.features,
   });
@@ -168,6 +174,21 @@ export function ConfigEditor({
             name="contact.nmlsConsumerAccessUrl"
             value={cfg.contact.nmlsConsumerAccessUrl}
             onChange={(v) => setContact("nmlsConsumerAccessUrl", v)}
+          />
+        </div>
+      </section>
+
+      {/* Legal */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-muted">
+          Legal
+        </h2>
+        <div className="grid gap-4">
+          <TextField
+            label="Registered office address"
+            name="legal.address"
+            value={cfg.legal.address ?? ""}
+            onChange={(v) => setLegal("address", v)}
           />
         </div>
       </section>
