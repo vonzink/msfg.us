@@ -206,7 +206,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   brand: {
     shortName: "MSFG",
     legalName: "Mountain State Financial Group, LLC",
-    foundedYear: 1998,
+    foundedYear: 2015,
     assistantName: "MSFG AI",
     logos: {
       horizontal: "/brand/msfg-color.png",
@@ -252,7 +252,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   },
   marketing: {
     tagline:
-      "A family of companies serving every step of your homeownership journey — since 1998.",
+      "A family of companies serving every step of your homeownership journey — since 2015.",
     stats: [
       { num: "$1.4B+", label: "funded loans" },
       { num: "4,200+", label: "families served" },

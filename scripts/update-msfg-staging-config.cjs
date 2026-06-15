@@ -18,7 +18,6 @@
  * Per-state license numbers are NOT published anywhere yet, so they stay
  * [PLACEHOLDER] until the company provides them.
  */
-require("dotenv/config");
 const { PrismaClient } = require("@prisma/client");
 const { PrismaPg } = require("@prisma/adapter-pg");
 

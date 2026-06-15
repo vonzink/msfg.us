@@ -40,8 +40,6 @@ export async function Hero() {
       <TopoRings />
       <div className="wrap relative flex flex-col items-center text-center">
         <HeroBloomShell
-          logoSrc={config.brand.logos.mark}
-          logoAlt={config.brand.legalName}
           assistantName={config.brand.assistantName}
           shortName={config.brand.shortName}
           iconSrc={config.brand.logos.horizontal}
