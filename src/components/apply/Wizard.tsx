@@ -16,6 +16,7 @@ import { FinishStep } from "./steps/FinishStep";
 import { MultiStep } from "./steps/MultiStep";
 import { CurrencyStep } from "./steps/CurrencyStep";
 import { AddressStep } from "./steps/AddressStep";
+import { ApplyChatPanel } from "./ask-ai/ApplyChatPanel";
 
 const AUTO_ADVANCE_MS = 260;
 
@@ -36,6 +37,7 @@ export function Wizard({
   consentTcpa,
   assistantName,
   shortName,
+  iconSrc,
   testimonial,
   calendarHref,
 }: {
@@ -45,6 +47,7 @@ export function Wizard({
   consentTcpa: string;
   assistantName: string;
   shortName: string;
+  iconSrc: string;
   testimonial?: TestimonialDisplay;
   calendarHref: string;
 }) {
@@ -56,6 +59,8 @@ export function Wizard({
   const [answers, setAnswers] = useState<Record<number, AnswerValue>>({});
   const [contact, setContact] = useState<LeadContact | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const askBtnRef = useRef<HTMLButtonElement>(null);
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -159,9 +164,28 @@ export function Wizard({
         </DeckStage>
       </div>
 
-      <button type="button" aria-label={`Ask ${assistantName}`} className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2.5 rounded-full bg-green-800 py-0 pl-2.5 pr-5 text-[15px] font-bold text-white shadow-pop transition-transform duration-150 hover:-translate-y-0.5">
+      <button
+        ref={askBtnRef}
+        type="button"
+        onClick={() => setChatOpen(true)}
+        aria-haspopup="dialog"
+        aria-expanded={chatOpen}
+        aria-label={`Ask ${assistantName}`}
+        className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2.5 rounded-full bg-green-800 py-0 pl-2.5 pr-5 text-[15px] font-bold text-white shadow-pop transition-transform duration-150 hover:-translate-y-0.5"
+      >
         <Mark size={36} label={shortName} /> Ask AI
       </button>
+
+      <ApplyChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        intent={intent}
+        assistantName={assistantName}
+        shortName={shortName}
+        iconSrc={iconSrc}
+        stepQuestion={step.q}
+        returnFocusRef={askBtnRef}
+      />
     </div>
   );
 }
