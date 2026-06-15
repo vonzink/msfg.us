@@ -266,22 +266,22 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
       },
       {
         rest: "Veterans",
-        href: "/coming-soon",
+        href: "/veterans",
         desc: "VA purchase, refinance, and benefit-focused lending options built for veterans, active-duty military, and eligible surviving spouses.",
       },
       {
         rest: "Reverse",
-        href: "/coming-soon",
+        href: "/reverse",
         desc: "Reverse mortgage guidance for homeowners 62+ who want to access home equity while staying in their home.",
       },
       {
         rest: "Investment",
-        href: "/coming-soon",
+        href: "/investment",
         desc: "Financing options for rental properties, DSCR loans, second homes, and real estate investors building long-term wealth.",
       },
       {
         rest: "Commercial",
-        href: "/coming-soon",
+        href: "/commercial",
         desc: "Commercial lending solutions for business properties, mixed-use buildings, multifamily, and investor-owned real estate.",
       },
       {
