@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type ReactNode, type RefObject } from "react";
 import Link from "next/link";
 import { ArrowUp, Mic } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -22,6 +22,7 @@ export function Convo({
   onDraft,
   onSend,
   composerRef,
+  emptyState,
 }: {
   thread: Thread;
   iconSrc: string;
@@ -30,6 +31,7 @@ export function Convo({
   onDraft: (v: string) => void;
   onSend: () => void;
   composerRef?: RefObject<HTMLTextAreaElement | null>;
+  emptyState?: ReactNode;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -42,13 +44,15 @@ export function Convo({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {thread.msgs.length === 0 ? (
-        <div className="flex flex-1 flex-col justify-end gap-2 pb-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={iconSrc} alt={shortName} className="size-[34px] rounded-md object-cover object-left" />
-          <p className="text-[14.5px] font-medium text-muted">
-            Fresh thread — ask anything about this scenario.
-          </p>
-        </div>
+        emptyState ?? (
+          <div className="flex flex-1 flex-col justify-end gap-2 pb-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={iconSrc} alt={shortName} className="size-[34px] rounded-md object-cover object-left" />
+            <p className="text-[14.5px] font-medium text-muted">
+              Fresh thread — ask anything about this scenario.
+            </p>
+          </div>
+        )
       ) : (
         <div
           ref={scrollRef}
