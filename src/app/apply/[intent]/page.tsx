@@ -49,6 +49,7 @@ export default async function ApplyIntentPage({
       consentTcpa={buildConsentTcpa(config)}
       assistantName={config.brand.assistantName}
       shortName={config.brand.shortName}
+      iconSrc={config.brand.logos.mark}
       testimonial={testimonial}
       calendarHref={calendarEmbedUrl() ?? ""}
     />
