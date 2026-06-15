@@ -215,11 +215,11 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   },
   theme: ThemeSchema.parse({}),
   contact: {
-    phoneDisplay: "(303) 555-0142",
-    phoneHref: "tel:+13035550142",
+    phoneDisplay: "(720) 838-1246",
+    phoneHref: "tel:+17208381246",
     email: "hello@msfg.us",
-    nmls: "1234567",
-    nmlsConsumerAccessUrl: "https://www.nmlsconsumeraccess.org/",
+    nmls: "1314257",
+    nmlsConsumerAccessUrl: "https://www.nmlsconsumeraccess.org/EntityDetails.aspx/COMPANY/1314257",
   },
   legal: {
     states: [
@@ -235,7 +235,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
       "Texas Consumer Complaint and Recovery Fund Notice available upon request. Figure: Consumers wishing to file a complaint against a mortgage company or licensed residential mortgage loan originator should complete and send a complaint form to the Texas Department of Savings and Mortgage Lending.",
     ratesDisclaimer:
       "Rates shown are indicative, assume a 740+ FICO score, a $300,000 loan on a single-family primary residence, and are not a commitment to lend. Your actual rate depends on your credit, property, loan amount, and a complete application. Rates and points are subject to change without notice.",
-    address: "[PLACEHOLDER] — registered office address",
+    address: "9035 Wadsworth Parkway, Suite 3400, Westminster, CO 80021",
   },
   seo: {
     titleDefault: "MSFG — Expert Mortgage Guidance from Seasoned Professionals",
@@ -338,7 +338,7 @@ export function statesLine(c: TenantConfig): string {
 
 /** Full footer legal strip. Identical to the pre-Phase-B LEGAL_STRIP for MSFG. */
 export function buildLegalStrip(c: TenantConfig): string {
-  return `${c.brand.legalName}. NMLS #${c.contact.nmls} [PLACEHOLDER]. Equal Housing Lender. Licensed in ${statesLine(c)}. Loans subject to credit and property approval. Rates and terms subject to change without notice. ${c.brand.assistantName} provides general information and estimates only and is not a commitment to lend. © ${c.brand.foundedYear}–2026 ${c.brand.shortName}, LLC.`;
+  return `${c.brand.legalName}. NMLS #${c.contact.nmls}. Equal Housing Lender. Licensed in ${statesLine(c)}. Loans subject to credit and property approval. Rates and terms subject to change without notice. ${c.brand.assistantName} provides general information and estimates only and is not a commitment to lend. © ${c.brand.foundedYear}–2026 ${c.brand.shortName}, LLC.`;
 }
 
 /** "Last updated" string for a legal doc slug; placeholder until real dates land. */

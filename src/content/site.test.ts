@@ -12,7 +12,7 @@ import {
 // The exact strings MSFG renders today (copied from the pre-Phase-B site.ts).
 const EXPECTED_STATES_LINE = "CO, ND, SD, MN, TX, MI, IN";
 const EXPECTED_LEGAL_STRIP =
-  "Mountain State Financial Group, LLC. NMLS #1234567 [PLACEHOLDER]. Equal Housing Lender. Licensed in CO, ND, SD, MN, TX, MI, IN. Loans subject to credit and property approval. Rates and terms subject to change without notice. MSFG AI provides general information and estimates only and is not a commitment to lend. © 1998–2026 MSFG, LLC.";
+  "Mountain State Financial Group, LLC. NMLS #1314257. Equal Housing Lender. Licensed in CO, ND, SD, MN, TX, MI, IN. Loans subject to credit and property approval. Rates and terms subject to change without notice. MSFG AI provides general information and estimates only and is not a commitment to lend. © 1998–2026 MSFG, LLC.";
 const EXPECTED_CONSENT_TCPA =
   "By submitting, you agree that MSFG and its affiliates may contact you about your inquiry by phone, text, and email — including via automated technology — at the number and address provided. Consent is not a condition of any purchase. Message and data rates may apply.";
 
@@ -164,8 +164,9 @@ describe("legal config additions", () => {
     }
   });
 
-  it("default legal carries address + lastUpdated placeholders", () => {
-    expect(DEFAULT_TENANT_CONFIG.legal.address).toContain("PLACEHOLDER");
+  it("default legal carries the real registered office address", () => {
+    expect(DEFAULT_TENANT_CONFIG.legal.address).toContain("Westminster, CO");
+    expect(DEFAULT_TENANT_CONFIG.legal.address).not.toContain("PLACEHOLDER");
   });
 
   it("effectiveDate falls back to a placeholder when no date is set", () => {

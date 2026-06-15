@@ -9,7 +9,7 @@ describe("localBusinessSchema", () => {
     expect(s.url).toBe("https://msfg.us");
     expect(s.name).toBe("Mountain State Financial Group, LLC");
     expect(s.alternateName).toBe("MSFG");
-    expect(s.identifier.value).toBe("1234567");
+    expect(s.identifier.value).toBe("1314257");
     expect(s.areaServed).toHaveLength(7);
     expect(s.description).toBe(
       "AI-first, transparent home financing — expert mortgage guidance from seasoned, licensed loan officers across seven states.",
