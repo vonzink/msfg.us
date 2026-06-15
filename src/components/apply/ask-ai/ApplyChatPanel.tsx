@@ -105,7 +105,7 @@ export function ApplyChatPanel({
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-hidden={!open}
+        inert={!open}
         aria-label={`Ask ${assistantName}`}
         className={cn(
           "fixed z-50 flex flex-col bg-paper shadow-pop transition-transform duration-200 ease-out motion-reduce:transition-none",
