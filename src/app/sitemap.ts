@@ -27,6 +27,7 @@ const ROUTES = [
   "/sitemap",
   "/about",
   "/careers",
+  "/know-your-lender",
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
