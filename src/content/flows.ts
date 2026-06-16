@@ -64,6 +64,8 @@ type BinaryStep = {
   field?: string;
   /** Optional underlined helper link text (non-navigating placeholder). */
   help?: string;
+  /** Question sent to Ask-AI when the help link is clicked; falls back to `help`. */
+  askPrompt?: string;
   /** When true, show the USA TODAY trust badge below the Yes/No buttons. */
   usatoday?: boolean;
 };
@@ -109,6 +111,8 @@ type CurrencyStep = {
   optional?: boolean;
   help?: string;
   unit?: "$" | "%";
+  /** When true, render a Percent/Amount unit toggle; the answer becomes a CurrencyAmount {value,unit}. */
+  toggle?: boolean;
 };
 
 /** Street-address autocomplete (+ Apt/Unit + ZIP). Stores StructuredAddress. */
@@ -117,6 +121,8 @@ type AddressStep = {
   q: string;
   field: string;
   help?: string;
+  /** Question sent to Ask-AI when the help link is clicked; falls back to `help`. */
+  askPrompt?: string;
 };
 
 /** Two-door finish (Continue in the app / Talk to a loan officer). */
@@ -167,6 +173,7 @@ export const FLOW: Record<Intent, Step[]> = {
       q: "What's the address of the new property?",
       field: "address",
       help: "Why do we need this?",
+      askPrompt: "Why does this application ask for the property address, and how is it used?",
     },
     {
       type: "choice",
@@ -189,6 +196,7 @@ export const FLOW: Record<Intent, Step[]> = {
         { label: "Co-op", icon: "coop" },
         { label: "2 to 4 units", icon: "units" },
         { label: "Manufactured home", icon: "manuf" },
+        { label: "Other", icon: "help" },
       ],
       review: true,
     },
@@ -207,8 +215,9 @@ export const FLOW: Record<Intent, Step[]> = {
     {
       type: "currency",
       q: "How much are you putting down?",
-      field: "downPaymentPct",
+      field: "downPayment",
       unit: "%",
+      toggle: true,
       placeholder: "e.g. 20",
     },
     {
@@ -230,6 +239,12 @@ export const FLOW: Record<Intent, Step[]> = {
       field: "income",
       placeholder: "e.g. 120,000",
       optional: true,
+    },
+    {
+      type: "officer",
+      q: "Who would you like to work with?",
+      field: "loanOfficer",
+      sub: "Pick a loan officer, or let us match you with the right fit.",
     },
     { type: "form", q: "Let's start personalizing your offer!" },
     { type: "finish", q: "You're all set — what's next?" },
