@@ -84,11 +84,12 @@ export type ApplicationInput = z.infer<typeof applicationInputSchema>;
 // except intent + contact so a minimal completion still forwards.
 // ---------------------------------------------------------------------------
 export const applicationHandoffSchema = z.object({
-  intent: intentSchema,
-  contact: contactSchema,
+  intent: intentSchema.optional(),
+  contact: contactSchema.optional(),
   answers: z.record(z.string(), z.unknown()).default({}),
   location: z.string().trim().min(1).optional(),
-  /** Local Lead id returned by POST /api/v1/leads, for cross-referencing. */
+  /** Local Lead id returned by POST /api/v1/leads; when present the route
+   *  rebuilds the IntakeDTO from the persisted lead rather than the request body. */
   leadId: z.string().trim().min(1).optional(),
   idempotencyKey: idempotencyKeySchema.optional(),
   source: z.string().trim().min(1).optional(),

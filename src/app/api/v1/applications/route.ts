@@ -21,10 +21,20 @@ import { NextResponse } from "next/server";
 import { authConfigured } from "@/lib/auth/cognito";
 import { getSession, getIdToken } from "@/lib/auth/session";
 import { createLoanApplication } from "@/server/integrations/los/losClient";
+import { getLeadById } from "@/server/leads/leadService";
+import { funnelToIntake, type LeadForIntake, type IntakeOfficer } from "@/lib/applyIntake";
+import { OFFICERS } from "@/content/officers";
 import { applicationHandoffSchema } from "@/validation/lead";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+/** Resolve a funnel officer slug → the intake officer block (email/nmls/name/slug). */
+function resolveOfficer(slug: unknown): IntakeOfficer | null {
+  if (typeof slug !== "string" || !slug) return null;
+  const o = OFFICERS.find((x) => x.slug === slug);
+  return o ? { email: o.email, nmls: o.nmls, name: o.name, slug: o.slug } : null;
+}
 
 export async function POST(req: Request) {
   if (!authConfigured()) {
@@ -54,6 +64,16 @@ export async function POST(req: Request) {
     );
   }
 
+  const { leadId } = parsed.data;
+  if (!leadId) {
+    return NextResponse.json({ ok: false, error: "leadId required" }, { status: 400 });
+  }
+
+  const lead = await getLeadById(leadId);
+  if (!lead) {
+    return NextResponse.json({ ok: false, error: "Lead not found" }, { status: 400 });
+  }
+
   const idToken = await getIdToken();
   if (!idToken) {
     // Session said authenticated but the token vanished mid-request — treat as
@@ -61,17 +81,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: false, error: "Not authenticated" }, { status: 401 });
   }
 
-  const input = parsed.data;
-  const result = await createLoanApplication(idToken, {
-    intent: input.intent,
-    cognitoSub: user.sub,
-    contact: input.contact,
-    answers: input.answers,
-    location: input.location,
-    leadId: input.leadId,
-    idempotencyKey: input.idempotencyKey,
-    source: input.source ?? "apply-wizard",
-  });
+  const officer = resolveOfficer(
+    (lead.answers as { fields?: Record<string, unknown> })?.fields?.loanOfficer,
+  );
+  const dto = funnelToIntake(lead as unknown as LeadForIntake, officer);
+
+  const result = await createLoanApplication(idToken, dto);
 
   // The hand-off is best-effort. We always report 200 with the outcome so the
   // wizard can show the "continue in the MSFG app" CTA; failures are logged
