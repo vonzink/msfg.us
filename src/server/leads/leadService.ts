@@ -163,3 +163,9 @@ export async function captureLead(
 
   return { leadId: lead.id, syncStatus: lead.syncStatus };
 }
+
+/** Read a single lead by id, tenant-scoped. null when not found. */
+export async function getLeadById(id: string): Promise<Lead | null> {
+  const db = await getTenantDb();
+  return db.lead.findFirst({ where: { id } });
+}
