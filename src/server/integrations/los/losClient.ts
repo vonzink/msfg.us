@@ -16,41 +16,19 @@
  *    is env-driven. Changing where applications land is a one-line edit.
  */
 import { serverEnv, losConfigured } from "@/lib/env";
+import type { IntakeDTO } from "@/lib/applyIntake";
 
 /**
  * Path appended to `LOS_API_BASE` for the create-application call. Kept as a
  * lone constant so re-pointing the hand-off is a one-line change. If your LOS
  * base already includes the full path, set this to "".
  */
-const LOS_PATH = "/api/applications";
+const LOS_PATH = "/api/loan-applications/intake";
 
 /** Hard timeout for the hand-off call (ms). */
 const TIMEOUT_MS = 8_000;
 
-/** Minimal shape we send to the LOS. Intentionally permissive/pass-through. */
-export interface LosApplicationPayload {
-  /** Apply-flow intent (buy | refi | cash). */
-  intent: string;
-  /** Cognito subject of the signed-in applicant. */
-  cognitoSub: string;
-  /** Applicant contact captured by the wizard. */
-  contact: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-  };
-  /** Free-form wizard answers (keyed by step index/name). */
-  answers?: Record<string, unknown>;
-  /** Property location string, if captured. */
-  location?: string;
-  /** Local Lead id (Postgres), for cross-referencing. */
-  leadId?: string;
-  /** Client idempotency key, echoed so the LOS can de-dupe. */
-  idempotencyKey?: string;
-  /** Marketing/source attribution. */
-  source?: string;
-}
+export type LosApplicationPayload = IntakeDTO;
 
 /** Result of a hand-off attempt. */
 export interface LosResult {
@@ -67,9 +45,9 @@ export interface LosResult {
 
 /** Shapes the LOS might echo back (only the id we care about). */
 interface LosCreateResponse {
-  id?: string;
-  applicationId?: string;
-  application?: { id?: string };
+  id?: string | number;
+  applicationId?: string | number;
+  application?: { id?: string | number };
 }
 
 /**
@@ -109,7 +87,7 @@ export async function createLoanApplication(
 
     const data = (await res.json().catch(() => null)) as LosCreateResponse | null;
     const applicationId = data?.applicationId ?? data?.id ?? data?.application?.id;
-    return { ok: true, applicationId: applicationId ?? undefined };
+    return { ok: true, applicationId: applicationId != null ? String(applicationId) : undefined };
   } catch (err) {
     const message =
       err instanceof Error && err.name === "AbortError"
