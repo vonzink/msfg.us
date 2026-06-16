@@ -62,7 +62,10 @@ export function Wizard({
   const [dir, setDir] = useState<1 | -1>(1);
   const [answers, setAnswers] = useState<Record<number, AnswerValue>>({});
   const [contact, setContact] = useState<LeadContact | null>(null);
-  const [leadId, setLeadId] = useState<string | null>(null);
+  const [leadId, setLeadId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("lead");
+  });
   const [chatOpen, setChatOpen] = useState(false);
   const [seedQuestion, setSeedQuestion] = useState<string | undefined>(undefined);
   const openAskAi = useCallback((question?: string) => {

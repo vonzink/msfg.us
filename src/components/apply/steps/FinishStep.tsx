@@ -15,8 +15,8 @@ import type { AnswerValue, LeadContact } from "@/lib/leads";
 export function FinishStep({
   intent,
   contact,
-  fields,
-  location,
+  fields: _fields,
+  location: _location,
   leadId,
   shortName,
   calendarHref,
@@ -35,6 +35,7 @@ export function FinishStep({
   const auth = useAuth();
   const fired = useRef(false);
   const [handoff, setHandoff] = useState<"idle" | "sending" | "done">("idle");
+  const [appId, setAppId] = useState<string | null>(null);
 
   useEffect(() => {
     if (fired.current || auth.loading || !auth.configured || !auth.authenticated || !contact) return;
@@ -47,8 +48,11 @@ export function FinishStep({
       credentials: "same-origin",
       cache: "no-store",
       signal: controller.signal,
-      body: JSON.stringify({ intent, contact, answers: fields, location, leadId: leadId ?? undefined }),
-    }).catch(() => {}).finally(() => setHandoff("done"));
+      body: JSON.stringify({ leadId: leadId ?? undefined }),
+    }).then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.applicationId) setAppId(String(d.applicationId)); })
+      .catch(() => {})
+      .finally(() => setHandoff("done"));
     return () => controller.abort();
     // Fire exactly once when auth resolves to authenticated. The payload
     // (intent/contact/fields/location/leadId) is complete by the time this
@@ -60,8 +64,10 @@ export function FinishStep({
 
   const continueHref =
     auth.configured && !auth.authenticated
-      ? `/auth/login?returnTo=${encodeURIComponent(`/apply/${intent}`)}`
-      : APP_URL;
+      ? `/auth/login?returnTo=${encodeURIComponent(`/apply/${intent}${leadId ? `?lead=${leadId}` : ""}`)}`
+      : appId
+        ? `${APP_URL}/applications/${appId}`
+        : APP_URL;
   const continueLabel =
     auth.configured && !auth.authenticated ? "Sign in & continue your application" : `Continue in the ${shortName} app`;
   // When an officer was chosen, route to their directory card; otherwise the
