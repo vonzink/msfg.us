@@ -5,7 +5,7 @@ import { ArrowRight, CalendarDays, Loader2 } from "lucide-react";
 import { useAuth } from "@/lib/auth/useAuth";
 import { APP_URL } from "@/lib/auth/appLink";
 import type { Intent } from "@/content/flows";
-import type { AnswerValue, LeadContact } from "@/lib/leads";
+import type { LeadContact } from "@/lib/leads";
 
 /**
  * Two-door finish: "Continue in the app" (signed-in → prefilled LOS hand-off +
@@ -15,8 +15,6 @@ import type { AnswerValue, LeadContact } from "@/lib/leads";
 export function FinishStep({
   intent,
   contact,
-  fields: _fields,
-  location: _location,
   leadId,
   shortName,
   calendarHref,
@@ -24,8 +22,6 @@ export function FinishStep({
 }: {
   intent: Intent;
   contact: LeadContact | null;
-  fields: Record<string, AnswerValue>;
-  location?: string;
   leadId: string | null;
   shortName: string;
   calendarHref: string;
@@ -54,11 +50,9 @@ export function FinishStep({
       .catch(() => {})
       .finally(() => setHandoff("done"));
     return () => controller.abort();
-    // Fire exactly once when auth resolves to authenticated. The payload
-    // (intent/contact/fields/location/leadId) is complete by the time this
-    // step mounts and is guarded by `fired`; keeping `fields` (a fresh object
-    // each render) out of the deps prevents a re-render from aborting the
-    // in-flight POST before it completes.
+    // Fire exactly once when auth resolves to authenticated. The body is just
+    // { leadId }; the server rebuilds the application payload from the persisted
+    // lead. Guarded by `fired` so a re-render can't abort the in-flight POST.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth.loading, auth.configured, auth.authenticated, contact]);
 
