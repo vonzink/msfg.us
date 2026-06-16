@@ -11,6 +11,8 @@ export function CurrencyStep({
   placeholder,
   optional,
   unit = "$",
+  toggle,
+  onUnitChange,
   value,
   onChange,
   onNext,
@@ -20,6 +22,8 @@ export function CurrencyStep({
   placeholder?: string;
   optional?: boolean;
   unit?: "$" | "%";
+  toggle?: boolean;
+  onUnitChange?: (u: "$" | "%") => void;
   value: number | null;
   onChange: (n: number | null) => void;
   onNext: () => void;
@@ -32,6 +36,26 @@ export function CurrencyStep({
 
   return (
     <>
+      {toggle && (
+        <div className="mb-3.5 flex gap-2" role="group" aria-label="Down payment unit">
+          {(["%", "$"] as const).map((u) => (
+            <button
+              key={u}
+              type="button"
+              aria-pressed={unit === u}
+              onClick={() => onUnitChange?.(u)}
+              className={cn(
+                "h-11 flex-1 rounded-lg border-[1.5px] text-[15px] font-bold transition-colors duration-150",
+                unit === u
+                  ? "border-green-600 bg-green-600 text-white"
+                  : "border-line bg-white text-ink hover:border-green-600",
+              )}
+            >
+              {u === "%" ? "Percent" : "Amount"}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="relative mb-3.5 text-left">
         <label htmlFor={id} className="sr-only">{field}</label>
         {!isPct && (

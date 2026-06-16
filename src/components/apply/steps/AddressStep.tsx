@@ -4,6 +4,14 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { StructuredAddress } from "@/lib/leads";
 import type { AddressSuggestion } from "@/server/integrations/address/types";
 
+/** Marker stored when the buyer doesn't have a property address yet. */
+export const TBD_ADDRESS: StructuredAddress = {
+  line1: "Address to be determined",
+  city: "",
+  state: "",
+  zip: "",
+};
+
 /**
  * Property-address step. Queries our /api/v1/address/suggest proxy (Google
  * Places behind the scenes); selecting a suggestion fetches /details and fills
@@ -15,10 +23,16 @@ export function AddressStep({
   value,
   onChange,
   onNext,
+  help,
+  onAskAi,
+  onTbd,
 }: {
   value: StructuredAddress | null;
   onChange: (a: StructuredAddress | null) => void;
   onNext: () => void;
+  help?: string;
+  onAskAi?: () => void;
+  onTbd?: () => void;
 }) {
   const id = useId();
   const [query, setQuery] = useState(value?.line1 ?? "");
@@ -72,9 +86,15 @@ export function AddressStep({
 
   return (
     <>
-      <a href="#" onClick={(e) => e.preventDefault()} className="mb-3 inline-block text-[15px] font-bold text-green-600 underline">
-        Why do we need this?
-      </a>
+      {help && onAskAi && (
+        <button
+          type="button"
+          onClick={onAskAi}
+          className="mb-3 inline-block text-[15px] font-bold text-green-600 underline"
+        >
+          {help}
+        </button>
+      )}
 
       <div className="relative mb-3.5 text-left">
         <label htmlFor={id} className="pointer-events-none absolute left-[18px] top-3 z-10 text-[12.5px] font-semibold text-muted">
@@ -137,6 +157,16 @@ export function AddressStep({
       >
         Next
       </button>
+
+      {onTbd && (
+        <button
+          type="button"
+          onClick={onTbd}
+          className="mt-3.5 inline-block text-[15px] font-bold text-green-600 hover:underline"
+        >
+          I don&rsquo;t have an address yet
+        </button>
+      )}
     </>
   );
 }

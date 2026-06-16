@@ -20,9 +20,13 @@ export type StructuredAddress = {
   placeId?: string;
 };
 
+/** A currency answer that records the entered value AND the unit the applicant
+ *  chose (e.g. down payment as 20% or $85,000). */
+export type CurrencyAmount = { value: number | null; unit: "$" | "%" };
+
 /** Any value a wizard step can store. Index-keyed in the wizard; the named
  *  normalizer (`buildLeadFields`) turns these into meaningful lead fields. */
-export type AnswerValue = string | string[] | number | StructuredAddress | null;
+export type AnswerValue = string | string[] | number | StructuredAddress | CurrencyAmount | null;
 
 export type LeadPayload = {
   intent: Intent;

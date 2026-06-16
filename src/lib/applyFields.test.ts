@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { buildLeadFields, parseCurrency, formatCurrency, parsePercent } from "./applyFields";
+import { buildLeadFields, parseCurrency, formatCurrency, parsePercent, isCurrencyAmount } from "./applyFields";
 import { FLOW, type Step } from "@/content/flows";
+import type { AnswerValue } from "@/lib/leads";
 
 const STEPS: Step[] = [
   { type: "multi", q: "Goals?", field: "goals", opts: [] },
@@ -64,6 +65,30 @@ describe("refi flow — loan-officer step", () => {
   it("captures the chosen officer as the loanOfficer lead field", () => {
     const answers = { [officerIdx]: "zachary-zink" };
     expect(buildLeadFields(refi, answers).loanOfficer).toBe("zachary-zink");
+  });
+});
+
+describe("CurrencyAmount in buildLeadFields", () => {
+  const steps = [
+    { type: "currency", q: "Down?", field: "downPayment", toggle: true, unit: "%" },
+  ] as unknown as Step[];
+
+  it("formats a percent amount as a labeled string", () => {
+    const out = buildLeadFields(steps, { 0: { value: 20, unit: "%" } as AnswerValue });
+    expect(out.downPayment).toBe("20%");
+  });
+  it("formats a dollar amount with thousands + $", () => {
+    const out = buildLeadFields(steps, { 0: { value: 85000, unit: "$" } as AnswerValue });
+    expect(out.downPayment).toBe("$85,000");
+  });
+  it("skips an amount whose value is null", () => {
+    const out = buildLeadFields(steps, { 0: { value: null, unit: "%" } as AnswerValue });
+    expect(out.downPayment).toBeUndefined();
+  });
+  it("isCurrencyAmount distinguishes shapes", () => {
+    expect(isCurrencyAmount({ value: 1, unit: "%" })).toBe(true);
+    expect(isCurrencyAmount(20)).toBe(false);
+    expect(isCurrencyAmount({ line1: "x", city: "", state: "", zip: "" })).toBe(false);
   });
 });
 

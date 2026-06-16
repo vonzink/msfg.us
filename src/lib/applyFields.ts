@@ -1,5 +1,15 @@
 import type { Step } from "@/content/flows";
-import type { AnswerValue } from "@/lib/leads";
+import type { AnswerValue, CurrencyAmount } from "@/lib/leads";
+
+/** True when an answer is the {value,unit} currency shape (toggle steps). */
+export function isCurrencyAmount(v: AnswerValue | undefined): v is CurrencyAmount {
+  return !!v && typeof v === "object" && "unit" in v && "value" in v;
+}
+
+/** Format a CurrencyAmount as a labeled string for the LO/LOS, e.g. "20%" / "$85,000". */
+function formatCurrencyAmount(a: CurrencyAmount): string {
+  return a.unit === "%" ? `${a.value}%` : `$${(a.value ?? 0).toLocaleString("en-US")}`;
+}
 
 /** Parse a user-typed currency string to a whole number, or null. */
 export function parseCurrency(input: string): number | null {
@@ -22,6 +32,7 @@ export function formatCurrency(n: number | null): string {
 
 /** True for values that should not be written to the lead (blank/absent). */
 function isEmpty(v: AnswerValue | undefined): boolean {
+  if (isCurrencyAmount(v)) return v.value == null;
   return v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0);
 }
 
@@ -40,7 +51,7 @@ export function buildLeadFields(
     if (!field) return;
     const v = answers[i];
     if (isEmpty(v)) return;
-    out[field] = v as AnswerValue;
+    out[field] = isCurrencyAmount(v) ? formatCurrencyAmount(v) : (v as AnswerValue);
   });
   return out;
 }
