@@ -59,9 +59,43 @@ describe("POST /api/v1/applications", () => {
     expect(res.status).toBe(401);
   });
 
-  it("400s when the lead is missing", async () => {
+  it("404s when the lead is missing", async () => {
     getLeadById.mockResolvedValue(null);
     const res = await POST(req({ leadId: "nope" }));
-    expect(res.status).toBe(400);
+    expect(res.status).toBe(404);
+  });
+
+  it("404s when the lead exists but is not owned by the caller", async () => {
+    getLeadById.mockResolvedValue({
+      id: "row-2", firstName: "Other", lastName: "User",
+      email: "someone-else@example.com", cognitoSub: "other-sub",
+      intent: "BUY", idempotencyKey: "lead-2", answers: {},
+    } as unknown as Awaited<ReturnType<typeof getLeadById>>);
+    const res = await POST(req({ leadId: "lead-2" }));
+    expect(res.status).toBe(404);
+  });
+
+  it("returns handoff:failed when createLoanApplication resolves { ok: false, error }", async () => {
+    getLeadById.mockResolvedValue({
+      id: "row-1", firstName: "Zachary", lastName: "Zink", email: "z@example.com",
+      intent: "BUY", idempotencyKey: "lead-1", answers: {},
+    } as unknown as Awaited<ReturnType<typeof getLeadById>>);
+    createLoanApplication.mockResolvedValueOnce({ ok: false, error: "timeout" });
+    const res = await POST(req({ leadId: "lead-1" }));
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.handoff).toBe("failed");
+  });
+
+  it("returns handoff:skipped when createLoanApplication resolves { ok: false, skipped: true }", async () => {
+    getLeadById.mockResolvedValue({
+      id: "row-1", firstName: "Zachary", lastName: "Zink", email: "z@example.com",
+      intent: "BUY", idempotencyKey: "lead-1", answers: {},
+    } as unknown as Awaited<ReturnType<typeof getLeadById>>);
+    createLoanApplication.mockResolvedValueOnce({ ok: false, skipped: true });
+    const res = await POST(req({ leadId: "lead-1" }));
+    const json = await res.json();
+    expect(res.status).toBe(200);
+    expect(json.handoff).toBe("skipped");
   });
 });

@@ -65,13 +65,18 @@ export async function POST(req: Request) {
   }
 
   const { leadId } = parsed.data;
-  if (!leadId) {
-    return NextResponse.json({ ok: false, error: "leadId required" }, { status: 400 });
-  }
 
   const lead = await getLeadById(leadId);
-  if (!lead) {
-    return NextResponse.json({ ok: false, error: "Lead not found" }, { status: 400 });
+  // Ownership: the signed-in caller must be the funnel user. Match the lead's
+  // cognitoSub (set when captured while authenticated) OR its contact email
+  // (anonymous-funnel → sign-in case). Return 404 uniformly so we never reveal
+  // whether a leadId exists for another user.
+  const owns =
+    !!lead &&
+    ((lead.cognitoSub != null && lead.cognitoSub === user.sub) ||
+      (!!user.email && (lead.email ?? "").toLowerCase() === user.email.toLowerCase()));
+  if (!owns) {
+    return NextResponse.json({ ok: false, error: "Lead not found" }, { status: 404 });
   }
 
   const idToken = await getIdToken();
