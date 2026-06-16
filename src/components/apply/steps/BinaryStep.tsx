@@ -23,22 +23,25 @@ export function BinaryStep({
   usatoday,
   selected,
   onPick,
+  onAskAi,
 }: {
   /** Optional underlined helper link text. */
   help?: string;
   usatoday?: boolean;
   selected?: string;
   onPick: (value: "Yes" | "No") => void;
+  onAskAi?: () => void;
 }) {
   return (
     <>
-      {help && (
-        <a
-          href="#"
+      {help && onAskAi && (
+        <button
+          type="button"
+          onClick={onAskAi}
           className="-mt-1 mb-[26px] inline-block text-[15px] text-ink underline underline-offset-[3px]"
         >
           {help}
-        </a>
+        </button>
       )}
 
       <div className="flex flex-col gap-3.5">
