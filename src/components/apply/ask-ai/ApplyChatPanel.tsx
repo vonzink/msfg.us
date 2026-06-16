@@ -70,18 +70,20 @@ export function ApplyChatPanel({
     else returnFocusRef?.current?.focus();
   }, [open, returnFocusRef]);
 
-  // Auto-send a seed question when the panel opens from a help link (empty thread only).
+  // Auto-send a seed question when the panel opens from a help link.
+  // Re-sends if the new seed isn't already in the thread as a user message.
   const sentSeed = useRef(false);
   useEffect(() => {
     if (!open) {
       sentSeed.current = false;
       return;
     }
-    if (seedQuestion && !sentSeed.current && chat.thread.msgs.length === 0) {
+    const alreadyAsked = chat.thread.msgs.some((m) => m.role === "user" && m.text === seedQuestion);
+    if (seedQuestion && !sentSeed.current && !chat.thread.busy && !alreadyAsked) {
       sentSeed.current = true;
       chat.send(seedQuestion);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire on open/seed change; chat.send is stable, the empty-thread + sentSeed guards prevent re-sends
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire on open/seed change; guards (sentSeed, busy, already-asked) prevent duplicate/mid-stream sends
   }, [open, seedQuestion]);
 
   const chipClass =
