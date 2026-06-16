@@ -19,6 +19,7 @@ export function ApplyChatPanel({
   shortName,
   iconSrc,
   stepQuestion,
+  seedQuestion,
   returnFocusRef,
 }: {
   open: boolean;
@@ -28,6 +29,7 @@ export function ApplyChatPanel({
   shortName: string;
   iconSrc: string;
   stepQuestion?: string;
+  seedQuestion?: string;
   returnFocusRef?: RefObject<HTMLButtonElement | null>;
 }) {
   const chat = useApplyChat();
@@ -67,6 +69,20 @@ export function ApplyChatPanel({
     if (open) composerRef.current?.focus();
     else returnFocusRef?.current?.focus();
   }, [open, returnFocusRef]);
+
+  // Auto-send a seed question when the panel opens from a help link (empty thread only).
+  const sentSeed = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      sentSeed.current = false;
+      return;
+    }
+    if (seedQuestion && !sentSeed.current && chat.thread.msgs.length === 0) {
+      sentSeed.current = true;
+      chat.send(seedQuestion);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fire on open/seed change; chat.send is stable, the empty-thread + sentSeed guards prevent re-sends
+  }, [open, seedQuestion]);
 
   const chipClass =
     "rounded-full border border-line bg-white px-3 py-1.5 text-[13.5px] font-semibold text-green-700 transition-colors hover:bg-paper-2";
