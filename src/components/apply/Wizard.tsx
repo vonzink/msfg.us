@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { ChevronLeft, Phone } from "lucide-react";
 import { Mark } from "@/components/ui/Mark";
 import { FLOW, type Intent } from "@/content/flows";
-import { submitLead, type LeadContact, type AnswerValue, type StructuredAddress } from "@/lib/leads";
-import { buildLeadFields } from "@/lib/applyFields";
+import { submitLead, type LeadContact, type AnswerValue, type StructuredAddress, type CurrencyAmount } from "@/lib/leads";
+import { buildLeadFields, isCurrencyAmount } from "@/lib/applyFields";
 import { DeckStage } from "./DeckStage";
 import { ChoiceStep, type TestimonialDisplay } from "./steps/ChoiceStep";
 import { BinaryStep } from "./steps/BinaryStep";
@@ -15,7 +15,7 @@ import { ContactStep } from "./steps/ContactStep";
 import { FinishStep } from "./steps/FinishStep";
 import { MultiStep } from "./steps/MultiStep";
 import { CurrencyStep } from "./steps/CurrencyStep";
-import { AddressStep } from "./steps/AddressStep";
+import { AddressStep, TBD_ADDRESS } from "./steps/AddressStep";
 import { OfficerStep, NO_PREFERENCE, type ApplyOfficer } from "./steps/OfficerStep";
 import { ApplyChatPanel } from "./ask-ai/ApplyChatPanel";
 import { APPLY_CHAT_STARTERS } from "@/content/applyChatStarters";
@@ -64,6 +64,11 @@ export function Wizard({
   const [contact, setContact] = useState<LeadContact | null>(null);
   const [leadId, setLeadId] = useState<string | null>(null);
   const [chatOpen, setChatOpen] = useState(false);
+  const [seedQuestion, setSeedQuestion] = useState<string | undefined>(undefined);
+  const openAskAi = useCallback((question?: string) => {
+    setSeedQuestion(question);
+    setChatOpen(true);
+  }, []);
   const askBtnRef = useRef<HTMLButtonElement>(null);
 
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -73,6 +78,8 @@ export function Wizard({
   }, []);
 
   const step = steps[idx];
+  const currencyAns = isCurrencyAmount(answers[idx]) ? (answers[idx] as CurrencyAmount) : null;
+  const currencyUnit = (s: { unit?: "$" | "%" }) => currencyAns?.unit ?? s.unit ?? "%";
   const total = steps.length;
   const pct = Math.round(((idx + 1) / (total + 1)) * 100);
 
@@ -161,16 +168,52 @@ export function Wizard({
               <MultiStep options={step.opts} sub={step.sub} selected={Array.isArray(answers[idx]) ? (answers[idx] as string[]) : []} onChange={setAnswer} onNext={next} />
             )}
             {step.type === "binary" && (
-              <BinaryStep help={step.help} usatoday={step.usatoday} selected={typeof answers[idx] === "string" ? (answers[idx] as string) : undefined} onPick={pickAuto} />
+              <BinaryStep
+                help={step.help}
+                usatoday={step.usatoday}
+                selected={typeof answers[idx] === "string" ? (answers[idx] as string) : undefined}
+                onPick={pickAuto}
+                onAskAi={step.help ? () => openAskAi(step.askPrompt ?? step.help) : undefined}
+              />
             )}
             {step.type === "place" && (
               <PlaceStep fieldLabel={step.fieldLabel} placeholder={step.placeholder} value={typeof answers[idx] === "string" ? (answers[idx] as string) : ""} onChange={setAnswer} onNext={next} />
             )}
             {step.type === "address" && (
-              <AddressStep value={(answers[idx] as StructuredAddress) ?? null} onChange={setAnswer} onNext={next} />
+              <AddressStep
+                value={(answers[idx] as StructuredAddress) ?? null}
+                onChange={setAnswer}
+                onNext={next}
+                help={step.help}
+                onAskAi={step.help ? () => openAskAi(step.askPrompt ?? step.help) : undefined}
+                onTbd={() => { setAnswer(TBD_ADDRESS); next(); }}
+              />
             )}
-            {step.type === "currency" && (
-              <CurrencyStep field={step.field} placeholder={step.placeholder} optional={step.optional} unit={step.unit} value={typeof answers[idx] === "number" ? (answers[idx] as number) : null} onChange={setAnswer} onNext={next} onSkip={() => { setAnswer(null); next(); }} />
+            {step.type === "currency" && step.toggle && (
+              <CurrencyStep
+                field={step.field}
+                placeholder={step.placeholder}
+                optional={step.optional}
+                unit={currencyUnit(step)}
+                toggle
+                value={currencyAns?.value ?? null}
+                onChange={(n) => setAnswer({ value: n, unit: currencyUnit(step) })}
+                onUnitChange={(u) => setAnswer({ value: null, unit: u })}
+                onNext={next}
+                onSkip={() => { setAnswer(null); next(); }}
+              />
+            )}
+            {step.type === "currency" && !step.toggle && (
+              <CurrencyStep
+                field={step.field}
+                placeholder={step.placeholder}
+                optional={step.optional}
+                unit={step.unit}
+                value={typeof answers[idx] === "number" ? (answers[idx] as number) : null}
+                onChange={setAnswer}
+                onNext={next}
+                onSkip={() => { setAnswer(null); next(); }}
+              />
             )}
             {step.type === "form" && (
               <ContactStep onDone={onContactDone} consentTcpa={consentTcpa} />
@@ -194,7 +237,7 @@ export function Wizard({
       <button
         ref={askBtnRef}
         type="button"
-        onClick={() => setChatOpen(true)}
+        onClick={() => openAskAi()}
         aria-haspopup="dialog"
         aria-expanded={chatOpen}
         aria-label={`Ask ${assistantName}`}
@@ -205,12 +248,13 @@ export function Wizard({
 
       <ApplyChatPanel
         open={chatOpen}
-        onClose={() => setChatOpen(false)}
+        onClose={() => { setChatOpen(false); setSeedQuestion(undefined); }}
         starters={APPLY_CHAT_STARTERS[intent]}
         assistantName={assistantName}
         shortName={shortName}
         iconSrc={iconSrc}
         stepQuestion={step.q}
+        seedQuestion={seedQuestion}
         returnFocusRef={askBtnRef}
       />
     </div>
