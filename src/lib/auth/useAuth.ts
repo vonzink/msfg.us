@@ -5,10 +5,10 @@
  *
  * Returns derived identity only ({ sub, email, name }) — NEVER tokens (those
  * stay in httpOnly cookies, server-side). `configured` reflects whether Cognito
- * SSO is wired at all, so callers can fall back to the legacy mock / leave a
- * "Sign in" link inert when auth isn't set up.
+ * SSO is wired at all. `refresh()` re-reads /me — call it after an inline
+ * sign-in (AccountPanel) so dependent effects (e.g. the LOS hand-off) re-fire.
  */
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export interface AuthUser {
   sub: string;
@@ -24,6 +24,8 @@ export interface AuthState {
   /** Whether there is a valid session. */
   authenticated: boolean;
   user: AuthUser | null;
+  /** Re-read /api/v1/auth/me (e.g. after an inline sign-in). */
+  refresh: () => void;
 }
 
 interface MeResponse {
@@ -32,40 +34,46 @@ interface MeResponse {
   user?: AuthUser;
 }
 
+type ResolvedState = Omit<AuthState, "refresh">;
+
+const SIGNED_OUT: ResolvedState = { loading: false, configured: false, authenticated: false, user: null };
+
 export function useAuth(): AuthState {
-  const [state, setState] = useState<AuthState>({
+  const [state, setState] = useState<ResolvedState>({
     loading: true,
     configured: false,
     authenticated: false,
     user: null,
   });
+  const mounted = useRef(true);
 
-  useEffect(() => {
-    let active = true;
-    fetch("/api/v1/auth/me", { credentials: "same-origin", cache: "no-store" })
-      .then((res) => (res.ok ? (res.json() as Promise<MeResponse>) : null))
-      .then((data) => {
-        if (!active) return;
-        if (!data) {
-          setState({ loading: false, configured: false, authenticated: false, user: null });
-          return;
-        }
-        setState({
-          loading: false,
-          configured: Boolean(data.configured),
-          authenticated: Boolean(data.authenticated),
-          user: data.user ?? null,
-        });
-      })
-      .catch(() => {
-        if (active) {
-          setState({ loading: false, configured: false, authenticated: false, user: null });
-        }
-      });
-    return () => {
-      active = false;
-    };
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/v1/auth/me", { credentials: "same-origin", cache: "no-store" });
+      const data = res.ok ? ((await res.json()) as MeResponse) : null;
+      if (!mounted.current) return;
+      setState(
+        data
+          ? {
+              loading: false,
+              configured: Boolean(data.configured),
+              authenticated: Boolean(data.authenticated),
+              user: data.user ?? null,
+            }
+          : SIGNED_OUT,
+      );
+    } catch {
+      if (mounted.current) setState(SIGNED_OUT);
+    }
   }, []);
 
-  return state;
+  useEffect(() => {
+    mounted.current = true;
+    void load();
+    return () => {
+      mounted.current = false;
+    };
+  }, [load]);
+
+  return { ...state, refresh: () => void load() };
 }
