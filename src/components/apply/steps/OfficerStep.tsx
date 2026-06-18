@@ -14,6 +14,10 @@ export type ApplyOfficer = {
   nmls: string;
   states: string[];
   photo: string;
+  /** Direct e-mail address shown on the finish-screen contact card. */
+  email: string;
+  /** E.164 or display phone number shown on the finish-screen contact card. */
+  phone: string;
 };
 
 /** Sentinel stored when the user declines to pick a specific officer. */
