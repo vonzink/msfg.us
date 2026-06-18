@@ -47,33 +47,36 @@ export function useAuth(): AuthState {
   });
   const mounted = useRef(true);
 
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch("/api/v1/auth/me", { credentials: "same-origin", cache: "no-store" });
-      const data = res.ok ? ((await res.json()) as MeResponse) : null;
-      if (!mounted.current) return;
-      setState(
-        data
-          ? {
-              loading: false,
-              configured: Boolean(data.configured),
-              authenticated: Boolean(data.authenticated),
-              user: data.user ?? null,
-            }
-          : SIGNED_OUT,
-      );
-    } catch {
-      if (mounted.current) setState(SIGNED_OUT);
-    }
+  // `load` is exposed as `refresh` — it only calls setState AFTER an awaited
+  // fetch (a microtask), never synchronously.
+  const load = useCallback(() => {
+    fetch("/api/v1/auth/me", { credentials: "same-origin", cache: "no-store" })
+      .then((res) => (res.ok ? (res.json() as Promise<MeResponse>) : Promise.resolve(null)))
+      .then((data: MeResponse | null) => {
+        if (!mounted.current) return;
+        setState(
+          data
+            ? {
+                loading: false,
+                configured: Boolean(data.configured),
+                authenticated: Boolean(data.authenticated),
+                user: data.user ?? null,
+              }
+            : SIGNED_OUT,
+        );
+      })
+      .catch(() => {
+        if (mounted.current) setState(SIGNED_OUT);
+      });
   }, []);
 
   useEffect(() => {
     mounted.current = true;
-    void load();
+    load();
     return () => {
       mounted.current = false;
     };
   }, [load]);
 
-  return { ...state, refresh: () => void load() };
+  return { ...state, refresh: load };
 }
