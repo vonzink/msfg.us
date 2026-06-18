@@ -98,4 +98,11 @@ describe("cognitoIdp", () => {
     expect(res.ok).toBe(false);
     if (!res.ok) expect(res.code).toBe("NetworkError");
   });
+
+  it("returns a Timeout result when the request aborts", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new DOMException("aborted", "AbortError"));
+    const res = await signUp({ email: "a@b.com", password: "x" });
+    expect(res.ok).toBe(false);
+    if (!res.ok) expect(res.code).toBe("Timeout");
+  });
 });
