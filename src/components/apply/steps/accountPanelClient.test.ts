@@ -2,7 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { signup, confirm, signin, resend } from "./accountPanelClient";
 
 function fetcher(status: number, body: unknown) {
-  return vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
+  return vi.fn(async (_url: RequestInfo | URL, _init?: RequestInit) =>
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } }));
 }
 
 describe("accountPanelClient", () => {

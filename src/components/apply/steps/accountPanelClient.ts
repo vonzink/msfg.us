@@ -23,7 +23,7 @@ async function postJson<T extends { ok: boolean }>(url: string, body: unknown, f
     });
     return (await res.json().catch(() => ({ ok: false, error: "network" }))) as T;
   } catch {
-    return { ok: false, error: "network" } as T;
+    return { ok: false, error: "network" } as unknown as T;
   }
 }
 
