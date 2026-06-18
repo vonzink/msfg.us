@@ -69,4 +69,10 @@ describe("POST /api/v1/auth/signup", () => {
     const res = await POST(req({ email: "a@b.com", password: "longenough" }));
     expect(res.status).toBe(503);
   });
+
+  it("503s when the IDP is unreachable", async () => {
+    signUp.mockResolvedValue({ ok: false, code: "NetworkError", message: "offline" });
+    const res = await POST(req({ email: "a@b.com", password: "longenough" }));
+    expect(res.status).toBe(503);
+  });
 });
