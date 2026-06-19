@@ -1,5 +1,18 @@
 import { describe, it, expect } from "vitest";
-import { contactRequestSchema } from "./lead";
+import { contactRequestSchema, contactSchema } from "./lead";
+
+describe("lead contactSchema", () => {
+  it("trims + lowercases an email with surrounding whitespace", () => {
+    const r = contactSchema.safeParse({
+      firstName: "Ada",
+      lastName: "Lovelace",
+      email: "  User@Example.COM ",
+      phone: "",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.email).toBe("user@example.com");
+  });
+});
 
 describe("contactRequestSchema", () => {
   it("accepts a minimal email request (channel only)", () => {

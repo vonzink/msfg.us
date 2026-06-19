@@ -18,7 +18,10 @@ export type LeadIntent = z.infer<typeof intentSchema>;
 export const contactSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
   lastName: z.string().trim().min(1, "Last name is required"),
-  email: z.email("A valid email is required").trim().toLowerCase(),
+  // Zod v4 runs checks left-to-right, so `.trim()`/`.toLowerCase()` MUST
+  // precede `.email()` — otherwise the format check sees untrimmed input and
+  // rejects copy-pasted values like "  user@example.com ". Mirrors auth.ts.
+  email: z.string().trim().toLowerCase().email("A valid email is required"),
   phone: z
     .string()
     .trim()
