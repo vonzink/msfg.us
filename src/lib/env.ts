@@ -123,6 +123,7 @@ const envSchema = z.object({
   DEV_SUB: z.string().optional(),
   DEV_ROLES: z.string().optional(),
   DEV_ORG: z.string().optional(),
+  HANDOFF_TOKEN_SECRET: z.string().min(1).optional(),
 
   // -------------------------------------------------------------------------
   // Public partner API (`/api/v1/public/*`) — OPTIONAL. This is the versioned,
