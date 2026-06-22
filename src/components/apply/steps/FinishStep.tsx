@@ -1,26 +1,24 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, CalendarDays, Loader2 } from "lucide-react";
-import { useAuth } from "@/lib/auth/useAuth";
+import { ArrowRight, CalendarDays } from "lucide-react";
 import { APP_URL } from "@/lib/auth/appLink";
 import type { Intent } from "@/content/flows";
 import type { LeadContact } from "@/lib/leads";
 
 /**
- * Two-door finish: "Continue in the app" (signed-in → prefilled LOS hand-off +
- * deep link; signed-out → sign in / continue) and "Talk to a loan officer"
- * (GHL calendar). Account recognition happens here, never mid-funnel.
+ * Two-door finish: "Continue in the app" (passwordless hand-off via /continue?t=<token>)
+ * and "Talk to a loan officer" (GHL calendar). Account recognition happens at the app,
+ * never mid-funnel.
  */
 export function FinishStep({
-  intent,
   contact,
   leadId,
   shortName,
   calendarHref,
   officer,
 }: {
-  intent: Intent;
+  intent?: Intent;
   contact: LeadContact | null;
   leadId: string | null;
   shortName: string;
@@ -28,74 +26,46 @@ export function FinishStep({
   /** Officer the user chose in the preceding step, if any (null = no preference). */
   officer?: { slug: string; name: string } | null;
 }) {
-  const auth = useAuth();
-  // LOCAL-ONLY: when NEXT_PUBLIC_DEV_FUNNEL_BYPASS is set, skip auth guards so
-  // the wizard fires the hand-off without a Cognito session. Never set in prod.
-  const devBypass = !!process.env.NEXT_PUBLIC_DEV_FUNNEL_BYPASS;
   const fired = useRef(false);
   const [handoff, setHandoff] = useState<"idle" | "sending" | "done">("idle");
-  const [appId, setAppId] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    if (fired.current || !contact) return;
-    if (!devBypass && (auth.loading || !auth.configured || !auth.authenticated)) return;
+    if (fired.current || !contact || !leadId) return;
     fired.current = true;
     setHandoff("sending");
     const controller = new AbortController();
     fetch("/api/v1/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
       cache: "no-store",
       signal: controller.signal,
-      body: JSON.stringify({ leadId: leadId ?? undefined }),
+      body: JSON.stringify({ leadId }),
     }).then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (d?.applicationId) setAppId(String(d.applicationId)); })
+      .then((d) => { if (d?.handoffToken) setToken(String(d.handoffToken)); })
       .catch(() => {})
       .finally(() => setHandoff("done"));
     return () => controller.abort();
-    // Fire exactly once when auth resolves to authenticated. The body is just
-    // { leadId }; the server rebuilds the application payload from the persisted
-    // lead. Guarded by `fired` so a re-render can't abort the in-flight POST.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.loading, auth.configured, auth.authenticated, contact, devBypass]);
+  }, [contact, leadId]);
 
-  const continueHref =
-    auth.configured && !auth.authenticated
-      ? `/auth/login?returnTo=${encodeURIComponent(`/apply/${intent}${leadId ? `?lead=${leadId}` : ""}`)}`
-      : appId
-        ? `${APP_URL}/applications/${appId}`
-        : APP_URL;
-  const continueLabel =
-    auth.configured && !auth.authenticated ? "Sign in & continue your application" : `Continue in the ${shortName} app`;
+  const continueHref = token
+    ? `${APP_URL}/continue?t=${encodeURIComponent(token)}`
+    : APP_URL;
+  const continueLabel = `Continue in the ${shortName} app`;
   // When an officer was chosen, route to their directory card; otherwise the
   // generic booking calendar (or the directory as a last resort).
   const officerFirst = officer?.name.split(" ")[0];
   const bookHref = officer ? `/loan-officers#${officer.slug}` : calendarHref || "/loan-officers";
   const bookLabel = officer ? `Connect with ${officerFirst}` : "Talk to a loan officer";
 
-  if (auth.loading) {
-    return (
-      <div className="flex min-h-[160px] items-center justify-center text-muted" role="status" aria-live="polite">
-        <Loader2 className="size-6 animate-spin" aria-hidden="true" /><span className="sr-only">Loading…</span>
-      </div>
-    );
-  }
-
   return (
     <>
-      {(officer || (auth.authenticated && auth.user?.email)) && (
+      {officer && (
         <div className="-mt-1 mb-6 space-y-1 text-[16px] text-muted">
-          {officer && (
-            <p>
-              You&apos;ll be working with <span className="font-semibold text-ink">{officer.name}</span>.
-            </p>
-          )}
-          {auth.authenticated && auth.user?.email && (
-            <p>
-              Welcome back, <span className="font-semibold text-ink">{auth.user.email}</span> — pick up right where you left off.
-            </p>
-          )}
+          <p>
+            You&apos;ll be working with <span className="font-semibold text-ink">{officer.name}</span>.
+          </p>
         </div>
       )}
 
