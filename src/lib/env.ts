@@ -113,6 +113,18 @@ const envSchema = z.object({
   LOS_API_BASE: z.string().url().optional(),
 
   // -------------------------------------------------------------------------
+  // LOCAL-ONLY dev funnel bypass (OPTIONAL). When DEV_FUNNEL_BYPASS is truthy
+  // ("1" or "true"), the /api/v1/applications POST skips Cognito session checks
+  // and forwards X-Dev-* identity headers to the LOS local profile instead. The
+  // real Cognito path is UNCHANGED when these vars are unset. Never set in any
+  // real deploy — local dev only.
+  // -------------------------------------------------------------------------
+  DEV_FUNNEL_BYPASS: z.string().optional(),
+  DEV_SUB: z.string().optional(),
+  DEV_ROLES: z.string().optional(),
+  DEV_ORG: z.string().optional(),
+
+  // -------------------------------------------------------------------------
   // Public partner API (`/api/v1/public/*`) — OPTIONAL. This is the versioned,
   // key-authenticated API for external integrators (distinct from the site's
   // own same-origin internal endpoints, which remain key-free). Every var is

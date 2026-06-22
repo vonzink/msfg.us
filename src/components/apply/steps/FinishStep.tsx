@@ -29,12 +29,16 @@ export function FinishStep({
   officer?: { slug: string; name: string } | null;
 }) {
   const auth = useAuth();
+  // LOCAL-ONLY: when NEXT_PUBLIC_DEV_FUNNEL_BYPASS is set, skip auth guards so
+  // the wizard fires the hand-off without a Cognito session. Never set in prod.
+  const devBypass = !!process.env.NEXT_PUBLIC_DEV_FUNNEL_BYPASS;
   const fired = useRef(false);
   const [handoff, setHandoff] = useState<"idle" | "sending" | "done">("idle");
   const [appId, setAppId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (fired.current || auth.loading || !auth.configured || !auth.authenticated || !contact) return;
+    if (fired.current || !contact) return;
+    if (!devBypass && (auth.loading || !auth.configured || !auth.authenticated)) return;
     fired.current = true;
     setHandoff("sending");
     const controller = new AbortController();
@@ -54,7 +58,7 @@ export function FinishStep({
     // { leadId }; the server rebuilds the application payload from the persisted
     // lead. Guarded by `fired` so a re-render can't abort the in-flight POST.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auth.loading, auth.configured, auth.authenticated, contact]);
+  }, [auth.loading, auth.configured, auth.authenticated, contact, devBypass]);
 
   const continueHref =
     auth.configured && !auth.authenticated

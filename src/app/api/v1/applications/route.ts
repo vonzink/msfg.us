@@ -20,11 +20,12 @@
 import { NextResponse } from "next/server";
 import { authConfigured } from "@/lib/auth/cognito";
 import { getSession, getIdToken } from "@/lib/auth/session";
-import { createLoanApplication } from "@/server/integrations/los/losClient";
+import { createLoanApplication, createLoanApplicationDev } from "@/server/integrations/los/losClient";
 import { getLeadById } from "@/server/leads/leadService";
 import { funnelToIntake, type LeadForIntake, type IntakeOfficer } from "@/lib/applyIntake";
 import { OFFICERS } from "@/content/officers";
 import { applicationHandoffSchema } from "@/validation/lead";
+import { serverEnv } from "@/lib/env";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -37,6 +38,28 @@ function resolveOfficer(slug: unknown): IntakeOfficer | null {
 }
 
 export async function POST(req: Request) {
+  // LOCAL-ONLY dev bypass: skips Cognito session + ownership check; forwards
+  // the dev identity as X-Dev-* headers which the LOS local profile accepts.
+  // Never enabled in real deploys — DEV_FUNNEL_BYPASS must be unset in prod.
+  const devBypass = !!serverEnv.DEV_FUNNEL_BYPASS;
+  if (devBypass) {
+    let json: unknown;
+    try { json = await req.json(); } catch { return NextResponse.json({ ok: false, error: "Invalid JSON body" }, { status: 400 }); }
+    const parsed = applicationHandoffSchema.safeParse(json);
+    if (!parsed.success) return NextResponse.json({ ok: false, error: parsed.error.flatten() }, { status: 400 });
+    const lead = await getLeadById(parsed.data.leadId);
+    if (!lead) return NextResponse.json({ ok: false, error: "Lead not found" }, { status: 404 });
+    const officer = resolveOfficer((lead.answers as { fields?: Record<string, unknown> })?.fields?.loanOfficer);
+    const dto = funnelToIntake(lead as unknown as LeadForIntake, officer);
+    const result = await createLoanApplicationDev(dto, {
+      sub: serverEnv.DEV_SUB ?? "00000000-0000-0000-0000-0000000000b0",
+      roles: serverEnv.DEV_ROLES ?? "Borrower",
+      org: serverEnv.DEV_ORG ?? "00000000-0000-0000-0000-0000000000aa",
+    });
+    const handoff = result.skipped ? "skipped" : result.ok ? "ok" : "failed";
+    return NextResponse.json({ ok: true, handoff, applicationId: result.applicationId ?? null }, { headers: { "Cache-Control": "no-store" } });
+  }
+
   if (!authConfigured()) {
     return NextResponse.json(
       { ok: false, error: "Authentication is not configured." },

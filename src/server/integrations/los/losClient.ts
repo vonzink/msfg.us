@@ -51,18 +51,14 @@ interface LosCreateResponse {
 }
 
 /**
- * Create a loan application in the LOS. `idToken` is the verified Cognito
- * id_token of the signed-in user (sent as `Authorization: Bearer <id_token>`).
- * Returns `{ skipped: true }` when LOS_API_BASE is unset; otherwise a best-
- * effort result that NEVER throws.
+ * Core fetch logic shared by both auth paths. `authHeaders` is spread into the
+ * request headers alongside Content-Type/Accept — callers supply either a
+ * Bearer token or X-Dev-* headers. Never throws; returns a best-effort result.
  */
-export async function createLoanApplication(
-  idToken: string,
+async function postIntake(
+  authHeaders: Record<string, string>,
   payload: LosApplicationPayload,
 ): Promise<LosResult> {
-  if (!losConfigured()) return { ok: false, skipped: true };
-  if (!idToken) return { ok: false, error: "missing id_token" };
-
   const url = `${serverEnv.LOS_API_BASE}${LOS_PATH}`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -70,7 +66,7 @@ export async function createLoanApplication(
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${idToken}`,
+        ...authHeaders,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -98,4 +94,41 @@ export async function createLoanApplication(
   } finally {
     clearTimeout(timer);
   }
+}
+
+/**
+ * Create a loan application in the LOS. `idToken` is the verified Cognito
+ * id_token of the signed-in user (sent as `Authorization: Bearer <id_token>`).
+ * Returns `{ skipped: true }` when LOS_API_BASE is unset; otherwise a best-
+ * effort result that NEVER throws.
+ */
+export async function createLoanApplication(
+  idToken: string,
+  payload: LosApplicationPayload,
+): Promise<LosResult> {
+  if (!losConfigured()) return { ok: false, skipped: true };
+  if (!idToken) return { ok: false, error: "missing id_token" };
+  return postIntake({ Authorization: `Bearer ${idToken}` }, payload);
+}
+
+/**
+ * LOCAL-ONLY dev bypass: create a loan application using X-Dev-* identity
+ * headers instead of a Cognito Bearer token. The LOS local profile accepts
+ * these headers to simulate an authenticated borrower without a real IdP.
+ * Only called from the /api/v1/applications route when DEV_FUNNEL_BYPASS is set.
+ * Never enabled in any real deploy.
+ */
+export async function createLoanApplicationDev(
+  payload: LosApplicationPayload,
+  dev: { sub: string; roles: string; org: string },
+): Promise<LosResult> {
+  if (!losConfigured()) return { ok: false, skipped: true };
+  return postIntake(
+    {
+      "X-Dev-Sub": dev.sub,
+      "X-Dev-Roles": dev.roles,
+      "X-Dev-Org": dev.org,
+    },
+    payload,
+  );
 }
