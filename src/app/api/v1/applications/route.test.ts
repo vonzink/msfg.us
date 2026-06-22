@@ -1,25 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/auth/cognito", () => ({ authConfigured: () => true }));
-vi.mock("@/lib/auth/session", () => ({
-  getSession: vi.fn(async () => ({ sub: "sub-1", email: "z@example.com" })),
-  getIdToken: vi.fn(async () => "idtok"),
-}));
-vi.mock("@/server/integrations/los/losClient", () => ({
-  createLoanApplication: vi.fn(async () => ({ ok: true, applicationId: "42" })),
-}));
 vi.mock("@/server/leads/leadService", () => ({
   getLeadById: vi.fn(),
 }));
 vi.mock("@/content/officers", () => ({
   OFFICERS: [{ slug: "zachary-zink", email: "zachary.zink@msfg.us", nmls: "451924", name: "Zachary Zink" }],
 }));
+vi.mock("@/lib/env", () => ({
+  serverEnv: { HANDOFF_TOKEN_SECRET: "test-secret-at-least-32-bytes-long!" },
+}));
 
 import { POST } from "./route";
-import * as losClient from "@/server/integrations/los/losClient";
 import * as leadService from "@/server/leads/leadService";
 
-const createLoanApplication = vi.mocked(losClient.createLoanApplication);
 const getLeadById = vi.mocked(leadService.getLeadById);
 
 function req(body: unknown) {
@@ -28,74 +21,47 @@ function req(body: unknown) {
   });
 }
 
-beforeEach(() => { createLoanApplication.mockClear(); getLeadById.mockReset(); });
+const fakeLead = {
+  id: "row-1", firstName: "Zachary", lastName: "Zink", email: "z@example.com", phone: "3035551234",
+  intent: "REFI" as const, idempotencyKey: "lead-key-1",
+  answers: { fields: { loanOfficer: "zachary-zink", homeValue: 485000 } },
+} as unknown as Awaited<ReturnType<typeof getLeadById>>;
 
-describe("POST /api/v1/applications", () => {
-  it("rebuilds the IntakeDTO from the lead and calls the client", async () => {
-    getLeadById.mockResolvedValue({
-      id: "row-1", firstName: "Zachary", lastName: "Zink", email: "z@example.com", phone: "3035551234",
-      intent: "REFI", idempotencyKey: "lead-1",
-      answers: { fields: { address: { line1: "12750 W 88th Ave", city: "Arvada", state: "CO", zip: "80005" },
-        propertyUse: "Primary residence", propertyType: "Single Family", homeValue: 485000,
-        mortgageBalance: 312000, income: 120000, loanOfficer: "zachary-zink" } },
-    } as unknown as Awaited<ReturnType<typeof getLeadById>>);
-    const res = await POST(req({ leadId: "lead-1" }));
+beforeEach(() => { getLeadById.mockReset(); });
+
+describe("POST /api/v1/applications (hand-off token)", () => {
+  it("returns { ok: true, handoffToken: <string> } for a valid leadId", async () => {
+    getLeadById.mockResolvedValue(fakeLead);
+    const res = await POST(req({ leadId: "lead-key-1" }));
     const json = await res.json();
     expect(res.status).toBe(200);
-    expect(json.handoff).toBe("ok");
-    expect(json.applicationId).toBe("42");
-    const [idToken, dto] = createLoanApplication.mock.calls[0];
-    expect(idToken).toBe("idtok");
-    expect(dto.sourceLeadId).toBe("lead-1");
-    expect(dto.loanPurpose).toBe("Refinance");
-    expect(dto.property.addressLine).toBe("12750 W 88th Ave");
-    expect(dto.loanOfficer!.email).toBe("zachary.zink@msfg.us");
+    expect(json.ok).toBe(true);
+    expect(typeof json.handoffToken).toBe("string");
+    expect(json.handoffToken.split(".")).toHaveLength(3); // JWT = header.payload.sig
   });
 
-  it("401s when not authenticated", async () => {
-    const { getSession } = await import("@/lib/auth/session");
-    vi.mocked(getSession).mockResolvedValueOnce(null as unknown as Awaited<ReturnType<typeof getSession>>);
-    const res = await POST(req({ leadId: "lead-1" }));
-    expect(res.status).toBe(401);
-  });
-
-  it("404s when the lead is missing", async () => {
+  it("404s when the lead is not found", async () => {
     getLeadById.mockResolvedValue(null);
     const res = await POST(req({ leadId: "nope" }));
     expect(res.status).toBe(404);
   });
 
-  it("404s when the lead exists but is not owned by the caller", async () => {
-    getLeadById.mockResolvedValue({
-      id: "row-2", firstName: "Other", lastName: "User",
-      email: "someone-else@example.com", cognitoSub: "other-sub",
-      intent: "BUY", idempotencyKey: "lead-2", answers: {},
-    } as unknown as Awaited<ReturnType<typeof getLeadById>>);
-    const res = await POST(req({ leadId: "lead-2" }));
-    expect(res.status).toBe(404);
+  it("400s when leadId is missing", async () => {
+    const res = await POST(req({}));
+    expect(res.status).toBe(400);
   });
 
-  it("returns handoff:failed when createLoanApplication resolves { ok: false, error }", async () => {
-    getLeadById.mockResolvedValue({
-      id: "row-1", firstName: "Zachary", lastName: "Zink", email: "z@example.com",
-      intent: "BUY", idempotencyKey: "lead-1", answers: {},
-    } as unknown as Awaited<ReturnType<typeof getLeadById>>);
-    createLoanApplication.mockResolvedValueOnce({ ok: false, error: "timeout" });
-    const res = await POST(req({ leadId: "lead-1" }));
-    const json = await res.json();
-    expect(res.status).toBe(200);
-    expect(json.handoff).toBe("failed");
+  it("400s on invalid JSON body", async () => {
+    const badReq = new Request("http://x/api/v1/applications", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: "not-json",
+    });
+    const res = await POST(badReq);
+    expect(res.status).toBe(400);
   });
 
-  it("returns handoff:skipped when createLoanApplication resolves { ok: false, skipped: true }", async () => {
-    getLeadById.mockResolvedValue({
-      id: "row-1", firstName: "Zachary", lastName: "Zink", email: "z@example.com",
-      intent: "BUY", idempotencyKey: "lead-1", answers: {},
-    } as unknown as Awaited<ReturnType<typeof getLeadById>>);
-    createLoanApplication.mockResolvedValueOnce({ ok: false, skipped: true });
-    const res = await POST(req({ leadId: "lead-1" }));
-    const json = await res.json();
-    expect(res.status).toBe(200);
-    expect(json.handoff).toBe("skipped");
+  it("sets Cache-Control: no-store", async () => {
+    getLeadById.mockResolvedValue(fakeLead);
+    const res = await POST(req({ leadId: "lead-key-1" }));
+    expect(res.headers.get("Cache-Control")).toBe("no-store");
   });
 });
