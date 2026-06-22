@@ -16,7 +16,7 @@ export type IntakeDTO = {
   sourceLeadId: string; source: string;
   intent: "buy" | "refi" | "cash"; loanPurpose: "Purchase" | "Refinance" | "CashOut";
   borrower: { firstName: string; lastName: string; email: string; phone: string };
-  property: { addressLine: string; city: string; state: string; zipCode: string;
+  property: { addressLine: string | null; city: string | null; state: string | null; zipCode: string | null;
               propertyType: string | null; constructionType: string | null; propertyValue: number | null };
   financials: { currentMortgageBalance: number | null; annualIncome: number | null; creditBand: string | null };
   loanOfficer: IntakeOfficer | null;
@@ -48,6 +48,9 @@ function numOrNull(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) ? v : null;
 }
 
+const blankToNull = (v: unknown): string | null =>
+  typeof v === "string" && v.trim() !== "" ? v : null;
+
 /** Pure: persisted lead (+ resolved officer) → IntakeDTO for the app hand-off. */
 export function funnelToIntake(lead: LeadForIntake, officer: IntakeOfficer | null): IntakeDTO {
   const f = lead.answers?.fields ?? {};
@@ -60,7 +63,7 @@ export function funnelToIntake(lead: LeadForIntake, officer: IntakeOfficer | nul
     loanPurpose: map.loanPurpose,
     borrower: { firstName: lead.firstName, lastName: lead.lastName, email: lead.email, phone: lead.phone },
     property: {
-      addressLine: addr.line1 ?? "", city: addr.city ?? "", state: addr.state ?? "", zipCode: addr.zip ?? "",
+      addressLine: blankToNull(addr.line1), city: blankToNull(addr.city), state: blankToNull(addr.state), zipCode: blankToNull(addr.zip),
       propertyType: occupancy(f.propertyUse), constructionType: construction(f.propertyType),
       propertyValue: numOrNull(f.homeValue),
     },

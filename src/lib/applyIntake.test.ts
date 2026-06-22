@@ -42,7 +42,39 @@ describe("funnelToIntake", () => {
   it("tolerates missing fields (null officer, no address)", () => {
     const dto = funnelToIntake({ ...baseLead, answers: { fields: {} } }, null);
     expect(dto.loanOfficer).toBeNull();
-    expect(dto.property.addressLine).toBe("");
+    expect(dto.property.addressLine).toBeNull();
     expect(dto.financials.annualIncome).toBeNull();
+  });
+
+  it("emits null for blank funnel address fields ('Address to be determined' city/state/zip blanked)", () => {
+    const lead: LeadForIntake = {
+      ...baseLead,
+      answers: {
+        fields: {
+          address: { line1: "Address to be determined", city: "", state: "", zip: "" },
+        },
+      },
+    };
+    const dto = funnelToIntake(lead, null);
+    expect(dto.property.addressLine).toBe("Address to be determined");
+    expect(dto.property.city).toBeNull();
+    expect(dto.property.state).toBeNull();
+    expect(dto.property.zipCode).toBeNull();
+  });
+
+  it("passes through a full address unchanged", () => {
+    const lead: LeadForIntake = {
+      ...baseLead,
+      answers: {
+        fields: {
+          address: { line1: "1600 Pennsylvania Ave NW", city: "Washington", state: "DC", zip: "20500" },
+        },
+      },
+    };
+    const dto = funnelToIntake(lead, null);
+    expect(dto.property.addressLine).toBe("1600 Pennsylvania Ave NW");
+    expect(dto.property.city).toBe("Washington");
+    expect(dto.property.state).toBe("DC");
+    expect(dto.property.zipCode).toBe("20500");
   });
 });
