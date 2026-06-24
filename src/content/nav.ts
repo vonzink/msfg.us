@@ -77,6 +77,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: "Rent vs buy calculator", href: "/coming-soon" },
       { label: "HELOC calculator", href: "/coming-soon" },
       { label: "Buy a home", href: "/buy" },
+      { label: "Mortgage Glossary", href: "/resources/mortgage-glossary" },
     ],
   },
   {
