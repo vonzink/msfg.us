@@ -4,6 +4,7 @@ import { GlossaryExplorer } from "@/components/glossary/GlossaryExplorer";
 import { JsonLd } from "@/components/JsonLd";
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
+import { getTenantOrigin } from "@/server/tenant/config";
 import { GLOSSARY } from "@/content/glossary";
 
 const PATH = "/resources/mortgage-glossary";
@@ -17,8 +18,9 @@ export function generateMetadata(): Promise<Metadata> {
   });
 }
 
-/** schema.org DefinedTermSet for the glossary (one DefinedTerm per entry). */
-function definedTermSet(): Record<string, unknown> {
+/** schema.org DefinedTermSet for the glossary (one DefinedTerm per entry).
+ *  `origin` makes each DefinedTerm `url` absolute (schema.org best practice). */
+function definedTermSet(origin: string): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
     "@type": "DefinedTermSet",
@@ -29,17 +31,18 @@ function definedTermSet(): Record<string, unknown> {
         name: t.term,
         description: t.definition,
         termCode: t.slug,
-        url: `${PATH}?term=${t.slug}`,
+        url: `${origin}${PATH}?term=${t.slug}`,
       })),
     ),
   };
 }
 
-export default function MortgageGlossaryPage() {
+export default async function MortgageGlossaryPage() {
+  const origin = await getTenantOrigin();
   return (
     <>
       <PageJsonLd path={PATH} />
-      <JsonLd data={definedTermSet()} />
+      <JsonLd data={definedTermSet(origin)} />
 
       <section className="bg-paper pb-6 pt-12 text-ink">
         <div className="wrap">
