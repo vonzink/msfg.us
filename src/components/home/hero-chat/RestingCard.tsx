@@ -35,7 +35,7 @@ export function RestingCard({
   };
 
   return (
-    <div className="mx-auto mt-7 w-full max-w-[760px] overflow-hidden rounded-[30px] bg-white text-ink shadow-hero">
+    <div className="mx-auto mt-7 w-full max-w-[800px] overflow-hidden rounded-[30px] bg-white text-ink shadow-hero">
       {aiMode ? (
         <div className="px-[22px] pt-[22px]">
           <div className="flex items-end gap-3.5">
