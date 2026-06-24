@@ -18,7 +18,7 @@ describe("buildSiteMap", () => {
       "/apply/buy", "/apply/refi", "/apply/cash",
       "/licensing", "/privacy-notice", "/privacy-policy", "/terms", "/accessibility",
       "/nmls-consumer-access", "/sitemap",
-      "/about", "/careers", "/know-your-lender",
+      "/about", "/careers", "/know-your-lender", "/resources/mortgage-glossary",
     ]);
     for (const g of groups) {
       for (const l of g.links) {
