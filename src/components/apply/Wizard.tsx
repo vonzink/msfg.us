@@ -153,9 +153,13 @@ export function Wizard({
       <div className="flex flex-1 items-start justify-center px-5 pb-[120px] pt-[7vh]">
         <DeckStage stepKey={idx} direction={dir}>
           <div className="mx-auto w-full max-w-[560px] text-center">
-            <h1 className="mb-2 text-pretty text-[clamp(30px,4.4vw,46px)] font-extrabold leading-[1.06] tracking-[-0.03em] [text-wrap:balance]">
-              {step.q}
-            </h1>
+            {/* The finish/account step auto-redirects to the app's /continue page,
+                so we suppress the big step heading (no "You're all set" screen). */}
+            {step.type !== "finish" && step.type !== "account" && (
+              <h1 className="mb-2 text-pretty text-[clamp(30px,4.4vw,46px)] font-extrabold leading-[1.06] tracking-[-0.03em] [text-wrap:balance]">
+                {step.q}
+              </h1>
+            )}
 
             {step.type === "choice" && (
               <ChoiceStep options={step.opts} sub={step.sub} review={step.review} testimonial={testimonial} selected={typeof answers[idx] === "string" ? (answers[idx] as string) : undefined} onPick={pickAuto} />
