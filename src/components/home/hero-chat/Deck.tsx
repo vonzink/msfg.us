@@ -196,7 +196,7 @@ export function Deck({
   // gap, the footer row, and the apply pill (~300px total). The card's own
   // "thread title" header is the heading on top.
   return (
-    <div className="relative z-30 mx-auto mt-1 flex w-full max-w-[860px] flex-col items-center [--deck-card-h:clamp(340px,calc(100vh_-_360px),1100px)]">
+    <div className="relative z-30 mx-auto mt-1 flex w-full max-w-[1040px] flex-col items-center [--deck-card-h:clamp(340px,calc(100vh_-_360px),1100px)]">
       <div
         ref={deckRef}
         onMouseMove={onMove}
