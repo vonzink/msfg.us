@@ -28,7 +28,7 @@ export function FinishStep({
   shortName: string;
   calendarHref?: string;
   /** Officer chosen in the preceding step, if any (used only on the failure fallback). */
-  officer?: { slug: string; name: string } | null;
+  officer?: { slug: string; name: string; nmls: string; photo: string; email: string; phone: string } | null;
 }) {
   const fired = useRef(false);
   const [token, setToken] = useState<string | null>(null);

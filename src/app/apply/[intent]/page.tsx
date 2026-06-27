@@ -52,6 +52,8 @@ export default async function ApplyIntentPage({
     nmls: o.nmls,
     states: o.states,
     photo: o.photo,
+    email: o.email,
+    phone: o.phone,
   }));
 
   return (
