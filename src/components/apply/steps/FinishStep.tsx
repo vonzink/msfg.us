@@ -90,17 +90,15 @@ export function FinishStep({
     : null;
 
   function toggleOpen() {
-    setOpen((wasOpen) => {
-      const next = !wasOpen;
-      if (next) {
-        track("offramp_open");
-        // Focus the panel heading after it renders.
-        requestAnimationFrame(() => panelHeadingRef.current?.focus());
-      } else {
-        requestAnimationFrame(() => triggerRef.current?.focus());
-      }
-      return next;
-    });
+    const next = !open;
+    setOpen(next);
+    if (next) {
+      // Closed → open: fire once, focus the panel heading after it renders.
+      track("offramp_open");
+      requestAnimationFrame(() => panelHeadingRef.current?.focus());
+    } else {
+      requestAnimationFrame(() => triggerRef.current?.focus());
+    }
   }
 
   function fireRequest(channel: Channel, opts?: { phone?: string; consentTcpa?: boolean }) {
@@ -111,21 +109,23 @@ export function FinishStep({
   }
 
   // Email (gate-exempt) + Call/Text when a phone is already on file fire immediately.
-  function onChannel(channel: Channel) {
+  function onChannel(e: React.MouseEvent<HTMLAnchorElement>, channel: Channel) {
     track("channel_select", { channel });
     if (channel === "email") {
       fireRequest("email");
       setConfirmed("email");
       return;
     }
-    // Call/Text with a phone already on file → fire immediately.
+    // Call/Text with a phone already on file → fire immediately (href opens).
     if (phoneOnFile) {
       fireRequest(channel);
       setConfirmed(channel);
       return;
     }
     // Phone was skipped → reveal the consented-recapture sub-form. Do NOT fire
-    // the request or open the sms: link yet (Call's tel: link still works via href).
+    // the LO-callback request yet. For Text, also stop the native sms: from
+    // opening before consent (Call's tel: to the officer/house MAY open per spec).
+    if (channel === "text") e.preventDefault();
     setRecapture(channel);
     track("offramp_phone_prompt");
   }
@@ -319,7 +319,7 @@ export function FinishStep({
                 {showCall && callHref && (
                   <a
                     href={callHref}
-                    onClick={() => onChannel("call")}
+                    onClick={(e) => onChannel(e, "call")}
                     aria-label={officerFirst ? `Call ${officerFirst}` : "Call a loan officer"}
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-line bg-white text-[15px] font-bold text-ink shadow-3d transition-colors duration-150 hover:bg-paper-2"
                   >
@@ -330,7 +330,7 @@ export function FinishStep({
                 {showText && smsLink && (
                   <a
                     href={smsLink}
-                    onClick={() => onChannel("text")}
+                    onClick={(e) => onChannel(e, "text")}
                     aria-label={officerFirst ? `Text ${officerFirst}` : "Text a loan officer"}
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-line bg-white text-[15px] font-bold text-ink shadow-3d transition-colors duration-150 hover:bg-paper-2"
                   >
@@ -341,7 +341,7 @@ export function FinishStep({
                 {showEmail && mailHref && (
                   <a
                     href={mailHref}
-                    onClick={() => onChannel("email")}
+                    onClick={(e) => onChannel(e, "email")}
                     aria-label={officerFirst ? `Email ${officerFirst}` : "Email a loan officer"}
                     className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-line bg-white text-[15px] font-bold text-ink shadow-3d transition-colors duration-150 hover:bg-paper-2"
                   >
