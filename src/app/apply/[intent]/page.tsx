@@ -45,16 +45,29 @@ export default async function ApplyIntentPage({
 
   // Lightweight officer roster for the apply-flow picker (no bios → smaller
   // client payload). Falls back to bundled content when the table is empty.
-  const officers: ApplyOfficer[] = (await listOfficers()).map((o) => ({
-    slug: o.slug,
-    name: o.name,
-    title: o.title,
-    nmls: o.nmls,
-    states: o.states,
-    photo: o.photo,
-    email: o.email,
-    phone: o.phone,
-  }));
+  // On the apply picker we de-emphasize leadership titles so borrowers don't
+  // default to the President/EVP. They're fully licensed and take applications —
+  // here we show their broker title and list them last. (The public
+  // /loan-officers directory keeps their real President/EVP titles.)
+  const APPLY_DEPRIORITIZED = new Set(["robert-hoff", "seth-angell"]);
+  const officers: ApplyOfficer[] = (await listOfficers())
+    .map((o) => ({
+      slug: o.slug,
+      name: o.name,
+      title: APPLY_DEPRIORITIZED.has(o.slug) ? "Licensed Mortgage Broker" : o.title,
+      nmls: o.nmls,
+      states: o.states,
+      photo: o.photo,
+      email: o.email,
+      phone: o.phone,
+    }))
+    // Stable sort: de-prioritized officers move to the end, everyone else keeps
+    // the roster's existing order.
+    .sort(
+      (a, b) =>
+        Number(APPLY_DEPRIORITIZED.has(a.slug)) -
+        Number(APPLY_DEPRIORITIZED.has(b.slug)),
+    );
 
   const offRamp = deriveApplyOffRamp(config);
 
