@@ -68,7 +68,7 @@ export async function POST(
     }
 
     return NextResponse.json({ ok: true });
-  } catch (err) {
+  } catch {
     console.error(`[/api/v1/leads/${id}/contact-request] failed for channel=${channel}`);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
