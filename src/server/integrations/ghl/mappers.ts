@@ -10,15 +10,29 @@ import type {
   CreateOpportunityInput,
 } from "@/server/integrations/types";
 
-/** Map a Lead → GHL contact upsert input. */
-export function leadToContactInput(lead: Lead): UpsertContactInput {
+/** Optional off-ramp context: appends contact-request tags. */
+export type ContactRequestTagOpts = {
+  requestedChannel?: "call" | "text" | "email";
+  officerSlug?: string;
+};
+
+/** Map a Lead → GHL contact upsert input. When off-ramp context is supplied,
+ *  appends an accumulating "Requested:<channel>" tag (and optional
+ *  "officer:<slug>") on top of the base tags. */
+export function leadToContactInput(
+  lead: Lead,
+  opts: ContactRequestTagOpts = {},
+): UpsertContactInput {
+  const tags = ["MSFG Web", `intent:${lead.intent}`];
+  if (opts.requestedChannel) tags.push(`Requested:${opts.requestedChannel}`);
+  if (opts.officerSlug) tags.push(`officer:${opts.officerSlug}`);
   return {
     firstName: lead.firstName,
     lastName: lead.lastName,
     email: lead.email,
     phone: lead.phone,
     source: lead.source,
-    tags: ["MSFG Web", `intent:${lead.intent}`],
+    tags,
     customFields: {
       ...(lead.location ? { location: lead.location } : {}),
     },

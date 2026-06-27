@@ -263,3 +263,28 @@ export async function recordContactRequest(
     officer: resolveOfficerFromAnswers(lead.answers),
   };
 }
+
+/**
+ * Best-effort, tag-only GHL sync for an off-ramp contact request. Re-upserts the
+ * contact with an accumulating "Requested:<channel>" tag (and "officer:<slug>"
+ * when the lead chose one). Mirrors dispatchToGhl's swallow contract: NEVER
+ * throws. ghlClient.upsertContact short-circuits to a no-op when GHL is not
+ * configured, so this is safe in every environment. No PII is logged.
+ */
+export async function syncContactRequestTag(
+  lead: Lead,
+  channel: "call" | "text" | "email",
+): Promise<void> {
+  try {
+    const officer = resolveOfficerFromAnswers(lead.answers);
+    await ghlClient.upsertContact(
+      leadToContactInput(lead, {
+        requestedChannel: channel,
+        ...(officer ? { officerSlug: officer.slug } : {}),
+      }),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[contact-request] GHL tag sync failed:", message.slice(0, 200));
+  }
+}
