@@ -4,7 +4,7 @@ import { Wizard } from "@/components/apply/Wizard";
 import { FLOW, INTENTS, type Intent } from "@/content/flows";
 import { getTenantConfig } from "@/server/tenant/config";
 import { listOfficers } from "@/server/officers/officers";
-import { buildConsentTcpa, buildTestimonialCaption } from "@/content/site";
+import { buildConsentTcpa, buildTestimonialCaption, deriveApplyOffRamp } from "@/content/site";
 import { calendarEmbedUrl } from "@/components/integrations/GhlCalendar";
 import type { ApplyOfficer } from "@/components/apply/steps/OfficerStep";
 
@@ -56,11 +56,14 @@ export default async function ApplyIntentPage({
     phone: o.phone,
   }));
 
+  const offRamp = deriveApplyOffRamp(config);
+
   return (
     <Wizard
       intent={intent}
       phoneHref={config.contact.phoneHref}
       phoneDisplay={config.contact.phoneDisplay}
+      emailDisplay={config.contact.email}
       consentTcpa={buildConsentTcpa(config)}
       assistantName={config.brand.assistantName}
       shortName={config.brand.shortName}
@@ -68,6 +71,9 @@ export default async function ApplyIntentPage({
       testimonial={testimonial}
       calendarHref={calendarEmbedUrl() ?? ""}
       officers={officers}
+      offRampChannels={offRamp.channels}
+      offRampSla={offRamp.slaCopy}
+      finishScreen={offRamp.finishScreen}
     />
   );
 }
