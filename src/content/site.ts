@@ -95,15 +95,13 @@ const ThemeSchema = z.object({
 /** Apply-funnel finish-step off-ramp. Additive + fully defaulted so a published
  *  CMS revision that predates these fields still parses to the MSFG defaults
  *  (no re-publish required for prod to render the screen). */
-const ApplyOffRampSchema = z
-  .object({
-    channels: z
-      .array(z.enum(["call", "text", "email"]))
-      .default(["call", "text", "email"]),
-    slaCopy: z.string().default("within ~15 minutes"),
-    finishScreen: z.enum(["rendered", "autoRedirect"]).default("rendered"),
-  })
-  .default({});
+const ApplyOffRampSchema = z.object({
+  channels: z
+    .array(z.enum(["call", "text", "email"]))
+    .default(["call", "text", "email"]),
+  slaCopy: z.string().default("within ~15 minutes"),
+  finishScreen: z.enum(["rendered", "autoRedirect"]).default("rendered"),
+});
 
 const ContactSchema = z.object({
   phoneDisplay: z.string(),
