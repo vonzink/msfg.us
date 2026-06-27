@@ -45,3 +45,6 @@ next-env.d.ts
 # design handoff (reference only — not part of the app source)
 /design-reference
 /MSFG.us.zip
+
+# superpowers brainstorm scratch (mockups, server state) — not app source
+/.superpowers
