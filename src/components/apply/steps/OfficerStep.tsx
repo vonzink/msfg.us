@@ -49,16 +49,28 @@ export function OfficerStep({
   const [query, setQuery] = useState("");
   const q = query.trim();
 
-  // In-state subset (the default view). Only applied when it yields matches.
-  const inState = propertyState
-    ? officers.filter((o) => o.states.includes(propertyState))
-    : [];
-  // Default (no search): show in-state when available, else everyone.
-  // Searching: ignore the state filter and search the full roster by name.
-  const base = q ? officers : inState.length > 0 ? inState : officers;
-  const visible = useMemo(() => filterOfficersByName(base, q), [base, q]);
+  // In-state subset (the default view), memoized on stable inputs so typing
+  // doesn't recompute it (and so the `visible` memo below actually caches).
+  const inState = useMemo(
+    () =>
+      propertyState
+        ? officers.filter((o) => o.states.includes(propertyState))
+        : [],
+    [officers, propertyState],
+  );
+  // No search → in-state default (or everyone if none in-state).
+  // Searching → ignore the state filter and search the full roster by name.
+  const visible = useMemo(
+    () =>
+      q
+        ? filterOfficersByName(officers, q)
+        : inState.length > 0
+          ? inState
+          : officers,
+    [officers, inState, q],
+  );
 
-  const showInStateNote = !q && inState.length > 0 && propertyState;
+  const showInStateNote = !q && inState.length > 0 && !!propertyState;
 
   return (
     <>
@@ -114,7 +126,7 @@ export function OfficerStep({
                 key={o.slug}
                 type="button"
                 aria-pressed={on}
-                aria-label={`${o.name}, ${o.title}, NMLS #${o.nmls}, licensed in ${o.states.join(", ")}`}
+                aria-label={`${o.name}, ${o.title}, NMLS #${o.nmls}, licensed in ${o.states.map(stateName).join(", ")}`}
                 onClick={() => onPick(o.slug)}
                 className={cn(
                   "flex flex-col items-center gap-2.5 rounded-lg border-[1.5px] px-3 py-4 text-center transition-[transform,border-color,background,box-shadow,color] duration-150",
