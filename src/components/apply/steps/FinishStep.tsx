@@ -39,6 +39,7 @@ export function FinishStep({
   emailDisplay = "",
   offRampChannels = [] as Channel[],
   offRampSla = "",
+  consentTcpa = "",
 }: {
   intent?: Intent;
   contact: LeadContact | null;
@@ -55,6 +56,8 @@ export function FinishStep({
   offRampChannels?: Channel[];
   /** SLA callback copy, e.g. "within ~15 minutes". */
   offRampSla?: string;
+  /** Exact TCPA consent string from buildConsentTcpa(config). Never paraphrase. */
+  consentTcpa?: string;
 }) {
   const fired = useRef(false);
   const mintedAtRef = useRef<number | null>(null);
@@ -67,6 +70,12 @@ export function FinishStep({
   // --- Off-ramp (reveal-on-demand) state ---
   const [open, setOpen] = useState(false);
   const [confirmed, setConfirmed] = useState<Channel | null>(null);
+  // Phone-recapture sub-form (only when contact.phone is empty + channel is call/text).
+  const [recapture, setRecapture] = useState<Channel | null>(null);
+  const [recapturePhone, setRecapturePhone] = useState("");
+  const [recaptureConsent, setRecaptureConsent] = useState(false);
+  const phoneOnFile = (contact?.phone ?? "").trim() !== "";
+  const recaptureValid = recapturePhone.trim().length >= 7 && recaptureConsent;
   const panelHeadingRef = useRef<HTMLHeadingElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -109,9 +118,29 @@ export function FinishStep({
       setConfirmed("email");
       return;
     }
-    // Call/Text. Phone-skipped recapture is handled in a later slice; here we
-    // assume contact.phone is present (the only path wired in this slice).
-    fireRequest(channel);
+    // Call/Text with a phone already on file → fire immediately.
+    if (phoneOnFile) {
+      fireRequest(channel);
+      setConfirmed(channel);
+      return;
+    }
+    // Phone was skipped → reveal the consented-recapture sub-form. Do NOT fire
+    // the request or open the sms: link yet (Call's tel: link still works via href).
+    setRecapture(channel);
+    track("offramp_phone_prompt");
+  }
+
+  function onRecaptureSubmit() {
+    const channel = recapture;
+    if (!channel || !recaptureValid) return;
+    track("offramp_phone_submit");
+    const phone = recapturePhone.trim();
+    fireRequest(channel, { phone, consentTcpa: true });
+    if (channel === "text") {
+      const link = smsHref(phone);
+      if (link) window.location.href = link;
+    }
+    setRecapture(null);
     setConfirmed(channel);
   }
 
@@ -321,6 +350,41 @@ export function FinishStep({
                   </a>
                 )}
               </div>
+
+              {recapture && (
+                <div className="mt-4 rounded-lg border border-line bg-white p-4">
+                  <label htmlFor="recapture-phone" className="sr-only">
+                    Your phone number
+                  </label>
+                  <input
+                    id="recapture-phone"
+                    type="tel"
+                    inputMode="tel"
+                    value={recapturePhone}
+                    onChange={(e) => setRecapturePhone(e.target.value)}
+                    placeholder="Your phone number"
+                    aria-describedby="recapture-consent"
+                    className="h-[52px] w-full rounded-lg border-[1.5px] border-line bg-white px-[18px] text-[16px] font-semibold text-ink shadow-3d outline-none transition-colors duration-150 placeholder:font-medium placeholder:text-[#9aa39c] focus:border-2 focus:border-green-600"
+                  />
+                  <label className="mt-3 flex items-start gap-2.5 text-[12.5px] leading-snug text-muted">
+                    <input
+                      type="checkbox"
+                      checked={recaptureConsent}
+                      onChange={(e) => setRecaptureConsent(e.target.checked)}
+                      className="mt-0.5 size-4 shrink-0 accent-green-600"
+                    />
+                    <span id="recapture-consent">{consentTcpa}</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={onRecaptureSubmit}
+                    disabled={!recaptureValid}
+                    className="mt-3 flex h-12 w-full items-center justify-center rounded-lg bg-green-600 text-[15px] font-bold text-white [box-shadow:0_3px_0_#0a3a2a,var(--shadow-3d)] transition-[transform,background,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-green-700 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+                  >
+                    Confirm
+                  </button>
+                </div>
+              )}
 
               <p className="mt-4 text-[14px] font-semibold text-green-700" aria-live="polite">
                 {confirmationLine()}
