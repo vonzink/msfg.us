@@ -92,6 +92,19 @@ const ThemeSchema = z.object({
   fontFamily: cssValue('var(--font-hanken), system-ui, -apple-system, "Segoe UI", sans-serif'),
 });
 
+/** Apply-funnel finish-step off-ramp. Additive + fully defaulted so a published
+ *  CMS revision that predates these fields still parses to the MSFG defaults
+ *  (no re-publish required for prod to render the screen). */
+const ApplyOffRampSchema = z
+  .object({
+    channels: z
+      .array(z.enum(["call", "text", "email"]))
+      .default(["call", "text", "email"]),
+    slaCopy: z.string().default("within ~15 minutes"),
+    finishScreen: z.enum(["rendered", "autoRedirect"]).default("rendered"),
+  })
+  .default({});
+
 const ContactSchema = z.object({
   phoneDisplay: z.string(),
   phoneHref: z.string(),
@@ -189,6 +202,7 @@ export const TenantConfigSchema = z.object({
   marketing: MarketingSchema.optional(),
   features: FeaturesSchema,
   ai: AiConfigSchema,
+  applyOffRamp: ApplyOffRampSchema.default(() => ApplyOffRampSchema.parse({})),
 });
 
 export type TenantConfig = z.infer<typeof TenantConfigSchema>;
@@ -319,6 +333,11 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     testimonials: [{ names: "Drew & Anya", rating: 5 }],
   },
   features: { showFamily: true, ghlChat: true, aiAssistant: true },
+  applyOffRamp: {
+    channels: ["call", "text", "email"],
+    slaCopy: "within ~15 minutes",
+    finishScreen: "rendered",
+  },
   ai: {
     provider: "openai-compatible",
     model: "deepseek-chat",
@@ -330,6 +349,23 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
 // ---------------------------------------------------------------------------
 // Derive-helpers (legal strings) — pure, called server-side
 // ---------------------------------------------------------------------------
+
+export type ApplyOffRampConfig = {
+  channels: ("call" | "text" | "email")[];
+  slaCopy: string;
+  finishScreen: "rendered" | "autoRedirect";
+};
+
+/** Pull the off-ramp block off a parsed tenant config. Because `ApplyOffRampSchema`
+ *  is fully defaulted, `config.applyOffRamp` is always populated — this helper just
+ *  gives the wiring layer a stable, narrowed accessor. */
+export function deriveApplyOffRamp(config: TenantConfig): ApplyOffRampConfig {
+  return {
+    channels: config.applyOffRamp.channels,
+    slaCopy: config.applyOffRamp.slaCopy,
+    finishScreen: config.applyOffRamp.finishScreen,
+  };
+}
 
 /** Comma-joined licensed-state codes for disclosure copy. */
 export function statesLine(c: TenantConfig): string {
