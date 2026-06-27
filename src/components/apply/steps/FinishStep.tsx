@@ -1,12 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight, Phone, MessageSquare, Mail } from "lucide-react";
 import { APP_URL } from "@/lib/auth/appLink";
 import { isHandoffTokenStale } from "./handoffStale";
+import { telHref, smsHref } from "./offRampLink";
 import { track } from "@/lib/analytics";
+import { requestContact } from "@/lib/leads";
 import type { Intent } from "@/content/flows";
 import type { LeadContact } from "@/lib/leads";
+
+type Channel = "call" | "text" | "email";
 
 type OffRampOfficer = {
   slug: string;
@@ -28,6 +33,12 @@ export function FinishStep({
   contact,
   leadId,
   shortName,
+  officer = null,
+  phoneDisplay = "",
+  phoneHref = "",
+  emailDisplay = "",
+  offRampChannels = [] as Channel[],
+  offRampSla = "",
 }: {
   intent?: Intent;
   contact: LeadContact | null;
@@ -35,6 +46,15 @@ export function FinishStep({
   shortName: string;
   calendarHref?: string;
   officer?: OffRampOfficer;
+  /** Tenant house line (used when no officer was chosen). */
+  phoneDisplay?: string;
+  phoneHref?: string;
+  /** Tenant house email (used for the Email channel when no officer was chosen). */
+  emailDisplay?: string;
+  /** Off-ramp channels enabled for this tenant (config). */
+  offRampChannels?: Channel[];
+  /** SLA callback copy, e.g. "within ~15 minutes". */
+  offRampSla?: string;
 }) {
   const fired = useRef(false);
   const mintedAtRef = useRef<number | null>(null);
@@ -43,6 +63,69 @@ export function FinishStep({
   const [warmFailed, setWarmFailed] = useState(false);
   const [pending, setPending] = useState(false);
   const [fallback, setFallback] = useState(false);
+
+  // --- Off-ramp (reveal-on-demand) state ---
+  const [open, setOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState<Channel | null>(null);
+  const panelHeadingRef = useRef<HTMLHeadingElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const officerFirst = officer?.name.split(" ")[0] ?? null;
+  // Number used for Call/Text: the officer's, else the tenant house line.
+  const callHref = officer ? telHref(officer.phone) : phoneHref || telHref(phoneDisplay);
+  const smsLink = officer ? smsHref(officer.phone) : smsHref(phoneDisplay);
+  // Email target: the officer's address, else the tenant house email. Never a phone string.
+  const emailAddress = officer?.email || emailDisplay || "";
+  const mailHref = emailAddress
+    ? `mailto:${emailAddress}?subject=${encodeURIComponent("My mortgage application")}`
+    : null;
+
+  function toggleOpen() {
+    setOpen((wasOpen) => {
+      const next = !wasOpen;
+      if (next) {
+        track("offramp_open");
+        // Focus the panel heading after it renders.
+        requestAnimationFrame(() => panelHeadingRef.current?.focus());
+      } else {
+        requestAnimationFrame(() => triggerRef.current?.focus());
+      }
+      return next;
+    });
+  }
+
+  function fireRequest(channel: Channel, opts?: { phone?: string; consentTcpa?: boolean }) {
+    if (!leadId) return;
+    requestContact(leadId, channel, opts).then((r) =>
+      track(r.ok ? "contact_request_ok" : "contact_request_fail"),
+    );
+  }
+
+  // Email (gate-exempt) + Call/Text when a phone is already on file fire immediately.
+  function onChannel(channel: Channel) {
+    track("channel_select", { channel });
+    if (channel === "email") {
+      fireRequest("email");
+      setConfirmed("email");
+      return;
+    }
+    // Call/Text. Phone-skipped recapture is handled in a later slice; here we
+    // assume contact.phone is present (the only path wired in this slice).
+    fireRequest(channel);
+    setConfirmed(channel);
+  }
+
+  function confirmationLine(): string {
+    if (!confirmed) return "";
+    const who = officerFirst ?? "A loan officer";
+    if (confirmed === "email") return `${who} will email you back ${offRampSla}.`;
+    if (confirmed === "text") return `${who} will text you ${offRampSla} — keep an eye on your phone.`;
+    return `${who} will call you ${offRampSla}.`;
+  }
+
+  const showCall = offRampChannels.includes("call") && callHref !== null;
+  const showText = offRampChannels.includes("text") && smsLink !== null;
+  const showEmail = offRampChannels.includes("email") && mailHref !== null;
 
   // PRE-WARM: mint the hand-off token once on mount (no navigation here).
   useEffect(() => {
@@ -156,6 +239,95 @@ export function FinishStep({
         <p className="mt-3 text-center text-[13px] text-muted">
           Taking a moment longer than usual — tap Continue to retry.
         </p>
+      )}
+
+      {(showCall || showText || showEmail) && (
+        <div className="mt-6">
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={toggleOpen}
+            aria-expanded={open}
+            aria-controls="offramp-panel"
+            className="text-[14px] font-semibold text-green-600 underline underline-offset-2"
+          >
+            {officerFirst
+              ? `Prefer to talk to ${officerFirst} first?`
+              : "Prefer to talk to a loan officer first?"}
+          </button>
+
+          {open && (
+            <div
+              id="offramp-panel"
+              className="mt-4 rounded-lg border border-line bg-paper-2 p-5 text-left"
+            >
+              <div className="flex items-center gap-3.5">
+                {officer && officer.photo ? (
+                  <span className="relative size-12 shrink-0 overflow-hidden rounded-full border border-line bg-white">
+                    <Image src={officer.photo} alt="" fill sizes="48px" className="object-cover object-top" />
+                  </span>
+                ) : null}
+                <div className="min-w-0">
+                  <h2
+                    ref={panelHeadingRef}
+                    tabIndex={-1}
+                    className="text-[16px] font-bold leading-tight text-ink outline-none"
+                  >
+                    {officer ? officer.name : "Talk to a loan officer"}
+                  </h2>
+                  <p className="text-[13px] text-muted">
+                    {officer ? `NMLS #${officer.nmls}` : `Call us at ${phoneDisplay}`}
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-4 text-[14px] text-muted">
+                {officerFirst ? `${officerFirst} will reach out ` : "A loan officer will reach out "}
+                {offRampSla}.
+              </p>
+
+              <div className="mt-4 flex flex-col gap-2.5">
+                {showCall && callHref && (
+                  <a
+                    href={callHref}
+                    onClick={() => onChannel("call")}
+                    aria-label={officerFirst ? `Call ${officerFirst}` : "Call a loan officer"}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-line bg-white text-[15px] font-bold text-ink shadow-3d transition-colors duration-150 hover:bg-paper-2"
+                  >
+                    <Phone className="size-4 text-green-600" strokeWidth={2.2} aria-hidden="true" />
+                    Call
+                  </a>
+                )}
+                {showText && smsLink && (
+                  <a
+                    href={smsLink}
+                    onClick={() => onChannel("text")}
+                    aria-label={officerFirst ? `Text ${officerFirst}` : "Text a loan officer"}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-line bg-white text-[15px] font-bold text-ink shadow-3d transition-colors duration-150 hover:bg-paper-2"
+                  >
+                    <MessageSquare className="size-4 text-green-600" strokeWidth={2.2} aria-hidden="true" />
+                    Text
+                  </a>
+                )}
+                {showEmail && mailHref && (
+                  <a
+                    href={mailHref}
+                    onClick={() => onChannel("email")}
+                    aria-label={officerFirst ? `Email ${officerFirst}` : "Email a loan officer"}
+                    className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border-[1.5px] border-line bg-white text-[15px] font-bold text-ink shadow-3d transition-colors duration-150 hover:bg-paper-2"
+                  >
+                    <Mail className="size-4 text-green-600" strokeWidth={2.2} aria-hidden="true" />
+                    Email
+                  </a>
+                )}
+              </div>
+
+              <p className="mt-4 text-[14px] font-semibold text-green-700" aria-live="polite">
+                {confirmationLine()}
+              </p>
+            </div>
+          )}
+        </div>
       )}
     </>
   );
