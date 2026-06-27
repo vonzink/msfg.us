@@ -358,10 +358,16 @@ export type ApplyOffRampConfig = {
  *  is fully defaulted, `config.applyOffRamp` is always populated — this helper just
  *  gives the wiring layer a stable, narrowed accessor. */
 export function deriveApplyOffRamp(config: TenantConfig): ApplyOffRampConfig {
+  // A published CMS config revision (or a stale cached one) can predate this
+  // block; the schema default normally fills it, but guard against an undefined
+  // value at runtime so the finish step never crashes — fall back to MSFG defaults.
+  const off =
+    (config.applyOffRamp as ApplyOffRampConfig | undefined) ??
+    DEFAULT_TENANT_CONFIG.applyOffRamp;
   return {
-    channels: config.applyOffRamp.channels,
-    slaCopy: config.applyOffRamp.slaCopy,
-    finishScreen: config.applyOffRamp.finishScreen,
+    channels: off.channels,
+    slaCopy: off.slaCopy,
+    finishScreen: off.finishScreen,
   };
 }
 

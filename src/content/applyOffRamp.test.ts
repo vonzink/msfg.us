@@ -29,4 +29,19 @@ describe("applyOffRamp config", () => {
     expect(off.slaCopy).toBe("within one business day");
     expect(off.finishScreen).toBe("autoRedirect");
   });
+
+  it("falls back to MSFG defaults when applyOffRamp is undefined at runtime (stale/partial cached config)", () => {
+    // A cached/partial tenant config (e.g. an unstable_cache snapshot predating
+    // this field) can reach deriveApplyOffRamp WITHOUT the schema default applied
+    // — it must not crash. Regression test for the runtime
+    // "Cannot read properties of undefined (reading 'channels')" bug.
+    const cfg = {
+      ...structuredClone(DEFAULT_TENANT_CONFIG),
+      applyOffRamp: undefined,
+    } as unknown as Parameters<typeof deriveApplyOffRamp>[0];
+    const off = deriveApplyOffRamp(cfg);
+    expect(off.finishScreen).toBe("rendered");
+    expect(off.channels).toEqual(["call", "text", "email"]);
+    expect(off.slaCopy).toBe("within ~15 minutes");
+  });
 });
