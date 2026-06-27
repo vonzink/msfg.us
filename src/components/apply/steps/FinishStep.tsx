@@ -1,40 +1,50 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, CalendarDays } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { APP_URL } from "@/lib/auth/appLink";
+import { isHandoffTokenStale } from "./handoffStale";
+import { track } from "@/lib/analytics";
 import type { Intent } from "@/content/flows";
 import type { LeadContact } from "@/lib/leads";
 
+type OffRampOfficer = {
+  slug: string;
+  name: string;
+  nmls: string;
+  photo: string;
+  email: string;
+  phone: string;
+} | null;
+
 /**
- * Finish: mint the hand-off token and send the borrower STRAIGHT to the app's
- * /continue (account) page — no intermediate "You're all set / what's next" screen
- * (owner request 2026-06-25). Passwordless sign-in + account recognition happen on
- * /continue, where the email pre-fills and "email me a code" is the default.
- *
- * Only if the token mint fails do we render a manual fallback (continue + talk to an
- * officer) so the borrower is never stranded.
+ * Finish screen (Part 2 of the funnel pivot). Re-introduces a rendered screen
+ * (partially reversing 90188bb): the hand-off token is minted on mount as a
+ * PRE-WARM, but navigation happens on the Continue CLICK (TTL-aware re-mint),
+ * not on mount. A quiet reveal-on-demand off-ramp (added in a later slice) lets
+ * the borrower reach the chosen loan officer without leaving the screen.
  */
 export function FinishStep({
   contact,
   leadId,
   shortName,
-  calendarHref,
-  officer,
 }: {
   intent?: Intent;
   contact: LeadContact | null;
   leadId: string | null;
   shortName: string;
   calendarHref?: string;
-  /** Officer chosen in the preceding step, if any (used only on the failure fallback). */
-  officer?: { slug: string; name: string; nmls: string; photo: string; email: string; phone: string } | null;
+  officer?: OffRampOfficer;
 }) {
   const fired = useRef(false);
+  const mintedAtRef = useRef<number | null>(null);
+  const reminting = useRef(false);
   const [token, setToken] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [warmFailed, setWarmFailed] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [fallback, setFallback] = useState(false);
 
-  // Mint the hand-off token once (loan is born at /continue, post-auth).
+  // PRE-WARM: mint the hand-off token once on mount (no navigation here).
   useEffect(() => {
     if (fired.current || !contact || !leadId) return;
     fired.current = true;
@@ -48,31 +58,77 @@ export function FinishStep({
     })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.handoffToken) setToken(String(d.handoffToken));
-        else setFailed(true);
+        if (d?.handoffToken) {
+          mintedAtRef.current = Date.now();
+          setToken(String(d.handoffToken));
+        } else {
+          setWarmFailed(true);
+        }
       })
-      .catch(() => setFailed(true));
+      .catch(() => setWarmFailed(true));
     return () => controller.abort();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contact, leadId]);
 
-  // Auto-advance to the app's account page the moment the token is ready.
+  // finish_view: rendered finish screen mounted.
   useEffect(() => {
-    if (token) {
-      window.location.href = `${APP_URL}/continue?t=${encodeURIComponent(token)}`;
-    }
-  }, [token]);
+    track("finish_view");
+  }, []);
 
-  // Fallback — shown ONLY if the hand-off token couldn't be minted.
-  if (failed) {
-    const officerFirst = officer?.name.split(" ")[0];
-    const bookHref = officer ? `/loan-officers#${officer.slug}` : calendarHref || "/loan-officers";
-    const bookLabel = officer ? `Connect with ${officerFirst}` : "Talk to a loan officer";
-    return (
-      <>
-        <p className="mb-5 text-[16px] text-muted">
-          Your application is saved. Continue in the {shortName} app to finish.
-        </p>
+  function navigateWith(t: string) {
+    window.location.href = `${APP_URL}/continue?t=${encodeURIComponent(t)}`;
+  }
+
+  async function remint(): Promise<string | null> {
+    if (!leadId) return null;
+    const res = await fetch("/api/v1/applications", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      cache: "no-store",
+      body: JSON.stringify({ leadId }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+    return res?.handoffToken ? String(res.handoffToken) : null;
+  }
+
+  async function onContinue() {
+    const warmed = token !== null;
+    const stale = isHandoffTokenStale(mintedAtRef.current, Date.now());
+
+    if (token && !stale) {
+      track("continue_click", { warmed: true, remintRequired: false });
+      navigateWith(token);
+      return;
+    }
+
+    // Stale or never-warmed → click-time re-mint with a pending/disabled state.
+    track("continue_click", { warmed, remintRequired: true });
+    if (reminting.current) return;
+    reminting.current = true;
+    setPending(true);
+    const fresh = await remint();
+    reminting.current = false;
+    if (fresh) {
+      mintedAtRef.current = Date.now();
+      navigateWith(fresh);
+      return;
+    }
+    // Both warm and click-time mint failed → stay on screen, show fallback.
+    setPending(false);
+    setFallback(true);
+    track("continue_fallback_shown");
+  }
+
+  return (
+    <>
+      <h1 className="mb-2 text-pretty text-[clamp(26px,3.6vw,38px)] font-extrabold leading-[1.08] tracking-[-0.03em] [text-wrap:balance]">
+        You&rsquo;re all set — finish your application
+      </h1>
+      <p className="mb-6 text-[16px] text-muted">
+        Pick up right where you left off in the {shortName} app.
+      </p>
+
+      {fallback ? (
         <a
           href={APP_URL}
           className="flex h-[66px] w-full items-center justify-center gap-2.5 rounded-lg bg-green-600 text-[18px] font-bold text-white [box-shadow:0_3px_0_#0a3a2a,var(--shadow-3d)] transition-[transform,background,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-green-700 hover:[box-shadow:0_5px_0_#0a3a2a,var(--shadow-pop)] active:translate-y-px"
@@ -80,25 +136,27 @@ export function FinishStep({
           Continue in the {shortName} app
           <ArrowRight className="size-5" strokeWidth={2.2} aria-hidden="true" />
         </a>
-        <div className="my-[18px] flex items-center gap-3.5 text-[13px] text-muted before:h-px before:flex-1 before:bg-line after:h-px after:flex-1 after:bg-line">
-          or
-        </div>
-        <a
-          href={bookHref}
-          className="flex h-16 w-full items-center justify-center gap-2.5 rounded-lg border-[1.5px] border-line bg-white text-[16px] font-bold text-ink shadow-3d transition-colors duration-150 hover:bg-paper-2"
+      ) : (
+        <button
+          type="button"
+          onClick={onContinue}
+          disabled={pending}
+          className="flex h-[66px] w-full items-center justify-center gap-2.5 rounded-lg bg-green-600 text-[18px] font-bold text-white [box-shadow:0_3px_0_#0a3a2a,var(--shadow-3d)] transition-[transform,background,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-green-700 hover:[box-shadow:0_5px_0_#0a3a2a,var(--shadow-pop)] active:translate-y-px disabled:cursor-not-allowed disabled:opacity-70"
         >
-          <CalendarDays className="size-5 text-green-600" strokeWidth={2} aria-hidden="true" />
-          {bookLabel}
-        </a>
-      </>
-    );
-  }
+          {pending ? "Setting up…" : "Continue your application"}
+          {!pending && <ArrowRight className="size-5" strokeWidth={2.2} aria-hidden="true" />}
+        </button>
+      )}
 
-  // Happy path: minting + redirecting (no "what's next" screen).
-  return (
-    <div className="flex flex-col items-center justify-center py-12 text-center" aria-live="polite">
-      <p className="text-[18px] font-semibold text-ink">Taking you to your application&hellip;</p>
-      <p className="mt-2 text-[14px] text-muted">One moment while we set things up.</p>
-    </div>
+      <p className="sr-only" aria-live="polite">
+        {pending ? "Setting up your application, one moment." : ""}
+      </p>
+
+      {warmFailed && !fallback && (
+        <p className="mt-3 text-center text-[13px] text-muted">
+          Taking a moment longer than usual — tap Continue to retry.
+        </p>
+      )}
+    </>
   );
 }
