@@ -47,13 +47,13 @@ export default async function ApplyIntentPage({
   // client payload). Falls back to bundled content when the table is empty.
   // On the apply picker we de-emphasize leadership titles so borrowers don't
   // default to the President/EVP. They're fully licensed and take applications —
-  // here we show their broker title and list them last. (The public
-  // /loan-officers directory keeps their real President/EVP titles.)
+  // here we show their broker title, list them last, and drop Robert's "CFA"
+  // suffix. (The public /loan-officers directory keeps their real names/titles.)
   const APPLY_DEPRIORITIZED = new Set(["robert-hoff", "seth-angell"]);
   const officers: ApplyOfficer[] = (await listOfficers())
     .map((o) => ({
       slug: o.slug,
-      name: o.name,
+      name: o.slug === "robert-hoff" ? "Robert Hoff" : o.name,
       title: APPLY_DEPRIORITIZED.has(o.slug) ? "Licensed Mortgage Broker" : o.title,
       nmls: o.nmls,
       states: o.states,
