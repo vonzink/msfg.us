@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { cn } from "@/lib/cn";
+import { formatPhone } from "@/lib/applyFields";
 import type { LeadContact } from "@/lib/leads";
 
 /**
@@ -42,7 +43,10 @@ export function ContactStep({
           placeholder={label}
           value={f[key]}
           autoFocus={key === "firstName" || key === "phone"}
-          onChange={(e) => setF((s) => ({ ...s, [key]: e.target.value }))}
+          onChange={(e) => {
+            const v = key === "phone" ? formatPhone(e.target.value) : e.target.value;
+            setF((s) => ({ ...s, [key]: v }));
+          }}
           onKeyDown={(e) => {
             if (e.key !== "Enter") return;
             if (pane === 0 && pane0ok) setPane(1);

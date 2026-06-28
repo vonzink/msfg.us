@@ -41,13 +41,18 @@ export function AddressStep({
   const [configured, setConfigured] = useState(true);
   // eslint-disable-next-line react-hooks/purity -- seeding a ref once with a random session token is intentional and safe
   const tokenRef = useRef<string>(Math.random().toString(36).slice(2));
+  // Set right before we programmatically push the chosen label into `query`, so
+  // the debounced effect skips one cycle instead of re-searching and re-opening
+  // the dropdown on top of the Next button (QA #6).
+  const skipSearch = useRef(false);
   const line2 = value?.line2 ?? "";
   const zip = value?.zip ?? "";
 
   // Debounced autocomplete.
   useEffect(() => {
+    if (skipSearch.current) { skipSearch.current = false; return; }
     // eslint-disable-next-line react-hooks/set-state-in-effect -- clearing stale suggestions synchronously on short input is intentional
-    if (query.trim().length < 3) { setSuggestions([]); return; }
+    if (query.trim().length < 3) { setSuggestions([]); setOpen(false); return; }
     const handle = setTimeout(async () => {
       try {
         const res = await fetch(`/api/v1/address/suggest?q=${encodeURIComponent(query)}&t=${tokenRef.current}`);
@@ -62,6 +67,7 @@ export function AddressStep({
 
   const choose = async (s: AddressSuggestion) => {
     setOpen(false);
+    skipSearch.current = true;
     setQuery(s.label);
     try {
       const res = await fetch(`/api/v1/address/details?id=${encodeURIComponent(s.id)}&t=${tokenRef.current}`);
@@ -106,7 +112,11 @@ export function AddressStep({
           autoComplete="off"
           value={query}
           onChange={(e) => { setQuery(e.target.value); syncManual({ line1: e.target.value }); }}
-          onKeyDown={(e) => { if (e.key === "Enter" && ready) onNext(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && ready) onNext();
+            else if (e.key === "Escape" && open) { e.stopPropagation(); setOpen(false); }
+          }}
+          onBlur={() => setOpen(false)}
           className="h-[68px] w-full rounded-lg border-[1.5px] border-line bg-white px-[18px] pb-2 pt-[22px] text-[18px] font-semibold text-ink shadow-3d outline-none transition-colors duration-150 placeholder:font-medium placeholder:text-[#9aa39c] focus:border-2 focus:border-green-600"
         />
         {open && configured && suggestions.length > 0 && (
@@ -115,6 +125,7 @@ export function AddressStep({
               <li key={s.id}>
                 <button
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => choose(s)}
                   className="block w-full px-[18px] py-3 text-left text-[15px] text-ink hover:bg-paper-2"
                 >

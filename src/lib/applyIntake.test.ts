@@ -78,3 +78,45 @@ describe("funnelToIntake", () => {
     expect(dto.property.zipCode).toBe("20500");
   });
 });
+
+describe("funnelToIntake — loan amount + buy property value (QA #4)", () => {
+  // Buy leads store the price under `purchasePrice` (a number) and `downPayment`
+  // as a formatted string ("20%" / "$90,000") — buildLeadFields formats toggle
+  // currency amounts. The LOS pipeline needs the resulting loan amount.
+  const buyLead: LeadForIntake = {
+    ...baseLead,
+    intent: "BUY",
+    answers: { fields: { purchasePrice: 450000, downPayment: "20%" } },
+  };
+
+  it("derives propertyValue from purchasePrice on a buy (homeValue is refi-only)", () => {
+    expect(funnelToIntake(buyLead, null).property.propertyValue).toBe(450000);
+  });
+
+  it("computes loanAmount from a percentage down payment", () => {
+    expect(funnelToIntake(buyLead, null).loanAmount).toBe(360000);
+  });
+
+  it("computes loanAmount from a dollar down payment", () => {
+    const lead = { ...buyLead, answers: { fields: { purchasePrice: 450000, downPayment: "$90,000" } } };
+    expect(funnelToIntake(lead, null).loanAmount).toBe(360000);
+  });
+
+  it("tolerates a raw CurrencyAmount-shaped down payment", () => {
+    const lead = { ...buyLead, answers: { fields: { purchasePrice: 450000, downPayment: { value: 20, unit: "%" } } } };
+    expect(funnelToIntake(lead, null).loanAmount).toBe(360000);
+  });
+
+  it("leaves loanAmount null on a refi (no down payment) but keeps homeValue", () => {
+    const dto = funnelToIntake(baseLead, null); // refi, homeValue 485000, no downPayment
+    expect(dto.property.propertyValue).toBe(485000);
+    expect(dto.loanAmount).toBeNull();
+  });
+
+  it("is null-safe when the price is missing", () => {
+    const lead = { ...buyLead, answers: { fields: { downPayment: "20%" } } };
+    const dto = funnelToIntake(lead, null);
+    expect(dto.property.propertyValue).toBeNull();
+    expect(dto.loanAmount).toBeNull();
+  });
+});

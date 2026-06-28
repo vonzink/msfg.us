@@ -30,6 +30,44 @@ export function formatCurrency(n: number | null): string {
   return n == null ? "" : n.toLocaleString("en-US");
 }
 
+/**
+ * Reformat a `$`/`%` input after an edit, preserving the caret by *digit count*
+ * rather than character index. CurrencyStep applies this on every keystroke so
+ * live thousands-grouping never shifts the cursor — which is what made fast
+ * typing swallow digits (QA #2). Pure; the caller restores `caret`.
+ */
+export function reformatAmount(
+  raw: string,
+  caret: number,
+  unit: "$" | "%",
+): { text: string; value: number | null; caret: number } {
+  const digitsLeft = raw.slice(0, caret).replace(/[^0-9]/g, "").length;
+  const value = unit === "%" ? parsePercent(raw) : parseCurrency(raw);
+  const text = value == null ? "" : unit === "%" ? String(value) : value.toLocaleString("en-US");
+
+  let pos = 0;
+  if (digitsLeft > 0) {
+    let seen = 0;
+    pos = text.length;
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      if (c >= 48 && c <= 57) {
+        seen += 1;
+        if (seen === digitsLeft) { pos = i + 1; break; }
+      }
+    }
+  }
+  return { text, value, caret: pos };
+}
+
+/** Progressive US phone display formatting: digits → "303-555-1234" (caps at 10). */
+export function formatPhone(input: string): string {
+  const d = input.replace(/\D/g, "").slice(0, 10);
+  if (d.length > 6) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (d.length > 3) return `${d.slice(0, 3)}-${d.slice(3)}`;
+  return d;
+}
+
 /** True for values that should not be written to the lead (blank/absent). */
 function isEmpty(v: AnswerValue | undefined): boolean {
   if (isCurrencyAmount(v)) return v.value == null;
