@@ -36,6 +36,7 @@ export function Wizard({
   intent,
   phoneHref,
   phoneDisplay,
+  emailDisplay,
   consentTcpa,
   assistantName,
   shortName,
@@ -43,10 +44,14 @@ export function Wizard({
   testimonial,
   calendarHref,
   officers,
+  offRampChannels,
+  offRampSla,
+  finishScreen,
 }: {
   intent: Intent;
   phoneHref: string;
   phoneDisplay: string;
+  emailDisplay: string;
   consentTcpa: string;
   assistantName: string;
   shortName: string;
@@ -54,6 +59,9 @@ export function Wizard({
   testimonial?: TestimonialDisplay;
   calendarHref: string;
   officers: ApplyOfficer[];
+  offRampChannels: ("call" | "text" | "email")[];
+  offRampSla: string;
+  finishScreen: "rendered" | "autoRedirect";
 }) {
   const router = useRouter();
   const steps = FLOW[intent];
@@ -153,8 +161,9 @@ export function Wizard({
       <div className="flex flex-1 items-start justify-center px-5 pb-[120px] pt-[7vh]">
         <DeckStage stepKey={idx} direction={dir}>
           <div className="mx-auto w-full max-w-[560px] text-center">
-            {/* The finish/account step auto-redirects to the app's /continue page,
-                so we suppress the big step heading (no "You're all set" screen). */}
+            {/* The finish/account step now renders its own screen and owns its in-component
+                title (Continue + the LO off-ramp); we keep the big Wizard step heading
+                suppressed so the finish screen isn't double-headed. */}
             {step.type !== "finish" && step.type !== "account" && (
               <h1 className="mb-2 text-pretty text-[clamp(30px,4.4vw,46px)] font-extrabold leading-[1.06] tracking-[-0.03em] [text-wrap:balance]">
                 {step.q}
@@ -227,8 +236,25 @@ export function Wizard({
                 onPick={pickAuto}
               />
             )}
+            {/* finishScreen is a tenant flag ("rendered" | "autoRedirect"). v1 always
+                renders the finish screen; the autoRedirect rollback lever is wired but
+                not yet consumed by FinishStep. Referenced here to keep it live. */}
+            {void finishScreen}
             {(step.type === "finish" || step.type === "account") && (
-              <FinishStep intent={intent} contact={contact} leadId={leadId} shortName={shortName} calendarHref={calendarHref} officer={chosenOfficer} />
+              <FinishStep
+                intent={intent}
+                contact={contact}
+                leadId={leadId}
+                shortName={shortName}
+                calendarHref={calendarHref}
+                officer={chosenOfficer}
+                phoneDisplay={phoneDisplay}
+                phoneHref={phoneHref}
+                emailDisplay={emailDisplay}
+                consentTcpa={consentTcpa}
+                offRampChannels={offRampChannels}
+                offRampSla={offRampSla}
+              />
             )}
           </div>
         </DeckStage>
