@@ -33,9 +33,11 @@ type OffRampOfficer = {
  * once they authenticate, the hand-off fires automatically. A quiet
  * reveal-on-demand off-ramp lets them reach the chosen loan officer instead.
  *
- * Auth gating only applies when `auth.configured`, so envs without Cognito (or
- * before the pool's USER_PASSWORD_AUTH flag is enabled) keep the passwordless
- * Continue — this is safe to ship ahead of that ops flag.
+ * Auth gating only applies when `auth.configured` (Cognito env present): local /
+ * non-Cognito envs keep the passwordless Continue. In PROD `configured` is true,
+ * so the panel renders and REQUIRES the pool's ALLOW_USER_PASSWORD_AUTH +
+ * self-service sign-up to be enabled before it works — turn those on before the
+ * first live deploy (deploy prereq), or gate activation behind a config flag.
  */
 export function FinishStep({
   contact,
