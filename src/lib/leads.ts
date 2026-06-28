@@ -78,3 +78,42 @@ export async function submitLead(
     return { ok: false };
   }
 }
+
+/**
+ * Fire-and-forget off-ramp contact request. Asks the borrower's chosen officer
+ * (or the house line) to reach out via the picked channel. Modeled on
+ * {@link submitLead}: generates its own idempotencyKey, swallows/logs all
+ * errors (no PII), and returns { ok } — it must NEVER block the Continue flow.
+ *
+ * For call/text with a recaptured number, the caller MUST pass
+ * { phone, consentTcpa: true }; the server returns 422 otherwise.
+ */
+export async function requestContact(
+  leadId: string,
+  channel: "call" | "text" | "email",
+  opts?: { phone?: string; consentTcpa?: boolean },
+): Promise<{ ok: boolean }> {
+  const body = {
+    channel,
+    ...(opts?.phone ? { phone: opts.phone } : {}),
+    ...(opts?.consentTcpa ? { consentTcpa: opts.consentTcpa } : {}),
+    idempotencyKey: crypto.randomUUID(),
+  };
+
+  try {
+    const res = await fetch(`/api/v1/leads/${encodeURIComponent(leadId)}/contact-request`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      console.error("[contact-request] failed:", res.status);
+      return { ok: false };
+    }
+    const data = (await res.json().catch(() => null)) as { ok?: boolean } | null;
+    return { ok: Boolean(data?.ok) };
+  } catch (err) {
+    console.error("[contact-request] error:", err instanceof Error ? err.message : String(err));
+    return { ok: false };
+  }
+}

@@ -4,7 +4,7 @@ import { Wizard } from "@/components/apply/Wizard";
 import { FLOW, INTENTS, type Intent } from "@/content/flows";
 import { getTenantConfig } from "@/server/tenant/config";
 import { listOfficers } from "@/server/officers/officers";
-import { buildConsentTcpa, buildTestimonialCaption } from "@/content/site";
+import { buildConsentTcpa, buildTestimonialCaption, deriveApplyOffRamp } from "@/content/site";
 import { calendarEmbedUrl } from "@/components/integrations/GhlCalendar";
 import type { ApplyOfficer } from "@/components/apply/steps/OfficerStep";
 
@@ -45,22 +45,38 @@ export default async function ApplyIntentPage({
 
   // Lightweight officer roster for the apply-flow picker (no bios → smaller
   // client payload). Falls back to bundled content when the table is empty.
-  const officers: ApplyOfficer[] = (await listOfficers()).map((o) => ({
-    slug: o.slug,
-    name: o.name,
-    title: o.title,
-    nmls: o.nmls,
-    states: o.states,
-    photo: o.photo,
-    email: o.email,
-    phone: o.phone,
-  }));
+  // On the apply picker we de-emphasize leadership titles so borrowers don't
+  // default to the President/EVP. They're fully licensed and take applications —
+  // here we show their broker title, list them last, and drop Robert's "CFA"
+  // suffix. (The public /loan-officers directory keeps their real names/titles.)
+  const APPLY_DEPRIORITIZED = new Set(["robert-hoff", "seth-angell"]);
+  const officers: ApplyOfficer[] = (await listOfficers())
+    .map((o) => ({
+      slug: o.slug,
+      name: o.slug === "robert-hoff" ? "Robert Hoff" : o.name,
+      title: APPLY_DEPRIORITIZED.has(o.slug) ? "Licensed Mortgage Broker" : o.title,
+      nmls: o.nmls,
+      states: o.states,
+      photo: o.photo,
+      email: o.email,
+      phone: o.phone,
+    }))
+    // Stable sort: de-prioritized officers move to the end, everyone else keeps
+    // the roster's existing order.
+    .sort(
+      (a, b) =>
+        Number(APPLY_DEPRIORITIZED.has(a.slug)) -
+        Number(APPLY_DEPRIORITIZED.has(b.slug)),
+    );
+
+  const offRamp = deriveApplyOffRamp(config);
 
   return (
     <Wizard
       intent={intent}
       phoneHref={config.contact.phoneHref}
       phoneDisplay={config.contact.phoneDisplay}
+      emailDisplay={config.contact.email}
       consentTcpa={buildConsentTcpa(config)}
       assistantName={config.brand.assistantName}
       shortName={config.brand.shortName}
@@ -68,6 +84,9 @@ export default async function ApplyIntentPage({
       testimonial={testimonial}
       calendarHref={calendarEmbedUrl() ?? ""}
       officers={officers}
+      offRampChannels={offRamp.channels}
+      offRampSla={offRamp.slaCopy}
+      finishScreen={offRamp.finishScreen}
     />
   );
 }

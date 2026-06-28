@@ -12,6 +12,7 @@
  */
 import type { Lead, Prisma } from "@prisma/client";
 import { getTenantDb } from "@/lib/db";
+import { OFFICERS } from "@/content/officers";
 import type { LeadInput } from "@/validation/lead";
 import type { CrmClient } from "@/server/integrations/types";
 import { ghlClient } from "@/server/integrations/ghl/ghlClient";
@@ -168,4 +169,122 @@ export async function captureLead(
 export async function getLeadById(id: string): Promise<Lead | null> {
   const db = await getTenantDb();
   return db.lead.findFirst({ where: { id } });
+}
+
+/** Persisted shape at lead.answers.fields.contactPreference. */
+type ContactPreference = {
+  channels: ("call" | "text" | "email")[];
+  latest: "call" | "text" | "email";
+  requestedAt: string;
+  phone?: string;
+  consentTcpa?: boolean;
+  consentRequestedAt?: string;
+};
+
+/** Resolve the officer the borrower chose, server-side, from the persisted
+ *  slug at answers.fields.loanOfficer. Returns only {name,slug} (sufficient for
+ *  the GHL tag); never trust a client-sent officer identity. */
+function resolveOfficerFromAnswers(
+  answers: unknown,
+): { name: string; slug: string } | null {
+  const slug = (answers as { fields?: Record<string, unknown> })?.fields?.loanOfficer;
+  if (typeof slug !== "string" || !slug) return null;
+  const o = OFFICERS.find((x) => x.slug === slug);
+  return o ? { name: o.name, slug: o.slug } : null;
+}
+
+/**
+ * Record an off-ramp contact request on the lead, tenant-scoped and idempotent
+ * on the channel set. Postgres is the system-of-record; this is the durable
+ * write. The route fires the best-effort GHL tag afterward (only when the
+ * channel is newly added).
+ *
+ * SINGLE READ: we call findFirst once, then updateMany — the returned officer is
+ * resolved from that same read. There is intentionally no re-read after the write.
+ *
+ * READ-MODIFY-WRITE of the FULL answers blob: the scoped client bans `.update()`
+ * and `updateMany` REPLACES the JSON column (not a deep merge), so we must
+ * reconstruct the entire answers object — preserving every existing
+ * answers.fields key (loanOfficer, address, …) so the /continue hand-off is not
+ * clobbered. TOCTOU note: the read→write window is unguarded; acceptable for v1
+ * (single funnel session, low contention).
+ */
+export async function recordContactRequest(
+  leadId: string,
+  input: { channel: "call" | "text" | "email"; phone?: string; consentTcpa?: boolean },
+): Promise<
+  | { ok: true; channelWasNew: boolean; officer: { name: string; slug: string } | null }
+  | { ok: false; reason: "not_found" | "consent_required" }
+> {
+  const db = await getTenantDb();
+  const lead = await db.lead.findFirst({ where: { id: leadId } });
+  if (!lead) return { ok: false, reason: "not_found" };
+
+  const recapturedPhone = input.phone && input.phone.trim() !== "" ? input.phone.trim() : undefined;
+
+  // Belt-and-suspenders: a recaptured call/text number requires affirmative
+  // consent (the route also enforces this with a 422 before calling us).
+  if (recapturedPhone && (input.channel === "call" || input.channel === "text") && input.consentTcpa !== true) {
+    return { ok: false, reason: "consent_required" };
+  }
+
+  const answers = (lead.answers ?? {}) as Record<string, unknown>;
+  const fields = (answers.fields ?? {}) as Record<string, unknown>;
+  const prior = (fields.contactPreference ?? null) as ContactPreference | null;
+
+  const priorChannels = prior?.channels ?? [];
+  const channelWasNew = !priorChannels.includes(input.channel);
+  const channels = channelWasNew ? [...priorChannels, input.channel] : priorChannels;
+  const nowIso = new Date().toISOString();
+
+  const nextPref: ContactPreference = {
+    channels,
+    latest: input.channel,
+    requestedAt: nowIso,
+    ...(prior?.phone ? { phone: prior.phone } : {}),
+    ...(prior?.consentTcpa ? { consentTcpa: prior.consentTcpa } : {}),
+    ...(prior?.consentRequestedAt ? { consentRequestedAt: prior.consentRequestedAt } : {}),
+    // A newly recaptured number + consent overrides any prior.
+    ...(recapturedPhone
+      ? { phone: recapturedPhone, consentTcpa: true, consentRequestedAt: nowIso }
+      : {}),
+  };
+
+  const nextAnswers = {
+    ...answers,
+    fields: { ...fields, contactPreference: nextPref },
+  };
+
+  await db.lead.updateMany({ where: { id: leadId }, data: { answers: nextAnswers as object } });
+
+  return {
+    ok: true,
+    channelWasNew,
+    officer: resolveOfficerFromAnswers(lead.answers),
+  };
+}
+
+/**
+ * Best-effort, tag-only GHL sync for an off-ramp contact request. Re-upserts the
+ * contact with an accumulating "Requested:<channel>" tag (and "officer:<slug>"
+ * when the lead chose one). Mirrors dispatchToGhl's swallow contract: NEVER
+ * throws. ghlClient.upsertContact short-circuits to a no-op when GHL is not
+ * configured, so this is safe in every environment. No PII is logged.
+ */
+export async function syncContactRequestTag(
+  lead: Lead,
+  channel: "call" | "text" | "email",
+): Promise<void> {
+  try {
+    const officer = resolveOfficerFromAnswers(lead.answers);
+    await ghlClient.upsertContact(
+      leadToContactInput(lead, {
+        requestedChannel: channel,
+        ...(officer ? { officerSlug: officer.slug } : {}),
+      }),
+    );
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[contact-request] GHL tag sync failed:", message.slice(0, 200));
+  }
 }

@@ -89,3 +89,24 @@ export const applicationHandoffSchema = z.object({
   leadId: z.string().trim().min(1),
 });
 export type ApplicationHandoffInput = z.infer<typeof applicationHandoffSchema>;
+
+// ---------------------------------------------------------------------------
+// Contact-request contract — POST /api/v1/leads/{id}/contact-request.
+// The off-ramp lets a borrower ask their chosen officer to reach out by
+// call/text/email. `phone` is an OPTIONAL recapture used only when the
+// borrower skipped the phone step; an empty string means "no recapture".
+// NOTE: the schema does NOT encode the TCPA consent gate — that is enforced at
+// the ROUTE (422) so the rule (call|text + non-empty phone + !consentTcpa)
+// stays a single server-side decision and is unit-testable in the route tests.
+// ---------------------------------------------------------------------------
+export const contactRequestSchema = z.object({
+  channel: z.enum(["call", "text", "email"]),
+  phone: z
+    .string()
+    .trim()
+    .refine((v) => v === "" || v.length >= 7, "invalid phone")
+    .optional(),
+  consentTcpa: z.boolean().optional(),
+  idempotencyKey: idempotencyKeySchema.optional(),
+});
+export type ContactRequestInput = z.infer<typeof contactRequestSchema>;
