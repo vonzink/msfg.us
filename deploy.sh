@@ -39,6 +39,7 @@ die(){ printf "${R}✗ %s${N}\n" "$1" >&2; exit 1; }
 DO_BUILD=true
 DO_MIGRATE=false
 RESTART_ONLY=false
+ALLOW_DIRTY=false
 usage(){ cat <<EOF
 Usage: ./deploy.sh [OPTIONS]
 
@@ -62,9 +63,21 @@ for a in "$@"; do case "$a" in
   --no-build) DO_BUILD=false;;
   --restart-only) RESTART_ONLY=true;;
   --migrate) DO_MIGRATE=true;;
+  --allow-dirty) ALLOW_DIRTY=true;;
   -h|--help) usage; exit 0;;
   *) die "Unknown option: $a (see --help)";;
 esac; done
+
+# GUARD: `next build` bundles from the WORKING TREE, so any uncommitted file under
+# src/ silently ships to prod. Abort on a dirty src/ unless --allow-dirty.
+if $DO_BUILD && [ "$ALLOW_DIRTY" != "true" ]; then
+  DIRTY="$(git -C "$LOCAL_DIR" status --porcelain -- src 2>/dev/null)"
+  if [ -n "$DIRTY" ]; then
+    printf "${R}✗ ABORT: src/ has uncommitted changes — these would ship to prod:${N}\n"
+    printf '%s\n' "$DIRTY" | sed 's/^/    /'
+    die "Commit or stash them, or re-run with --allow-dirty to deploy anyway."
+  fi
+fi
 
 cd "$LOCAL_DIR"
 command -v rsync >/dev/null || die "rsync not found on your laptop"

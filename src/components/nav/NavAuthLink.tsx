@@ -3,35 +3,28 @@
 /**
  * Nav "Sign in" affordance.
  *
- * - Auth NOT configured → renders the original inert "Sign in" link (href="#"),
- *   so nothing changes visually in a no-Cognito deploy.
- * - Auth configured + signed out → links to `/auth/login` (Hosted UI), with a
- *   `returnTo` of the current path so the user lands back where they were.
- * - Auth configured + signed in → shows "Sign out" → `/auth/logout`.
+ * "Sign in" links STRAIGHT to the MSFG app's passwordless email-code login
+ * (app.msfgco.com/signin) — that page sends the one-time code and drops the user
+ * into app.msfgco.com. No msfg.us Hosted-UI hop, and it works even when msfg.us
+ * Cognito isn't configured (previously an inert `#`).
  *
- * Uses `/api/v1/auth/me` (via useAuth) — never touches tokens. During the brief
- * initial probe it shows the inert link to avoid layout shift / flashes.
+ * When the shared Cognito session IS configured and the visitor is already
+ * signed in, it flips to "Sign out" (/auth/logout). Uses `/api/v1/auth/me` via
+ * useAuth — never touches tokens.
  */
-import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth/useAuth";
-import { safeReturnTo } from "@/lib/auth/returnTo";
+import { APP_URL } from "@/lib/auth/appLink";
 
 const LINK_CLASS =
   "hidden px-1.5 text-[15.5px] font-semibold text-white min-[981px]:inline";
 
+/** app.msfgco.com passwordless sign-in — the page that sends the email one-time code. */
+const SIGN_IN_HREF = `${APP_URL}/signin`;
+
 export function NavAuthLink() {
   const auth = useAuth();
-  const pathname = usePathname();
 
-  if (auth.loading || !auth.configured) {
-    return (
-      <a href="#" className={LINK_CLASS}>
-        Sign in
-      </a>
-    );
-  }
-
-  if (auth.authenticated) {
+  if (auth.configured && auth.authenticated) {
     return (
       <a href="/auth/logout" className={LINK_CLASS}>
         Sign out
@@ -39,9 +32,8 @@ export function NavAuthLink() {
     );
   }
 
-  const returnTo = safeReturnTo(pathname, "/");
   return (
-    <a href={`/auth/login?returnTo=${encodeURIComponent(returnTo)}`} className={LINK_CLASS}>
+    <a href={SIGN_IN_HREF} className={LINK_CLASS}>
       Sign in
     </a>
   );
