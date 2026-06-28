@@ -203,6 +203,23 @@ export async function POST(req: Request) {
                 }),
               );
             }
+            // COMPLIANCE GUARDRAIL: the answer model (deepseek-chat) will state
+            // guideline figures from memory when the brain could NOT ground the
+            // answer. When search_guidelines escalates or returns no citations, do
+            // NOT feed it back for another (free-generating) model turn — stream
+            // the brain's own compliance-locked text and end the turn. This is a
+            // deterministic backstop; the prompt's grounding rules are not enough.
+            if (
+              tc.name === "search_guidelines" &&
+              result.sources &&
+              (result.sources.humanEscalationRequired ||
+                result.sources.citations.length === 0)
+            ) {
+              controller.enqueue(sse({ type: "text", value: result.text }));
+              await record("assistant", result.text);
+              controller.enqueue(sse({ type: "done" }));
+              return; // exits start(); the finally{} closes the controller
+            }
             history.push({
               role: "tool",
               toolCallId: tc.id,
