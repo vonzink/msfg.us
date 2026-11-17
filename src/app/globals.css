@@ -32,6 +32,16 @@
   --color-muted: #5a6b61;
   --color-line: #e2e6dd;
 
+  /* Data-viz series (validated categorical order) + loss ink for negative money */
+  --color-chart-1: #2a78d6;
+  --color-chart-2: #eb6834;
+  --color-chart-3: #1baf7a;
+  --color-chart-4: #eda100;
+  --color-chart-grid: #e6e5e0;
+  --color-chart-axis: #8a8983;
+  --color-loss: #b42318;
+  --color-loss-on-dark: #ffb4a8;
+
   /* On-dark text + hairlines (pass AA on emerald only) */
   --color-on-dark: rgba(255, 255, 255, 0.92);
   --color-on-dark-2: rgba(255, 255, 255, 0.62);
