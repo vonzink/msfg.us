@@ -286,7 +286,7 @@ export function ReoCalculator() {
           ))}
         </form>
 
-        <section id="reo-results" aria-label="Results" className="grid scroll-mt-24 gap-4 min-[981px]:sticky min-[981px]:top-24 print:mt-4">
+        <section id="reo-results" aria-label="Results" className="grid scroll-mt-24 gap-4 print:mt-4 [@media(min-width:981px)_and_(min-height:1000px)]:sticky [@media(min-width:981px)_and_(min-height:1000px)]:top-24">
           <div className="rounded-xl bg-green-800 p-6 text-on-dark shadow-card print:border print:border-ink print:bg-transparent print:text-ink print:shadow-none">
             <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-mint print:text-muted">Five-year after-tax return</p>
             <p aria-live="polite" className={cn("mt-1 text-[clamp(40px,5vw,58px)] font-extrabold leading-[1.05] tracking-[-0.02em] tabular-nums print:text-ink", fiveYear < -0.5 ? "text-loss-on-dark" : "text-white")}>
@@ -331,7 +331,11 @@ export function ReoCalculator() {
           </div>
         </section>
 
-        <section aria-label="Five-year projection" className="col-span-full print:break-before-page">
+      </div>
+
+      {/* Outside the grid above: a sticky results column may only travel within that grid,
+          so it can never slide over this table. */}
+      <section aria-label="Five-year projection" className="mt-7 max-[980px]:mt-5 print:break-before-page">
           <details data-reo-panel open className="group rounded-xl border border-line bg-white shadow-card print:shadow-none">
             <summary className="flex cursor-pointer list-none items-baseline gap-3 rounded-xl px-5 py-4 max-[600px]:px-4 [&::-webkit-details-marker]:hidden">
               <span className="text-[17px] font-bold">Year-by-year numbers</span>
@@ -358,8 +362,7 @@ export function ReoCalculator() {
             legal or investment advice and is not a guarantee of return. Talk with your tax and investment advisors
             before you buy.
           </p>
-        </section>
-      </div>
+      </section>
 
       {/* Phone: results summary pinned to the bottom of the screen */}
       <a
