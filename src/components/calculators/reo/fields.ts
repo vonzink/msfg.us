@@ -1,4 +1,4 @@
-import type { AmortType, ReoInput, ReoResult } from "@/lib/calculators/reoMath";
+import type { AmortType, ReoInput, ReoResult, SaleTaxMode } from "@/lib/calculators/reoMath";
 import { formatUSD } from "@/lib/finance";
 
 /** Raw form state: every field is the text the user typed. */
@@ -126,6 +126,32 @@ export const GROUPS: GroupDef[] = [
       { id: "taxBracket", label: "Your tax bracket", type: "pct", example: "24" },
       { id: "improvePct", label: "Building share of value", type: "pct", example: "80", hint: "Land cannot be depreciated. 70 to 85 is typical." },
       { id: "deprYears", label: "Depreciation period", type: "num", example: "27.5", suffix: "yrs", hint: "27.5 years for residential rentals." },
+      {
+        id: "saleTax", label: "Tax when you sell", type: "choice", example: "long",
+        hint: "Long-term rates need more than a year of ownership. Either way, the depreciation you took is taxed again when you sell.",
+        options: [
+          { value: "none", label: "Leave out" },
+          { value: "long", label: "Long-term gain" },
+          { value: "short", label: "Short-term gain" },
+        ],
+      },
+      { id: "capGainsRate", label: "Long-term gains rate", type: "pct", example: "15", hint: "0, 15 or 20 for most people." },
+    ],
+  },
+  {
+    id: "compare",
+    title: "Opportunity cost",
+    lead: "See how the property stacks up against putting the same cash somewhere else.",
+    summary: (n) => (n.compareOn ? `vs ${n.altReturn}% a year` : "Off"),
+    fields: [
+      {
+        id: "compareAlt", label: "Compare with another investment", type: "choice", example: "off",
+        options: [
+          { value: "off", label: "Off" },
+          { value: "on", label: "On" },
+        ],
+      },
+      { id: "altReturn", label: "Return elsewhere", type: "pct", example: "7", hint: "Yearly after-tax return you could expect, such as from an index fund." },
     ],
   },
 ];
@@ -133,15 +159,20 @@ export const GROUPS: GroupDef[] = [
 export const FIELDS: FieldDef[] = GROUPS.flatMap((g) => g.fields);
 
 export const EXAMPLE: Values = Object.fromEntries(FIELDS.map((f) => [f.id, f.example]));
+/** Cleared form. Switches keep their setting; the rates behind them keep a usable default. */
+const KEEP_ON_CLEAR = new Set(["capGainsRate", "altReturn"]);
 export const BLANK: Values = Object.fromEntries(
-  FIELDS.map((f) => [f.id, f.type === "choice" ? f.example : ""]),
+  FIELDS.map((f) => [f.id, f.type === "choice" || KEEP_ON_CLEAR.has(f.id) ? f.example : ""]),
 );
 
 /** Numeric view of the form (percent fields stay in percent units). */
 export function toNumbers(values: Values): Numbers {
-  return Object.fromEntries(
+  const n: Numbers = Object.fromEntries(
     FIELDS.filter((f) => f.type !== "choice" && f.type !== "text").map((f) => [f.id, parseNumber(values[f.id])]),
   );
+  // 1 when the opportunity-cost comparison is switched on, so summaries and results can read it.
+  n.compareOn = values.compareAlt === "on" ? 1 : 0;
+  return n;
 }
 
 export function toModel(values: Values, n: Numbers): ReoInput {
@@ -167,6 +198,9 @@ export function toModel(values: Values, n: Numbers): ReoInput {
     improvePct: n.improvePct / 100,
     taxBracket: n.taxBracket / 100,
     deprYears: n.deprYears,
+    saleTax: (values.saleTax || "none") as SaleTaxMode,
+    capGainsRate: n.capGainsRate / 100,
+    altReturn: n.compareOn ? n.altReturn / 100 : 0,
   };
 }
 

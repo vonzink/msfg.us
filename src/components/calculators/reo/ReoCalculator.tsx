@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { projectReo, type ReoResult } from "@/lib/calculators/reoMath";
 import { formatUSD } from "@/lib/finance";
 import { cn } from "@/lib/cn";
-import { RentBreakdown, TwoSeriesChart } from "./Charts";
+import { RentBreakdown, SeriesChart } from "./Charts";
 import {
   BLANK, EXAMPLE, GROUPS, parseNumber, toModel, toNumbers, verdict,
   type FieldDef, type GroupDef, type Numbers, type Values,
@@ -46,6 +46,7 @@ function Field({ def, values, numbers, onChange }: {
             </label>
           ))}
         </div>
+        {def.hint && <span className="text-[12px] text-muted print:hidden">{def.hint}</span>}
       </fieldset>
     );
   }
@@ -171,7 +172,7 @@ type Row =
   | { label: string; key: keyof ReoResult; fmt: (x: number) => string; total?: boolean; plain?: boolean };
 
 const pct2 = (x: number) => pct(x, 2);
-const TABLE: Row[] = [
+const tableRows = (withSaleTax: boolean, withAlt: boolean): Row[] => [
   { group: "Running the property" },
   { label: "Rent collected", key: "grossIncome", fmt: formatUSD },
   { label: "Operating expenses", key: "expenses", fmt: formatUSD },
@@ -189,11 +190,18 @@ const TABLE: Row[] = [
   { label: "Property value", key: "propValue", fmt: formatUSD },
   { label: "Loan balance", key: "loanBalance", fmt: formatUSD },
   { label: "Net equity after selling costs", key: "netEquity", fmt: formatUSD, total: true },
+  ...(withSaleTax ? [{ label: "Tax on the sale", key: "saleTax", fmt: formatUSD } as Row] : []),
   { label: "Total after-tax return", key: "cumulativeReturn", fmt: formatUSD, total: true },
   { label: "Return on cash invested", key: "roi", fmt: pct2 },
+  ...(withAlt
+    ? [
+        { label: "Same cash invested elsewhere", key: "altGain", fmt: formatUSD } as Row,
+        { label: "Property ahead (behind)", key: "vsAlt", fmt: formatUSD, total: true } as Row,
+      ]
+    : []),
 ];
 
-function Projection({ r }: { r: ReoResult }) {
+function Projection({ r, withSaleTax, withAlt }: { r: ReoResult; withSaleTax: boolean; withAlt: boolean }) {
   const cell = "border-b border-line px-2.5 py-2 text-right whitespace-nowrap";
   return (
     <div className="overflow-x-auto px-5 max-[600px]:px-4">
@@ -209,7 +217,7 @@ function Projection({ r }: { r: ReoResult }) {
           </tr>
         </thead>
         <tbody>
-          {TABLE.map((row) =>
+          {tableRows(withSaleTax, withAlt).map((row) =>
             "group" in row ? (
               <tr key={row.group}>
                 <th colSpan={6} scope="colgroup" className="border-b border-ink px-2.5 pb-2 pt-4 text-left text-[12px] font-semibold uppercase tracking-[0.06em] text-green-600">
@@ -249,6 +257,10 @@ export function ReoCalculator() {
   const r = useMemo(() => projectReo(toModel(values, numbers)), [values, numbers]);
   const monthlyCf = r.cashFlow[0] / 12;
   const fiveYear = r.cumulativeReturn[4];
+  const saleTaxMode = values.saleTax || "none";
+  const withSaleTax = saleTaxMode !== "none";
+  const withAlt = numbers.compareOn === 1 && numbers.altReturn > 0;
+  const vsAlt = r.vsAlt[4];
 
   // Closed <details> do not print, so open every panel for the printout and restore after.
   useEffect(() => {
@@ -296,6 +308,19 @@ export function ReoCalculator() {
               <strong className="text-white print:text-ink">{pct(r.roi[4])}</strong> on{" "}
               <strong className="text-white print:text-ink">{formatUSD(r.cashInvested)}</strong> cash invested
             </p>
+            <p className="mt-1 text-[14px] text-on-dark-2 print:text-ink">
+              {withSaleTax
+                ? `After ${formatUSD(r.saleTax[4])} tax on the sale at ${saleTaxMode === "long" ? "long-term" : "short-term"} rates.`
+                : "Tax on the sale is left out."}
+            </p>
+            {withAlt && (
+              <p className="mt-3 rounded-md bg-green-900 px-3 py-2 text-[15px] print:border print:border-line print:bg-transparent">
+                <strong className={cn("print:text-ink", vsAlt < 0 ? "text-loss-on-dark" : "text-mint")}>
+                  {formatUSD(Math.abs(vsAlt))} {vsAlt < 0 ? "behind" : "ahead of"}
+                </strong>{" "}
+                the same cash earning {numbers.altReturn}% a year, which would have made {formatUSD(r.altGain[4])}.
+              </p>
+            )}
             <p className="mt-4 border-t border-hair-dark pt-3.5 text-[15px] print:border-line">{verdict(numbers, r)}</p>
           </div>
 
@@ -326,8 +351,18 @@ export function ReoCalculator() {
           />
 
           <div className="grid grid-cols-2 gap-3 max-[600px]:grid-cols-1">
-            <TwoSeriesChart kind="bars" title="Cash flow each year" labels={["Before taxes", "After taxes"]} a={r.cashFlow} b={r.afterTaxCashFlow} />
-            <TwoSeriesChart kind="lines" title="If you sold at year end" labels={["Net equity", "Total return"]} a={r.netEquity} b={r.cumulativeReturn} />
+            <SeriesChart
+              kind="bars" title="Cash flow each year"
+              series={[{ label: "Before taxes", data: r.cashFlow }, { label: "After taxes", data: r.afterTaxCashFlow }]}
+            />
+            <SeriesChart
+              kind="lines" title="If you sold at year end"
+              series={[
+                { label: "Net equity", data: r.netEquity },
+                { label: "Total return", data: r.cumulativeReturn },
+                ...(withAlt ? [{ label: "Invested elsewhere", data: r.altGain }] : []),
+              ]}
+            />
           </div>
         </section>
 
@@ -342,13 +377,30 @@ export function ReoCalculator() {
               <span className="ml-auto text-[14px] text-muted">All five years, line by line</span>
               <span aria-hidden="true" className="ml-1 size-2.5 flex-none -translate-y-0.5 rotate-45 self-center border-b-2 border-r-2 border-muted transition-transform group-open:translate-y-0.5 group-open:-rotate-135 print:hidden" />
             </summary>
-            <Projection r={r} />
+            <Projection r={r} withSaleTax={withSaleTax} withAlt={withAlt} />
             <ul className="mx-5 mb-5 mt-4 list-disc pl-[18px] text-[13px] text-muted max-[600px]:mx-4">
               <Note term="Net equity">= property value − selling costs − loan balance.</Note>
               <Note term="Total return">
-                = after-tax cash flow to date + net equity − cash invested. Tax on the sale itself (capital gains and
-                depreciation recapture) is not included.
+                = after-tax cash flow to date + net equity − {withSaleTax ? "tax on the sale − " : ""}cash invested.
+                {!withSaleTax && " Tax on the sale itself (capital gains and depreciation recapture) is left out."}
               </Note>
+              {withSaleTax && (
+                <Note term="Tax on the sale">
+                  is charged on the gain: sale price − selling costs − (purchase price + closing costs + renovation −
+                  depreciation taken).{" "}
+                  {saleTaxMode === "long"
+                    ? "The part of the gain that comes from depreciation is taxed at your bracket, capped at 25%; the rest at your long-term gains rate."
+                    : "The whole gain is taxed at your bracket."}{" "}
+                  State tax and the 3.8% net investment income tax are not included, and a loss on sale is shown as no
+                  tax.
+                </Note>
+              )}
+              {withAlt && (
+                <Note term="Same cash invested elsewhere">
+                  = what your cash invested would have earned at {numbers.altReturn}% a year, compounded yearly, if you
+                  had put all of it in on day one.
+                </Note>
+              )}
               <Note term="Income tax">
                 = (net operating income − mortgage interest − depreciation) × your tax bracket. A negative figure is a
                 tax saving, which assumes the loss can offset your other income.

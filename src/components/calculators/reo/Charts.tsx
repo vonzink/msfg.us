@@ -4,14 +4,17 @@ import { useState } from "react";
 import { formatUSD } from "@/lib/finance";
 import { cn } from "@/lib/cn";
 
-/** Two-series, five-year charts drawn as inline SVG (no chart library). */
+/** Five-year charts of two or three series, drawn as inline SVG (no chart library). */
 
 const W = 420;
 const H = 260;
 const PAD = { top: 14, right: 12, bottom: 30, left: 50 };
-const FILL = ["fill-chart-1", "fill-chart-2"] as const;
-const STROKE = ["stroke-chart-1", "stroke-chart-2"] as const;
-const SWATCH = ["bg-chart-1", "bg-chart-2"] as const;
+// Fixed order: a series keeps its colour whether or not a later one is shown.
+const FILL = ["fill-chart-1", "fill-chart-2", "fill-chart-3"] as const;
+const STROKE = ["stroke-chart-1", "stroke-chart-2", "stroke-chart-3"] as const;
+const SWATCH = ["bg-chart-1", "bg-chart-2", "bg-chart-3"] as const;
+
+export type Series = { label: string; data: number[] };
 
 export function compactUSD(x: number): string {
   const a = Math.abs(x);
@@ -47,22 +50,22 @@ export function Swatch({ className }: { className: string }) {
   return <i aria-hidden="true" className={cn("mr-1.5 inline-block size-2.5 rounded-[2px]", className)} />;
 }
 
-export function TwoSeriesChart({
+export function SeriesChart({
   kind,
   title,
-  labels,
-  a,
-  b,
+  series: named,
 }: {
   kind: "bars" | "lines";
   title: string;
-  labels: [string, string];
-  a: number[];
-  b: number[];
+  /** Two series for bars; two or three for lines. */
+  series: Series[];
 }) {
   const [hover, setHover] = useState<number | null>(null);
-  const series = [a, b];
-  const ticks = ticksFor(Math.min(...a, ...b), Math.max(...a, ...b));
+  const labels = named.map((s) => s.label);
+  const series = named.map((s) => s.data);
+  const a = series[0];
+  const all = series.flat();
+  const ticks = ticksFor(Math.min(...all), Math.max(...all));
   const lo = ticks[0];
   const hi = ticks[ticks.length - 1];
   const y = (v: number) => PAD.top + (H - PAD.top - PAD.bottom) * (1 - (v - lo) / (hi - lo));
@@ -88,7 +91,7 @@ export function TwoSeriesChart({
         <svg
           viewBox={`0 0 ${W} ${H}`}
           role="img"
-          aria-label={`${title}: ${labels[0]} and ${labels[1]}, years 1 to ${a.length}`}
+          aria-label={`${title}: ${labels.join(", ")}, years 1 to ${a.length}`}
           className="block h-auto w-full"
         >
           {ticks.map((t) => (
@@ -144,7 +147,7 @@ export function TwoSeriesChart({
               key={i}
               x={PAD.left + band * i} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom}
               tabIndex={0}
-              aria-label={`Year ${i + 1}: ${labels[0]} ${formatUSD(a[i])}, ${labels[1]} ${formatUSD(b[i])}`}
+              aria-label={`Year ${i + 1}: ${series.map((arr, s) => `${labels[s]} ${formatUSD(arr[i])}`).join(", ")}`}
               className="fill-transparent outline-none hover:fill-ink/5 focus:fill-ink/5"
               onMouseEnter={() => setHover(i)}
               onMouseLeave={() => setHover(null)}
@@ -158,7 +161,7 @@ export function TwoSeriesChart({
           <div
             role="status"
             className="pointer-events-none absolute top-1 z-[2] -translate-x-1/2 whitespace-nowrap rounded-md border border-line bg-white px-2.5 py-2 text-[13px] shadow-3d"
-            style={{ left: `clamp(80px, ${(cx(hover) / W) * 100}%, calc(100% - 80px))` }}
+            style={{ left: `clamp(95px, ${(cx(hover) / W) * 100}%, calc(100% - 95px))` }}
           >
             <div className="mb-0.5 font-bold">Year {hover + 1}</div>
             {series.map((arr, s) => (
