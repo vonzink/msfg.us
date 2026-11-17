@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Gitignored design handoff (prototype HTML/JSX) — not real source.
     "design-reference/**",
+    // Generated copies of msfg-calc pages (scripts/sync-where-the-money-goes.mjs); linted in that repo.
+    "public/calculators/**",
   ]),
   // `_`-prefixed vars are intentionally unused (exhaustive checks, drained loop values).
   {

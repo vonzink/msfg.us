@@ -30,6 +30,11 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "images.leadconnectorhq.com" },
     ],
   },
+  // Static training pages generated into public/ (scripts/sync-where-the-money-goes.mjs).
+  // Next serves public/ files by exact path only, so the folder URL needs a rewrite to its index.
+  async rewrites() {
+    return [{ source: "/calculators/mbs", destination: "/calculators/mbs/index.html" }];
+  },
 };
 
 export default nextConfig;
