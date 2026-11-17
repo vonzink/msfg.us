@@ -8,6 +8,7 @@
  *   - Property value, loan balance and equity are as of the end of each year.
  *   - Income tax = (NOI − mortgage interest − depreciation) × bracket. A negative result is a
  *     tax saving, which assumes the loss can be used against other income.
+ *   - Cap rate = a fully rented year's NOI ÷ that year's property value (not the purchase-time value).
  *   - Tax due on a sale (capital gains, depreciation recapture) is not modelled.
  */
 
@@ -182,6 +183,11 @@ export function projectReo(input: Partial<ReoInput>): ReoResult {
     const ex =
       (carryMonthly * 12 + operatingMonthly * monthsRented) * Math.pow(1 + num(input.expIncrease), i);
     const noi = gi - ex;
+    // A full, fully rented year at this year's rents and costs: the basis for the cap rate,
+    // so renovation months in year 1 do not understate it.
+    const stabilizedNoi =
+      incomeMonthly * 12 * Math.pow(1 + num(input.rentIncrease), i) -
+      expensesMonthly * 12 * Math.pow(1 + num(input.expIncrease), i);
 
     // Debt
     let interest = 0;
@@ -214,7 +220,7 @@ export function projectReo(input: Partial<ReoInput>): ReoResult {
     out.grossIncome.push(gi);
     out.expenses.push(ex);
     out.noi.push(noi);
-    out.capRate.push(renValue > 0 ? noi / renValue : 0);
+    out.capRate.push(value > 0 ? stabilizedNoi / value : 0);
     out.debtService.push(ds);
     out.interest.push(interest);
     out.principalPaid.push(principalPaid);

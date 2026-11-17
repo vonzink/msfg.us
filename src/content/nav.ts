@@ -19,6 +19,7 @@ export const NAV: NavItem[] = [
       { label: "Affordability calculator", href: "/coming-soon" },
       { label: "Mortgage calculator", href: "/coming-soon" },
       { label: "Rent vs buy calculator", href: "/coming-soon" },
+      { label: "Investment calculator", href: "/calculators/investment" },
       { label: "Find an agent", href: "/loan-officers" },
       { label: "VA loans", href: "/buy" },
     ],

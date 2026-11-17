@@ -8,6 +8,7 @@ const KNOWN = new Set([
   "/texas-required-notice", "/nmls-consumer-access", "/sitemap",
   "/veterans", "/reverse", "/investment", "/commercial",
   "/about", "/careers", "/know-your-lender", "/resources/mortgage-glossary",
+  "/calculators/investment",
 ]);
 
 function allLinks(): NavLink[] {

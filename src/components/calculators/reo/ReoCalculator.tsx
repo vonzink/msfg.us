@@ -309,8 +309,8 @@ export function ReoCalculator() {
               tip="Year-1 cash flow divided by the cash you put in. It ignores appreciation and loan paydown."
             />
             <Stat
-              label="Cap rate" value={pct(r.capRate[1])} sub="Year 2, fully rented" loss={r.capRate[1] < 0}
-              tip="Net operating income divided by the property's value. It measures the property itself, ignoring the loan."
+              label="Cap rate" value={pct(r.capRate[0])} sub="Year 1, if rented all year" loss={r.capRate[0] < 0}
+              tip="A full year of net operating income divided by the property's value at the end of that year. It measures the property itself, ignoring the loan."
             />
             <Stat
               label="Debt coverage" value={ratio(r.dcr[1])} sub="Year 2, fully rented" loss={r.dcr[1] < 1}
