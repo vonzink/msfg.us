@@ -179,3 +179,22 @@ Pinned values:
 - [ ] **Step 5: Verify on a local production build:** the page returns 200 with the headline; the landing page has six cards; capture a desktop screenshot and a print PDF with headless Chrome and read both. HTTP checks use the context-mode `ctx_execute` tool with `fetch`, not `curl`.
 - [ ] **Step 6: Commit:** `feat(calculators): rent vs buy page and registry entry`.
 - [ ] **Step 7:** Final review by a fresh reviewer, one fix pass, then deploy to staging with `scripts/deploy-ec2.sh` (no arguments) for Zachary's test.
+
+---
+
+## Amendment 1: review fixes and closing costs (2026-11-18)
+
+**From the final review** (each fixed test-first, commit `e2d8ad5`):
+
+- **Decision 4 is reversed.** Counting emptied costs as $0 showed "Buying comes out ahead by $100,038" for the example's own five numbers after Clear. Property tax, insurance and maintenance must now be entered before a comparison shows; a typed 0 counts and reads "$0 a year". An empty or unreadable down payment is "not entered" too.
+- Prompts name the field at fault and its range (`promptText`; limits exported from `math.ts`).
+- A negative equity or a loss on the down payment is relabelled ("Shortfall after selling, added", "Loss on the down payment, added") instead of flipping sign under the old label. "-$0" is never printed.
+- The assumptions list says the monthly difference is not invested and that what is left out on the buying side would raise the cost of buying.
+- Wording no longer presumes buying wins: "whether and when buying pulls ahead", "It can catch up".
+- A sixth and seventh pull-ahead sentence: a tie after buying was ahead, and "Buying is first ahead in year {k}, but not in every year after."
+
+**Asked for by Zachary:** a "Closing costs" field in "Add detail". One total, paid at the start, added to `totalPaid` in every year of the path. The renting side is unchanged. It joins the costs that must be entered. The example opens with $8,000.
+
+**Pinned values:** the default page reads "Buying comes out ahead by $10,816" and "Buying pulls ahead in year 6." (the golden example's $18,816.32 and year 5, less $8,000 in every year). With closing costs of 0 all seven golden cases still match the dashboard to the cent.
+
+**Deferred minors:** the chart's two lines differ only by colour and a stay over 12 years has no keyboard route to the yearly figures; rent and price read "2.400" as $2.40 (shared `parseNumber`); percents print to three decimals; the prompt is not announced by most screen readers; Clear then Print gives a letterhead-only page; "Buying" and "Renting" are each a heading twice; the shared money box empties a typed 0 on blur, worked round here in `keepTypedZero` and better fixed in `shared/Field.tsx`; the call to action reads "Like these numbers?" under a result where renting is ahead.

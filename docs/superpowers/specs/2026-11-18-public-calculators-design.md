@@ -115,10 +115,15 @@ The goal is to bring seven of those calculators to the public site, restyled to 
 ### Rent vs buy
 
 - **Up front:** current monthly rent; home price; down payment; interest rate; how long you plan to stay.
-- **Add detail:** loan term; property tax; homeowners insurance; yearly maintenance; home appreciation rate; yearly rent increase; selling costs; return if the down payment were invested.
+- **Add detail:** loan term; closing costs on the purchase; property tax; homeowners insurance; yearly maintenance; home appreciation rate; yearly rent increase; selling costs; return if the down payment were invested.
 - **Removed:** annual cost inflation as an input, replaced by a fixed assumption that is stated on the page.
 - **Results:** a plain headline saying which path is ahead after the chosen years and by how much; the year buying pulls ahead, if it does; a chart of the two paths; a side-by-side of costs and what the buyer ends up owning.
 - **Assumptions rule:** the assumptions in use are printed under the result even when the detail section is closed.
+- **Closing costs on the purchase** (added by Zachary on 2026-11-18 after the branch review showed that leaving them out leaned the result toward buying). One dollar total in "Add detail", paid at the start and added to what buying costs. The renting side is unchanged: only the down payment is treated as invested. The dashboard has no such field; with closing costs of 0 the page matches it to the cent.
+- **Costs must be entered.** Closing costs, property tax, homeowners insurance and maintenance have no silent default. After Clear the page shows no comparison until all four are entered; a typed 0 counts. An empty down payment is "not entered" as well. A first build counted empty costs as $0, which made buying look about $81,000 better on the example's own numbers.
+- **Fixed cost inflation is 3% a year** on insurance and maintenance **(builder's call)**. The dashboard field defaults to 0.
+- **Differences from the dashboard:** mortgage payments stop when the loan ends (the dashboard keeps charging them past the term); closing costs as above; a tie reads "The two come out even". The year-by-year path is the dashboard formula run for each year.
+- **Not modelled, and said so in the assumptions list:** mortgage insurance, HOA dues, income tax effects, renters insurance, and investing any monthly difference between the two payments.
 
 ### Home budget
 
