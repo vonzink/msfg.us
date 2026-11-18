@@ -20,3 +20,8 @@ export function formatUSD(n: number, opts?: Intl.NumberFormatOptions): string {
     ...opts,
   }).format(Number.isFinite(n) ? Math.round(n) : 0);
 }
+
+/** Round to whole cents. The epsilon keeps values like 1.005 from rounding down. */
+export function roundCents(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}

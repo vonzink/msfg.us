@@ -1,0 +1,502 @@
+{
+  "source": "msfg-calc a1f25e4",
+  "generatedBy": "scripts/calculators/golden-mortgage.mjs",
+  "cases": [
+    {
+      "name": "reference",
+      "input": {
+        "homePrice": 250000,
+        "downPayment": 50000,
+        "annualRate": 0.075,
+        "termYears": 30,
+        "yearlyTax": 2500,
+        "yearlyInsurance": 1500,
+        "monthlyHoa": 100,
+        "monthlyPmi": 0,
+        "extraAmount": 0,
+        "extraFrequency": "monthly",
+        "startMonth": 0,
+        "startYear": 2027
+      },
+      "expected": {
+        "loanAmount": 200000,
+        "monthlyPI": 1398.43,
+        "totalInterest": 303433.66,
+        "totalCost": 659432.46,
+        "interestSaved": 0,
+        "monthsSaved": 0,
+        "pmiEndPayment": 31,
+        "scheduleLength": 360,
+        "rows": [
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 148.43,
+            "interest": 1250,
+            "extra": 0,
+            "balance": 199851.57,
+            "pmi": 0,
+            "totalMonthly": 1831.76
+          },
+          {
+            "paymentNum": 12,
+            "month": 11,
+            "year": 2027,
+            "principal": 158.96,
+            "interest": 1239.47,
+            "extra": 0,
+            "balance": 198156.31,
+            "pmi": 0,
+            "totalMonthly": 1831.76
+          },
+          {
+            "paymentNum": 360,
+            "month": 11,
+            "year": 2056,
+            "principal": 1388.61,
+            "interest": 8.68,
+            "extra": 0,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 1830.62
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero-rate",
+      "input": {
+        "homePrice": 250000,
+        "downPayment": 50000,
+        "annualRate": 0,
+        "termYears": 10,
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0,
+        "monthlyPmi": 0,
+        "extraAmount": 0,
+        "extraFrequency": "monthly",
+        "startMonth": 0,
+        "startYear": 2027
+      },
+      "expected": {
+        "loanAmount": 200000,
+        "monthlyPI": 1666.67,
+        "totalInterest": 0,
+        "totalCost": 200000,
+        "interestSaved": 0,
+        "monthsSaved": 0,
+        "pmiEndPayment": 3,
+        "scheduleLength": 120,
+        "rows": [
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 1666.67,
+            "interest": 0,
+            "extra": 0,
+            "balance": 198333.33,
+            "pmi": 0,
+            "totalMonthly": 1666.67
+          },
+          {
+            "paymentNum": 12,
+            "month": 11,
+            "year": 2027,
+            "principal": 1666.67,
+            "interest": 0,
+            "extra": 0,
+            "balance": 179999.96,
+            "pmi": 0,
+            "totalMonthly": 1666.67
+          },
+          {
+            "paymentNum": 120,
+            "month": 11,
+            "year": 2036,
+            "principal": 1666.27,
+            "interest": 0,
+            "extra": 0,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 1666.27
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero-down-pmi",
+      "input": {
+        "homePrice": 300000,
+        "downPayment": 0,
+        "annualRate": 0.07,
+        "termYears": 30,
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0,
+        "monthlyPmi": 150,
+        "extraAmount": 0,
+        "extraFrequency": "monthly",
+        "startMonth": 0,
+        "startYear": 2027
+      },
+      "expected": {
+        "loanAmount": 300000,
+        "monthlyPI": 1995.91,
+        "totalInterest": 418524.05,
+        "totalCost": 742674.05,
+        "interestSaved": 0,
+        "monthsSaved": 0,
+        "pmiEndPayment": 162,
+        "scheduleLength": 360,
+        "rows": [
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 245.91,
+            "interest": 1750,
+            "extra": 0,
+            "balance": 299754.09,
+            "pmi": 150,
+            "totalMonthly": 2145.91
+          },
+          {
+            "paymentNum": 12,
+            "month": 11,
+            "year": 2027,
+            "principal": 262.16,
+            "interest": 1733.75,
+            "extra": 0,
+            "balance": 296952.53,
+            "pmi": 150,
+            "totalMonthly": 2145.91
+          },
+          {
+            "paymentNum": 360,
+            "month": 11,
+            "year": 2056,
+            "principal": 1980.81,
+            "interest": 11.55,
+            "extra": 0,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 1992.36
+          }
+        ]
+      }
+    },
+    {
+      "name": "twenty-percent-no-pmi",
+      "input": {
+        "homePrice": 300000,
+        "downPayment": 60000,
+        "annualRate": 0.07,
+        "termYears": 30,
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0,
+        "monthlyPmi": 150,
+        "extraAmount": 0,
+        "extraFrequency": "monthly",
+        "startMonth": 0,
+        "startYear": 2027
+      },
+      "expected": {
+        "loanAmount": 240000,
+        "monthlyPI": 1596.73,
+        "totalInterest": 334817.84,
+        "totalCost": 574817.84,
+        "interestSaved": 0,
+        "monthsSaved": 0,
+        "pmiEndPayment": 29,
+        "scheduleLength": 360,
+        "rows": [
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 196.73,
+            "interest": 1400,
+            "extra": 0,
+            "balance": 239803.27,
+            "pmi": 0,
+            "totalMonthly": 1596.73
+          },
+          {
+            "paymentNum": 12,
+            "month": 11,
+            "year": 2027,
+            "principal": 209.73,
+            "interest": 1387,
+            "extra": 0,
+            "balance": 237562,
+            "pmi": 0,
+            "totalMonthly": 1596.73
+          },
+          {
+            "paymentNum": 360,
+            "month": 11,
+            "year": 2056,
+            "principal": 1582.54,
+            "interest": 9.23,
+            "extra": 0,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 1591.77
+          }
+        ]
+      }
+    },
+    {
+      "name": "extra-monthly",
+      "input": {
+        "homePrice": 250000,
+        "downPayment": 50000,
+        "annualRate": 0.075,
+        "termYears": 30,
+        "yearlyTax": 2500,
+        "yearlyInsurance": 1500,
+        "monthlyHoa": 100,
+        "monthlyPmi": 0,
+        "extraAmount": 200,
+        "extraFrequency": "monthly",
+        "startMonth": 0,
+        "startYear": 2027
+      },
+      "expected": {
+        "loanAmount": 200000,
+        "monthlyPI": 1398.43,
+        "totalInterest": 190809.87,
+        "totalCost": 496975.72,
+        "interestSaved": 112623.79,
+        "monthsSaved": 115,
+        "pmiEndPayment": 31,
+        "scheduleLength": 245,
+        "rows": [
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 148.43,
+            "interest": 1250,
+            "extra": 200,
+            "balance": 199651.57,
+            "pmi": 0,
+            "totalMonthly": 2031.76
+          },
+          {
+            "paymentNum": 12,
+            "month": 11,
+            "year": 2027,
+            "principal": 173.15,
+            "interest": 1225.28,
+            "extra": 200,
+            "balance": 195672.07,
+            "pmi": 0,
+            "totalMonthly": 2031.76
+          },
+          {
+            "paymentNum": 245,
+            "month": 4,
+            "year": 2047,
+            "principal": 788.02,
+            "interest": 4.93,
+            "extra": 0,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 1226.28
+          }
+        ]
+      }
+    },
+    {
+      "name": "extra-annual",
+      "input": {
+        "homePrice": 250000,
+        "downPayment": 50000,
+        "annualRate": 0.075,
+        "termYears": 30,
+        "yearlyTax": 2500,
+        "yearlyInsurance": 1500,
+        "monthlyHoa": 100,
+        "monthlyPmi": 0,
+        "extraAmount": 1000,
+        "extraFrequency": "annually",
+        "startMonth": 0,
+        "startYear": 2027
+      },
+      "expected": {
+        "loanAmount": 200000,
+        "monthlyPI": 1398.43,
+        "totalInterest": 238738.69,
+        "totalCost": 567004.37,
+        "interestSaved": 64694.97,
+        "monthsSaved": 64,
+        "pmiEndPayment": 31,
+        "scheduleLength": 296,
+        "rows": [
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 148.43,
+            "interest": 1250,
+            "extra": 1000,
+            "balance": 198851.57,
+            "pmi": 0,
+            "totalMonthly": 2831.76
+          },
+          {
+            "paymentNum": 12,
+            "month": 11,
+            "year": 2027,
+            "principal": 165.61,
+            "interest": 1232.82,
+            "extra": 0,
+            "balance": 197085.4,
+            "pmi": 0,
+            "totalMonthly": 1831.76
+          },
+          {
+            "paymentNum": 296,
+            "month": 7,
+            "year": 2051,
+            "principal": 1194.38,
+            "interest": 7.46,
+            "extra": 0,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 1635.17
+          }
+        ]
+      }
+    },
+    {
+      "name": "one-time-huge",
+      "input": {
+        "homePrice": 250000,
+        "downPayment": 50000,
+        "annualRate": 0.075,
+        "termYears": 30,
+        "yearlyTax": 2500,
+        "yearlyInsurance": 1500,
+        "monthlyHoa": 100,
+        "monthlyPmi": 0,
+        "extraAmount": 500000,
+        "extraFrequency": "one-time",
+        "startMonth": 0,
+        "startYear": 2027
+      },
+      "expected": {
+        "loanAmount": 200000,
+        "monthlyPI": 1398.43,
+        "totalInterest": 1250,
+        "totalCost": 201683.33,
+        "interestSaved": 302183.66,
+        "monthsSaved": 359,
+        "pmiEndPayment": 31,
+        "scheduleLength": 1,
+        "rows": [
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 148.43,
+            "interest": 1250,
+            "extra": 199851.57,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 201683.33
+          },
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 148.43,
+            "interest": 1250,
+            "extra": 199851.57,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 201683.33
+          },
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 148.43,
+            "interest": 1250,
+            "extra": 199851.57,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 201683.33
+          }
+        ]
+      }
+    },
+    {
+      "name": "no-optionals",
+      "input": {
+        "homePrice": 400000,
+        "downPayment": 80000,
+        "annualRate": 0.07,
+        "termYears": 15,
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0,
+        "monthlyPmi": 0,
+        "extraAmount": 0,
+        "extraFrequency": "monthly",
+        "startMonth": 0,
+        "startYear": 2027
+      },
+      "expected": {
+        "loanAmount": 320000,
+        "monthlyPI": 2876.25,
+        "totalInterest": 197725.04,
+        "totalCost": 517725.04,
+        "interestSaved": 0,
+        "monthsSaved": 0,
+        "pmiEndPayment": 8,
+        "scheduleLength": 180,
+        "rows": [
+          {
+            "paymentNum": 1,
+            "month": 0,
+            "year": 2027,
+            "principal": 1009.58,
+            "interest": 1866.67,
+            "extra": 0,
+            "balance": 318990.42,
+            "pmi": 0,
+            "totalMonthly": 2876.25
+          },
+          {
+            "paymentNum": 12,
+            "month": 11,
+            "year": 2027,
+            "principal": 1076.29,
+            "interest": 1799.96,
+            "extra": 0,
+            "balance": 307488.64,
+            "pmi": 0,
+            "totalMonthly": 2876.25
+          },
+          {
+            "paymentNum": 180,
+            "month": 11,
+            "year": 2041,
+            "principal": 2859.61,
+            "interest": 16.68,
+            "extra": 0,
+            "balance": 0,
+            "pmi": 0,
+            "totalMonthly": 2876.29
+          }
+        ]
+      }
+    }
+  ]
+}
