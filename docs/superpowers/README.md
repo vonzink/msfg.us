@@ -65,3 +65,4 @@ File names start with the date the document was written.
 | Date | Document |
 |---|---|
 | 2026-06-18 | [Handoff — Client Password Management (msfg.us)](handoffs/2026-06-18-password-management-handoff.md) |
+| 2026-11-18 | [Public calculators: handoff after four of eight](handoffs/2026-11-18-public-calculators-handoff.md) |
