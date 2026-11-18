@@ -19,12 +19,40 @@ describe("rent vs buy page text", () => {
     for (const t of text) expect(t, t).not.toMatch(/[—–=^×]| x /);
   });
 
-  it("F5: says what is left out on each side, with the same sentences as the assumptions list", () => {
+  it("says what is left out, with the same sentence as the printed list", () => {
     const how = HOW_IT_WORKS.join(" ");
-    expect(how).toContain("Not included on the buying side: mortgage insurance, HOA dues and income tax effects. Counting them would raise the cost of buying.");
-    expect(how).toContain("Not included on the renting side: renters insurance.");
-    expect(how).toContain("Any monthly difference between the two payments is not invested.");
-    expect(how).not.toContain("Not included: ");
+    expect(how).toContain("Not included: renters insurance, and investing any monthly difference between the two payments.");
+    expect(how).not.toContain("Not included on the");
+  });
+
+  it("says mortgage insurance and HOA dues are counted when entered, and claims nowhere that they are left out", () => {
+    const how = HOW_IT_WORKS.join(" ");
+    expect(how).toContain("Mortgage insurance and HOA dues are counted when you enter them.");
+    for (const t of text) {
+      expect(t, t).not.toMatch(/not included[^.]*(mortgage insurance|HOA dues|income tax|closing costs)/i);
+      expect(t, t).not.toMatch(/(mortgage insurance|HOA dues)[^.]*(is|are) not included/i);
+    }
+  });
+
+  it("says the interest deduction is optional and assumes itemizing, and is not tax advice", () => {
+    const how = HOW_IT_WORKS.join(" ");
+    expect(how).toContain("Counting the mortgage interest deduction is optional.");
+    expect(how).toContain("That assumes you itemize deductions and that all of the interest is deductible.");
+    expect(how).toContain("Many households take the standard deduction instead, and then there is no saving.");
+    expect(how).toContain("This is not tax advice.");
+  });
+
+  it("describes the monthly payment to own, and no longer points at a list under the result", () => {
+    const how = HOW_IT_WORKS.join(" ");
+    expect(how).toContain("monthly payment to own");
+    expect(how).not.toContain("listed under the result");
+  });
+
+  it("answers the mortgage insurance question truthfully now that it can be entered", () => {
+    const qa = QUESTIONS.find(({ q }) => /mortgage insurance/i.test(q))!;
+    expect(qa.q).toBe("How is mortgage insurance counted?");
+    expect(qa.a).toContain("Enter the monthly amount under Add detail");
+    expect(qa.a).not.toContain("It is not included here");
   });
 
   it("counts closing costs on the buying side and no longer lists them as left out", () => {

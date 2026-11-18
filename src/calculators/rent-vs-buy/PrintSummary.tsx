@@ -1,7 +1,9 @@
 import { formatUSD } from "@/lib/finance";
 import { PrintSummary, type PrintColumn } from "../shared/PrintSummary";
 import { MAX_YEARS, type RentVsBuyInput, type RentVsBuyResult } from "./math";
-import { Assumptions, CAUTION, headlineText, lowDownPayment, MORTGAGE_INSURANCE_NOTE, percentText, pullAheadSentence, UNDERWATER_NOTE, usd, yearsText } from "./Results";
+import {
+  Assumptions, CAUTION, headlineText, MORTGAGE_INSURANCE_NOTE, mortgageInsuranceMissing, percentText, pullAheadSentence, TAX_NOTE, UNDERWATER_NOTE, usd, yearsText,
+} from "./Results";
 
 type Rows = PrintColumn["rows"];
 
@@ -14,11 +16,13 @@ export function RentVsBuyPrintSummary({ input, result: r }: { input: RentVsBuyIn
     { label: "Closing costs", value: usd(r.buying.closingCosts) },
     { label: "Interest rate", value: percentText(input.rate) },
     { label: "Years you plan to stay", value: String(input.stayYears) },
-    { label: "Mortgage payment", value: formatUSD(r.monthlyPayment) },
+    { label: "Monthly payment to own", value: usd(r.firstMonth.total) },
+    { label: "Principal and interest", value: usd(r.firstMonth.principalAndInterest) },
   ];
   const estimate: Rows = [
     { label: `After ${yearsText(input.stayYears)}`, value: headlineText(r) },
     { label: "Buying first comes out ahead", value: r.pullAheadYear === null ? `Not within ${MAX_YEARS} years` : `Year ${r.pullAheadYear}` },
+    ...(input.incomeTaxRate > 0 ? [{ label: "Income tax saved on mortgage interest", value: usd(r.buying.taxSavedOnInterest) }] : []),
     { label: "Net cost of buying", value: usd(r.buying.netCost) },
     { label: "Net cost of renting", value: usd(r.renting.netCost) },
     { label: "Equity after selling", value: usd(r.buying.equity) },
@@ -28,15 +32,17 @@ export function RentVsBuyPrintSummary({ input, result: r }: { input: RentVsBuyIn
 
 /**
  * The rest of the printed page, under the summary: the pull-ahead sentence, a line when the sale
- * would not cover the loan, the assumptions, the caution and the disclaimer. Hidden on screen.
+ * would not cover the loan, the assumptions, the note on the tax saving when it is counted, the
+ * caution and the disclaimer. Hidden on screen.
  */
 export function RentVsBuyPrintDetails({ input, result, disclaimer }: { input: RentVsBuyInput; result: RentVsBuyResult; disclaimer: string }) {
   return (
     <div className="mt-4 hidden print:block">
       <p className="text-[12px] font-semibold">{pullAheadSentence(result, input.stayYears)}</p>
       {result.buying.equity < 0 && <p className="mt-2 text-[12px] font-semibold">{UNDERWATER_NOTE}</p>}
-      <Assumptions input={input} print />
-      {lowDownPayment(input) && <p className="mt-3 text-[12px] font-semibold">{MORTGAGE_INSURANCE_NOTE}</p>}
+      <Assumptions input={input} />
+      {input.incomeTaxRate > 0 && <p className="mt-3 text-[12px]">{TAX_NOTE}</p>}
+      {mortgageInsuranceMissing(input) && <p className="mt-3 text-[12px] font-semibold">{MORTGAGE_INSURANCE_NOTE}</p>}
       <p className="mt-3 text-[12px]">{CAUTION}</p>
       <p className="mt-2 text-[10px] text-muted">{disclaimer}</p>
     </div>

@@ -4,19 +4,20 @@ import { SeriesChart } from "../shared/Charts";
 import { Stat } from "../shared/Stat";
 import { DETAIL_FIELDS } from "./fields";
 import {
-  ASSUMPTION_RANGE, buyingSlipsBack, COST_INFLATION, MAX_YEARS, RATE_LIMIT, SELLING_COSTS_RANGE,
+  ASSUMPTION_RANGE, buyingSlipsBack, COST_INFLATION, INCOME_TAX_RANGE, MAX_YEARS, mortgageInsuranceApplies, RATE_LIMIT, SELLING_COSTS_RANGE,
   type RentVsBuyInput, type RentVsBuyResult,
 } from "./math";
 
 export const CAUTION =
   "A comparison like this turns on its assumptions. Home values and rents do not rise at a steady rate, and small changes above can move the result.";
 export const MORTGAGE_INSURANCE_NOTE =
-  "With less than 20% down, most loans add mortgage insurance. It is not included here and would raise the cost of buying.";
+  "With less than 20% down, most loans add mortgage insurance. Enter the monthly amount under Add detail to count it.";
 export const UNDERWATER_NOTE = "On these numbers the sale would not cover the loan and the selling costs.";
-const NOT_INVESTED = "Any monthly difference between the two payments is not invested.";
-const NOT_INCLUDED_BUYING =
-  "Not included on the buying side: mortgage insurance, HOA dues and income tax effects. Counting them would raise the cost of buying.";
-const NOT_INCLUDED_RENTING = "Not included on the renting side: renters insurance.";
+export const TAX_NOTE =
+  "The tax saving assumes you itemize deductions and that all of the interest is deductible. Many households take the standard deduction instead, and then there is no saving. This is not tax advice.";
+/** Shown under the mortgage insurance box when an amount is typed that the model does not charge. */
+export const MI_NOT_COUNTED = "Not counted: the down payment is 20% or more.";
+const NOT_INCLUDED = "Not included: renters insurance, and investing any monthly difference between the two payments.";
 
 const DOWN_ABOVE_PRICE_PROMPT = "The down payment is more than the home price.";
 const GENERAL_PROMPT =
@@ -57,15 +58,26 @@ export function promptText(input: RentVsBuyInput): string {
   if (!Number.isFinite(rate) || rate < 0 || rate >= RATE_LIMIT) return `Enter an interest rate from 0% to under ${percentText(RATE_LIMIT)}.`;
   if (!Number.isInteger(stayYears) || stayYears < 1 || stayYears > MAX_YEARS) return `Enter a stay from 1 to ${MAX_YEARS} years.`;
   if ([input.closingCosts, input.yearlyTax, input.yearlyInsurance, input.yearlyMaintenance].some(Number.isNaN)) return COSTS_PROMPT;
+  // Optional boxes: empty is fine, something unreadable is named.
+  const unreadable = (["monthlyMi", "monthlyHoa"] as const).find((id) => Number.isNaN(input[id]));
+  if (unreadable) return `Enter a number for ${fieldLabel(unreadable)}, or leave it empty.`;
   const notEntered = ASSUMPTION_RATES.find(({ id }) => Number.isNaN(input[id]));
   if (notEntered) return `Enter a number for ${fieldLabel(notEntered.id)}. 0 is allowed.`;
   const outside = ASSUMPTION_RATES.find(({ id, range }) => !(input[id] >= range.low && input[id] <= range.high));
   if (outside) return `${fieldLabel(outside.id)} must be between ${percentText(outside.range.low)} and ${percentText(outside.range.high)}.`;
+  const { incomeTaxRate } = input;
+  if (Number.isNaN(incomeTaxRate)) return "Enter a number for Income tax rate, or leave it empty.";
+  if (!(incomeTaxRate >= INCOME_TAX_RANGE.low && incomeTaxRate <= INCOME_TAX_RANGE.high)) {
+    return `Income tax rate must be between ${percentText(INCOME_TAX_RANGE.low)} and ${percentText(INCOME_TAX_RANGE.high)}.`;
+  }
   return GENERAL_PROMPT;
 }
 
-/** True when the down payment is under 20% of the price, where most loans add mortgage insurance. */
-export const lowDownPayment = (input: RentVsBuyInput) => input.downPayment < input.homePrice * 0.2;
+/** True when the down payment is under 20% and no mortgage insurance was entered: the page then asks for it. */
+export const mortgageInsuranceMissing = (input: RentVsBuyInput) => mortgageInsuranceApplies(input) && !(input.monthlyMi > 0);
+/** True when a mortgage insurance amount was typed but the down payment is 20% or more, so it is not charged. */
+export const mortgageInsuranceIgnored = (input: RentVsBuyInput) =>
+  input.monthlyMi > 0 && input.homePrice > 0 && Number.isFinite(input.downPayment) && !mortgageInsuranceApplies(input);
 
 /**
  * Which path comes out ahead at the end of the stay, and by how much. It reports the sum on the
@@ -95,8 +107,9 @@ export function pullAheadSentence(r: Pick<RentVsBuyResult, "ahead" | "pullAheadY
 }
 
 /**
- * Every assumption behind the estimate, as the math used it. Built from the model's input, not
- * from the form, so the list cannot drift from the result. It is only shown with a result, so
+ * Every assumption behind the estimate, as the math used it, for the printed page (on screen the
+ * fields under "Add detail" are the list; the form does not print). Built from the model's input,
+ * not from the form, so the list cannot drift from the result. It is only shown with a result, so
  * the closing costs and the three yearly costs have all been entered: a typed 0, or a negative
  * amount the math counts as zero, reads "$0".
  */
@@ -105,33 +118,43 @@ export function assumptionLines(input: RentVsBuyInput): string[] {
   const cost = (label: string, yearly: number, rising: string) =>
     yearly > 0 ? `${label}: ${usd(yearly)} a year, ${rising}` : `${label}: $0 a year`;
   const yearly = (rises: string, falls: string, rate: number) => `${rate < 0 ? falls : rises} ${percentText(Math.abs(rate))} a year`;
+  const mortgageInsurance = !(input.monthlyMi > 0)
+    ? "none"
+    : mortgageInsuranceApplies(input)
+      ? `${usd(input.monthlyMi)} a month until the loan balance reaches 78% of the home price`
+      : "not counted, the down payment is 20% or more";
   return [
     `Loan term: ${yearsText(Number((input.termMonths / 12).toFixed(1)))}`,
     `Closing costs on the purchase: ${input.closingCosts > 0 ? usd(input.closingCosts) : "$0"}`,
     cost("Property tax", input.yearlyTax, "rising with the home's value"),
     cost("Homeowners insurance", input.yearlyInsurance, `rising ${inflation} a year`),
+    `Mortgage insurance: ${mortgageInsurance}`,
+    `HOA dues: ${input.monthlyHoa > 0 ? `${usd(input.monthlyHoa)} a month, rising ${inflation} a year` : "none"}`,
     cost("Maintenance", input.yearlyMaintenance, `rising ${inflation} a year`),
     yearly("Home value rises", "Home value falls", input.appreciation),
     yearly("Rent rises", "Rent falls", input.rentIncrease),
     `Selling costs: ${percentText(input.sellingCosts)} of the sale price`,
     `${yearly("The down payment would earn", "The down payment would lose", input.investmentReturn)} if invested instead`,
-    NOT_INVESTED,
-    NOT_INCLUDED_BUYING,
-    NOT_INCLUDED_RENTING,
+    ...(input.incomeTaxRate > 0 ? [`Income tax rate for the interest deduction: ${percentText(input.incomeTaxRate)}`] : []),
+    NOT_INCLUDED,
   ];
 }
 
-/** The assumptions list, the same on screen and on the printed page. */
-export function Assumptions({ input, print = false }: { input: RentVsBuyInput; print?: boolean }) {
+/** The assumptions list of the printed page. */
+export function Assumptions({ input }: { input: RentVsBuyInput }) {
   return (
-    <div className={print ? "mt-4" : "rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4"}>
-      <h2 className={print ? "text-[13px] font-bold" : "text-[17px] font-bold"}>Assumptions in this estimate</h2>
-      <ul className={cn("m-0 list-disc pl-5", print ? "mt-1 text-[11px]" : "mt-3 grid gap-1 text-[15px]")}>
+    <div className="mt-4">
+      <h2 className="text-[13px] font-bold">Assumptions in this estimate</h2>
+      <ul className="m-0 mt-1 list-disc pl-5 text-[11px]">
         {assumptionLines(input).map((line) => <li key={line}>{line}</li>)}
       </ul>
-      {!print && <p className="mt-3 text-[13px] text-muted">Change these under Add detail.</p>}
     </div>
   );
+}
+
+/** What the monthly payment to own is made of, in words: the line under the figure. */
+export function paymentPartsText(firstMonth: RentVsBuyResult["firstMonth"]): string {
+  return `principal, interest, tax and insurance${firstMonth.mi > 0 ? ", mortgage insurance" : ""}${firstMonth.hoa > 0 ? ", HOA dues" : ""}`;
 }
 
 const box = "rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4";
@@ -150,8 +173,8 @@ function Line({ label, value }: { label: string; value: number }) {
 
 /**
  * The results column of the Rent vs buy calculator. `result` is null until the model has all it
- * needs; until then one sentence says what is missing or out of range. The assumptions are always listed here, outside the
- * "Add detail" panel, so nobody reads the headline without them.
+ * needs; until then one sentence says what is missing or out of range. The assumptions are not
+ * listed here: on screen they are the fields under "Add detail", and the printed page lists them.
  */
 export function RentVsBuyResults({ input, result: r, disclaimer }: {
   input: RentVsBuyInput;
@@ -172,6 +195,8 @@ export function RentVsBuyResults({ input, result: r, disclaimer }: {
   // label ever sits beside a figure with the wrong sign.
   const shortfall = Math.round(buying.equity) < 0;
   const loss = Math.round(renting.downPaymentGrowth) < 0;
+  const { firstMonth } = r;
+  const taxSaving = input.incomeTaxRate > 0;
 
   return (
     <>
@@ -188,13 +213,13 @@ export function RentVsBuyResults({ input, result: r, disclaimer }: {
           label="Monthly rent now"
           value={formatUSD(input.monthlyRent)}
           sub="in the first year"
-          tip="The rent you entered. It changes each year by the rent assumption listed below."
+          tip="The rent you entered. It changes each year by the rent assumption under Add detail."
         />
         <Stat
-          label="Mortgage payment"
-          value={formatUSD(r.monthlyPayment)}
-          sub="principal and interest"
-          tip={`The monthly payment on a fixed-rate loan of ${formatUSD(r.loanAmount)}. Property tax, homeowners insurance and maintenance are counted separately below.`}
+          label="Monthly payment to own"
+          value={usd(firstMonth.total)}
+          sub={paymentPartsText(firstMonth)}
+          tip={`What owning costs each month in the first year, with a fixed-rate loan of ${formatUSD(r.loanAmount)}. The parts are listed below. Maintenance is not in it.`}
         />
         {stay > 1 && (
           <Stat
@@ -204,6 +229,24 @@ export function RentVsBuyResults({ input, result: r, disclaimer }: {
             tip="The monthly rent in the last year of the stay, after each year's change in rent."
           />
         )}
+      </div>
+
+      <div className={box}>
+        <h2 className="text-[17px] font-bold">What is in the monthly payment to own</h2>
+        <dl className="m-0 mt-2 text-[14px]">
+          <Line label="Principal and interest" value={firstMonth.principalAndInterest} />
+          <Line label="Property tax" value={firstMonth.tax} />
+          <Line label="Homeowners insurance" value={firstMonth.insurance} />
+          {firstMonth.mi > 0 && <Line label="Mortgage insurance" value={firstMonth.mi} />}
+          {firstMonth.hoa > 0 && <Line label="HOA dues" value={firstMonth.hoa} />}
+          <div className={total}>
+            <dt>Monthly payment to own</dt>
+            <dd className="m-0 whitespace-nowrap tabular-nums">{usd(firstMonth.total)}</dd>
+          </div>
+        </dl>
+        <p className="mt-3 text-[13px] text-muted">
+          {taxSaving ? "Maintenance and the tax saving are" : "Maintenance is"} counted in the totals below, not in this payment.
+        </p>
       </div>
 
       {stay > 1 && (
@@ -229,11 +272,14 @@ export function RentVsBuyResults({ input, result: r, disclaimer }: {
             <Line label="Mortgage payments" value={buying.mortgagePayments} />
             <Line label="Property tax" value={buying.propertyTax} />
             <Line label="Homeowners insurance" value={buying.insurance} />
+            {buying.mortgageInsurance > 0 && <Line label="Mortgage insurance" value={buying.mortgageInsurance} />}
+            {buying.hoa > 0 && <Line label="HOA dues" value={buying.hoa} />}
             <Line label="Maintenance" value={buying.maintenance} />
             <div className={cn(row, "font-bold")}>
               <dt>Total paid</dt>
               <dd className={amount}>{usd(buying.totalPaid)}</dd>
             </div>
+            {taxSaving && <Line label="Income tax saved on mortgage interest" value={-buying.taxSavedOnInterest} />}
             {shortfall
               ? <Line label="Shortfall after selling, added" value={-buying.equity} />
               : <Line label="Equity after selling" value={-buying.equity} />}
@@ -242,6 +288,7 @@ export function RentVsBuyResults({ input, result: r, disclaimer }: {
               <dd className="m-0 whitespace-nowrap tabular-nums">{usd(buying.netCost)}</dd>
             </div>
           </dl>
+          {taxSaving && <p className="mt-3 text-[13px] text-ink">{TAX_NOTE}</p>}
         </div>
         <div className={box}>
           <h2 className="text-[17px] font-bold">Renting</h2>
@@ -274,9 +321,7 @@ export function RentVsBuyResults({ input, result: r, disclaimer }: {
         )}
       </div>
 
-      <Assumptions input={input} />
-
-      {lowDownPayment(input) && <p className="mx-1 text-[14px] font-semibold text-ink">{MORTGAGE_INSURANCE_NOTE}</p>}
+      {mortgageInsuranceMissing(input) && <p className="mx-1 text-[14px] font-semibold text-ink">{MORTGAGE_INSURANCE_NOTE}</p>}
       <p className="mx-1 text-[14px] text-ink">{CAUTION}</p>
       <p className="mx-1 text-[13px] text-muted">{disclaimer}</p>
     </>

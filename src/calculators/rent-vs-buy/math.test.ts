@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import golden from "./golden.json";
 import {
-  ASSUMPTION_RANGE, buyingSlipsBack, calculateRentVsBuy, COST_INFLATION, MAX_YEARS, RATE_LIMIT, SELLING_COSTS_RANGE,
+  ASSUMPTION_RANGE, buyingSlipsBack, calculateRentVsBuy, COST_INFLATION, INCOME_TAX_RANGE, MAX_YEARS, RATE_LIMIT, SELLING_COSTS_RANGE,
   type RentVsBuyInput, type YearPoint,
 } from "./math";
 
 const cases = golden.cases;
-/** The golden cases come from the dashboard, which has no closing costs: they run with 0. */
-const named = (name: string): RentVsBuyInput => ({ ...cases.find((c) => c.name === name)!.input, closingCosts: 0 });
+/** What this model adds to the ported one. The golden cases run with all of it at 0. */
+const NOTHING_ADDED = { closingCosts: 0, monthlyMi: 0, monthlyHoa: 0, incomeTaxRate: 0 };
+const named = (name: string): RentVsBuyInput => ({ ...cases.find((c) => c.name === name)!.input, ...NOTHING_ADDED });
 const example = named("example");
 const calc = (changes: Partial<RentVsBuyInput> = {}) => calculateRentVsBuy({ ...example, ...changes });
 
@@ -17,9 +18,9 @@ describe("matches the dashboard (golden cases from msfg-calc)", () => {
   });
 
   it.each(cases)("$name", ({ input, expected }) => {
-    const r = calculateRentVsBuy({ ...input, closingCosts: 0 })!;
+    const r = calculateRentVsBuy({ ...input, ...NOTHING_ADDED })!;
     expect(r).not.toBeNull();
-    expect(r.buying.closingCosts).toBe(0);
+    expect(r.buying).toMatchObject({ closingCosts: 0, mortgageInsurance: 0, hoa: 0, taxSavedOnInterest: 0 });
     expect(r.monthlyPayment).toBe(expected.monthlyPayment);
     expect(r.buying.downPayment).toBe(expected.downPayment);
     expect(r.buying.mortgagePayments).toBe(expected.mortgagePayments);
@@ -173,6 +174,11 @@ describe("nothing to compare gives null", () => {
     ["negative selling costs", { sellingCosts: -0.01 }],
     ["selling costs above 20%", { sellingCosts: 0.21 }],
     ["closing costs not entered", { closingCosts: Number.NaN }],
+    ["unreadable mortgage insurance", { monthlyMi: Number.NaN }],
+    ["unreadable HOA dues", { monthlyHoa: Number.NaN }],
+    ["an unreadable income tax rate", { incomeTaxRate: Number.NaN }],
+    ["a negative income tax rate", { incomeTaxRate: -0.01 }],
+    ["an income tax rate above 50%", { incomeTaxRate: 0.51 }],
     ["property tax not entered", { yearlyTax: Number.NaN }],
     ["insurance not entered", { yearlyInsurance: Number.NaN }],
     ["maintenance not entered", { yearlyMaintenance: Number.NaN }],
@@ -222,7 +228,7 @@ describe("a tie", () => {
     // 12,000 of payments come straight back as equity, leaving 12,000 of maintenance against 12,000 of rent.
     const r = calculateRentVsBuy({
       monthlyRent: 1000, homePrice: 120000, downPayment: 0, rate: 0, stayYears: 1, termMonths: 120,
-      closingCosts: 0, yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 12000,
+      ...NOTHING_ADDED, yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 12000,
       appreciation: 0, rentIncrease: 0, sellingCosts: 0, investmentReturn: 0,
     })!;
     expect(r.buying.netCost).toBe(12000);
@@ -272,7 +278,7 @@ describe("F7: buying ahead, then not", () => {
   it("finds the reviewer's case: first ahead in year 5, behind in years 7 to 20, ahead at the end of 35 years", () => {
     const r = calculateRentVsBuy({
       monthlyRent: 5894, homePrice: 462086, downPayment: 16173, rate: 0.1175, stayYears: 35, termMonths: 240,
-      closingCosts: 0, yearlyTax: 544, yearlyInsurance: 4621, yearlyMaintenance: 8156,
+      ...NOTHING_ADDED, yearlyTax: 544, yearlyInsurance: 4621, yearlyMaintenance: 8156,
       appreciation: 0.01, rentIncrease: -0.04, sellingCosts: 0.06, investmentReturn: -0.04,
     })!;
     expect(r.ahead).toBe("buying");
@@ -316,5 +322,155 @@ describe("closing costs on the purchase (a deliberate difference from the dashbo
     expect(calc({ closingCosts: Number.NaN })).toBeNull();
     expect(calc({ closingCosts: 0 })!.difference).toBe(18816.32);
     expect(calc({ closingCosts: -500 })).toEqual(calc({ closingCosts: 0 }));
+  });
+});
+
+// The figures below were worked out month by month in a separate script (a plain loop over the
+// payments: interest on the balance, the rest to principal), not taken from this model. The same
+// script reproduces the golden example, so the two agree where the dashboard has an answer.
+const page = (changes: Partial<RentVsBuyInput> = {}) => calc({ closingCosts: 8000, ...changes });
+
+describe("the monthly payment to own, first-year amounts", () => {
+  it("is principal and interest plus a twelfth of the tax and the insurance: the example's $2,678.97", () => {
+    expect(page()!.firstMonth).toEqual({ principalAndInterest: 2128.97, tax: 400, insurance: 150, mi: 0, hoa: 0, total: 2678.97 });
+    expect(page()!.monthlyPayment).toBe(2128.97);
+  });
+
+  it("adds mortgage insurance when it is charged in month 1, and HOA dues", () => {
+    const r = page({ downPayment: 40000, monthlyMi: 150, monthlyHoa: 200 })!;
+    expect(r.firstMonth).toEqual({ principalAndInterest: 2395.09, tax: 400, insurance: 150, mi: 150, hoa: 200, total: 3295.09 });
+    // Mortgage insurance typed with 20% down is not charged.
+    expect(page({ monthlyMi: 150 })!.firstMonth).toMatchObject({ mi: 0, total: 2678.97 });
+  });
+
+  it("leaves maintenance out", () => {
+    expect(page({ yearlyMaintenance: 0 })!.firstMonth).toEqual(page()!.firstMonth);
+  });
+});
+
+describe("HOA dues", () => {
+  it("are paid every month and rise 3% a year: $200 a month is $18,389.91 over 7 years", () => {
+    const r = page({ monthlyHoa: 200 })!;
+    expect(r.buying.hoa).toBe(18389.91); // 2,400 x (1.03^7 - 1) / 0.03
+    expect(r.buying.totalPaid).toBe(366445.32); // 348,055.41 + 18,389.91
+    expect(r.difference).toBe(-7573.59); // 10,816.32 - 18,389.91
+    expect(r.pullAheadYear).toBe(9);
+    expect(page({ monthlyHoa: 200, stayYears: 1 })!.buying.hoa).toBe(2400);
+  });
+
+  it("count as zero when negative, and change nothing on the renting side", () => {
+    expect(page({ monthlyHoa: -200 })).toEqual(page());
+    expect(page({ monthlyHoa: 200 })!.renting).toEqual(page()!.renting);
+  });
+});
+
+describe("mortgage insurance (the Mortgage calculator's rule)", () => {
+  it("is charged with less than 20% down, until the balance reaches 78% of the price", () => {
+    // 10% down: 360,000 at 7% reaches 312,000 at payment 115, so 114 payments carry it. All 84 of the stay do.
+    const r = page({ downPayment: 40000, monthlyMi: 150 })!;
+    expect(r.miEndPayment).toBe(115);
+    expect(r.miMonthsInStay).toBe(84);
+    expect(r.buying.mortgageInsurance).toBe(12600);
+    expect(r.buying.totalPaid).toBe(343009.57);
+    expect(r.difference).toBe(-4312.8);
+    expect(r.pullAheadYear).toBe(8);
+    expect(page({ downPayment: 40000, monthlyMi: 150, stayYears: 10 })!.miMonthsInStay).toBe(114);
+    expect(page({ downPayment: 40000, monthlyMi: 150, stayYears: 10 })!.buying.mortgageInsurance).toBe(17100);
+  });
+
+  it("stops part of the way through a stay: 5% down on a 15-year loan carries it for 49 payments", () => {
+    const r = page({ downPayment: 20000, monthlyMi: 150, termMonths: 180, stayYears: 10 })!;
+    expect(r.miEndPayment).toBe(50);
+    expect(r.miMonthsInStay).toBe(49);
+    expect(r.buying.mortgageInsurance).toBe(7350);
+    expect(r.difference).toBe(83669.62);
+    expect(r.pullAheadYear).toBe(6);
+  });
+
+  it("never runs past the loan's midpoint: nothing down at 10% carries it for 180 payments of 360", () => {
+    const r = page({ downPayment: 0, rate: 0.1, monthlyMi: 150, stayYears: 20 })!;
+    expect(r.miEndPayment).toBe(181);
+    expect(r.miMonthsInStay).toBe(180);
+    expect(r.buying.mortgageInsurance).toBe(27000);
+    expect(r.difference).toBe(25042.49);
+  });
+
+  it("is ignored with 20% or more down, and when negative", () => {
+    for (const downPayment of [80000, 80000.01, 200000, 400000]) {
+      const r = page({ downPayment, monthlyMi: 150 })!;
+      expect(r, String(downPayment)).toEqual(page({ downPayment }));
+      expect(r.buying.mortgageInsurance).toBe(0);
+      expect(r.miEndPayment).toBeNull();
+      expect(r.miMonthsInStay).toBe(0);
+    }
+    expect(page({ downPayment: 79999.99, monthlyMi: 150 })!.buying.mortgageInsurance).toBeGreaterThan(0);
+    expect(page({ downPayment: 40000, monthlyMi: -150 })).toEqual(page({ downPayment: 40000 }));
+    expect(page({ downPayment: 40000 })!.miEndPayment).toBeNull();
+  });
+});
+
+describe("the mortgage interest deduction", () => {
+  it("has the pinned range, ends included", () => {
+    expect(INCOME_TAX_RANGE).toEqual({ low: 0, high: 0.5 });
+    expect(page({ incomeTaxRate: 0.5 })).not.toBeNull();
+    expect(page({ incomeTaxRate: 0.5001 })).toBeNull();
+  });
+
+  it("reports the interest paid whether or not a rate is entered: $150,505.04 in the example's 7 years", () => {
+    const r = page()!;
+    expect(r.buying.interestPaid).toBe(150505.04);
+    expect(r.buying.taxSavedOnInterest).toBe(0);
+    // Interest is the payments less the fall in the balance.
+    expect(r.buying.interestPaid).toBeCloseTo(r.buying.mortgagePayments - (r.loanAmount - r.buying.loanBalance), 2);
+  });
+
+  it("takes the rate's share of the interest off the cost of buying: 22% saves $33,111.11", () => {
+    const off = page()!;
+    const r = page({ incomeTaxRate: 0.22 })!;
+    expect(r.buying.taxSavedOnInterest).toBe(33111.11); // 22% of 150,505.04
+    expect(r.buying.totalPaid).toBe(off.buying.totalPaid); // what was paid is what was paid
+    expect(r.buying.netCost).toBe(144183.45); // 177,294.56 - 33,111.11
+    expect(r.difference).toBe(43927.42);
+    expect(r.years.map((y) => y.difference)).toEqual([-23911.68, -14955.67, -5102.19, 5679.8, 17422.65, 30160.12, 43927.42]);
+    expect(r.pullAheadYear).toBe(4);
+    expect(r.renting).toEqual(off.renting);
+    expect(r.firstMonth).toEqual(off.firstMonth);
+  });
+
+  it("counts mortgage interest only: not property tax, not mortgage insurance", () => {
+    const base = page({ downPayment: 40000, incomeTaxRate: 0.22 })!;
+    expect(base.buying.taxSavedOnInterest).toBe(37250); // 22% of 169,318.17
+    expect(page({ downPayment: 40000, incomeTaxRate: 0.22, monthlyMi: 150, yearlyTax: 9000 })!.buying.taxSavedOnInterest).toBe(37250);
+  });
+
+  it("stops with the payments: a 15-year loan over 20 years has $197,725.08 of interest", () => {
+    const r = page({ termMonths: 180, stayYears: 20, incomeTaxRate: 0.22 })!;
+    expect(r.buying.interestPaid).toBe(197725.08); // 517,725.08 of payments less the 320,000 borrowed
+    expect(r.buying.taxSavedOnInterest).toBe(43499.52);
+    expect(r.difference).toBe(473649.26);
+    expect(page({ termMonths: 180, stayYears: 15, incomeTaxRate: 0.22 })!.buying.interestPaid).toBe(197725.08);
+  });
+
+  it("is nothing on a 0% loan or with no loan", () => {
+    expect(page({ rate: 0, incomeTaxRate: 0.22 })!.buying).toMatchObject({ interestPaid: 0, taxSavedOnInterest: 0 });
+    expect(page({ downPayment: 400000, incomeTaxRate: 0.22 })!.buying).toMatchObject({ interestPaid: 0, taxSavedOnInterest: 0 });
+  });
+});
+
+describe("everything together: 10% down, $150 of mortgage insurance, $200 of HOA dues, a 22% tax rate", () => {
+  it("has the hand-checked figures", () => {
+    const r = page({ downPayment: 40000, monthlyMi: 150, monthlyHoa: 200, incomeTaxRate: 0.22 })!;
+    expect(r.firstMonth.total).toBe(3295.09);
+    expect(r.miMonthsInStay).toBe(84);
+    expect(r.buying.mortgageInsurance).toBe(12600);
+    expect(r.buying.hoa).toBe(18389.91);
+    expect(r.buying.totalPaid).toBe(361399.48);
+    expect(r.buying.interestPaid).toBe(169318.17);
+    expect(r.buying.taxSavedOnInterest).toBe(37250);
+    expect(r.buying.netCost).toBe(189847.6);
+    expect(r.renting.netCost).toBe(204394.89);
+    expect(r.difference).toBe(14547.29);
+    expect(r.years.map((y) => y.difference)).toEqual([-28285.64, -23652.68, -18066.84, -11492.29, -3891.53, 4774.64, 14547.29]);
+    expect(r.pullAheadYear).toBe(6);
   });
 });

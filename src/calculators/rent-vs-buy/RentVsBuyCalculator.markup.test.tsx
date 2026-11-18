@@ -32,12 +32,19 @@ const EMPTY_COSTS = { closingCosts: "", yearlyTax: "", yearlyInsurance: "", year
 const UNDERWATER = { downPayment: "0", appreciation: "-5", stayYears: "2" };
 const GENERAL_PROMPT = "Enter the rent, the home price, the down payment, the interest rate and how long you plan to stay to see the comparison.";
 const DOWN_PROMPT = "The down payment is more than the home price.";
-const MI_LINE = "With less than 20% down, most loans add mortgage insurance. It is not included here and would raise the cost of buying.";
+const MI_LINE = "With less than 20% down, most loans add mortgage insurance. Enter the monthly amount under Add detail to count it.";
+const TAX_NOTE = "The tax saving assumes you itemize deductions and that all of the interest is deductible. Many households take the standard deduction instead, and then there is no saving. This is not tax advice.";
+const NOT_INCLUDED = "Not included: renters insurance, and investing any monthly difference between the two payments.";
+/** 10% down with mortgage insurance, HOA dues and the interest deduction: figures hand-checked in math.test.ts. */
+const FULLER = { downPayment: "10", monthlyMi: "150", monthlyHoa: "200", incomeTaxRate: "22" };
+/** The breakdown box under the three figures, from its heading to its closing note. */
+const breakdown = (html: string) => {
+  const start = html.indexOf("What is in the monthly payment to own");
+  expect(start).toBeGreaterThan(-1);
+  return html.slice(start, html.indexOf("not in this payment.", start));
+};
 const UNDERWATER_LINE = "On these numbers the sale would not cover the loan and the selling costs.";
 const COSTS_PROMPT = "Add closing costs, property tax, homeowners insurance and maintenance under Add detail to see the comparison. Enter 0 for any that do not apply.";
-const NOT_INVESTED = "Any monthly difference between the two payments is not invested.";
-const NOT_INCLUDED_BUYING = "Not included on the buying side: mortgage insurance, HOA dues and income tax effects. Counting them would raise the cost of buying.";
-const NOT_INCLUDED_RENTING = "Not included on the renting side: renters insurance.";
 const ZERO_COSTS = { closingCosts: "0", yearlyTax: "0", yearlyInsurance: "0", yearlyMaintenance: "0" };
 const FIVE = { monthlyRent: "2,400", homePrice: "400,000", downPayment: "20", rate: "7", stayYears: "7" };
 /** The reviewer's case: buying ahead after 35 years, but behind in years 7 to 20. */
@@ -72,6 +79,7 @@ describe("rent vs buy calculator page", () => {
       results({ stayYears: "1" }), results({ monthlyRent: "" }), results({ downPayment: "" }), results({ rate: "45" }), results({ stayYears: "50" }),
       results({ appreciation: "" }), results({ rentIncrease: "99" }), results({ sellingCosts: "25" }), results({ investmentReturn: "-3" }),
       printDetails(), printDetails(UNDERWATER), printDetails(SLIPS_BACK),
+      results(FULLER), printDetails(FULLER), results({ monthlyMi: "150" }), results({ incomeTaxRate: "abc" }), results({ monthlyHoa: "abc" }), results({ incomeTaxRate: "60" }),
     ];
     for (const html of all) {
       expect(html).not.toMatch(BAD_OUTPUT);
@@ -83,7 +91,7 @@ describe("rent vs buy calculator page", () => {
 
   it("labels every typed field and gives each choice a legend", () => {
     const html = page();
-    for (const id of ["monthlyRent", "homePrice", "downPayment", "rate", "stayYears", "closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance", "appreciation", "rentIncrease", "sellingCosts", "investmentReturn"]) {
+    for (const id of ["monthlyRent", "homePrice", "downPayment", "rate", "stayYears", "closingCosts", "yearlyTax", "yearlyInsurance", "monthlyMi", "monthlyHoa", "yearlyMaintenance", "incomeTaxRate", "appreciation", "rentIncrease", "sellingCosts", "investmentReturn"]) {
       expect(count(html, `id="rentbuy-${id}"`), id).toBe(1);
       expect(html, id).toContain(`for="rentbuy-${id}"`);
     }
@@ -97,22 +105,23 @@ describe("rent vs buy calculator page", () => {
     expect(html).toContain("These are the assumptions behind the estimate. Change any that do not fit.");
   });
 
-  it("shows every assumption outside the one Add detail panel", () => {
+  it("no longer lists the assumptions on screen: the fields under Add detail are where they live", () => {
     const html = page();
     expect(count(html, "<details data-calc-panel")).toBe(1);
-    const start = html.indexOf("<details");
-    const panel = html.slice(start, html.indexOf("</details>", start));
-    const outside = html.replace(panel, "");
-    expect(panel).toContain("rentbuy-appreciation");
-    expect(panel).not.toContain("Assumptions in this estimate");
-    expect(outside).toContain("Assumptions in this estimate");
-    expect(outside).toContain("Change these under Add detail.");
-    const lines = assumptionLines(input());
-    expect(lines).toHaveLength(12);
-    for (const line of lines) {
-      expect(outside, line).toContain(escaped(line));
-      expect(panel, line).not.toContain(escaped(line));
+    const screen = html.slice(0, html.indexOf('aria-label="Estimate summary"'));
+    expect(screen).toContain("rentbuy-appreciation");
+    expect(screen).not.toContain("Assumptions in this estimate");
+    expect(html).not.toContain("Change these under Add detail.");
+    expect(count(html, "Assumptions in this estimate")).toBe(1);
+    for (const changes of [{}, RENTING_AHEAD, FULLER, UNDERWATER]) {
+      const shown = results(changes);
+      expect(shown).not.toContain("Assumptions in this estimate");
+      expect(shown).not.toContain("Change these under Add detail.");
+      expect(shown).not.toContain("Not included");
+      expect(shown).not.toContain("Loan term:");
     }
+    // The line above the detail fields stays.
+    expect(html).toContain("These are the assumptions behind the estimate. Change any that do not fit.");
   });
 
   it("prints a summary with the headline, the assumptions and the disclaimer, not the form", () => {
@@ -124,7 +133,9 @@ describe("rent vs buy calculator page", () => {
     expect(printed).toContain("Buying comes out ahead by $10,816");
     expect(printed).toContain("Buying pulls ahead in year 6.");
     expect(printed).toContain("Assumptions in this estimate");
-    for (const line of assumptionLines(input())) expect(printed, line).toContain(escaped(line));
+    const lines = assumptionLines(input());
+    expect(lines).toHaveLength(12);
+    for (const line of lines) expect(printed, line).toContain(escaped(line));
     expect(printed).toContain(CAUTION);
     expect(printed).toContain(DISCLAIMER);
     expect(printed).not.toContain("Change these under Add detail.");
@@ -139,9 +150,11 @@ describe("the printed summary", () => {
   it("lists the five front inputs with the payment, beside the estimate", () => {
     const i = input();
     const html = renderToStaticMarkup(<RentVsBuyPrintSummary input={i} result={calculateRentVsBuy(i)!} />);
-    for (const text of ["The numbers", "Monthly rent", "$2,400", "Home price", "$400,000", "Down payment", "$80,000", "Closing costs", "$8,000", "Interest rate", "7%", "Years you plan to stay", "Mortgage payment", "$2,129"]) {
+    for (const text of ["The numbers", "Monthly rent", "$2,400", "Home price", "$400,000", "Down payment", "$80,000", "Closing costs", "$8,000", "Interest rate", "7%", "Years you plan to stay", "Monthly payment to own", "$2,679", "Principal and interest", "$2,129"]) {
       expect(html, text).toContain(text);
     }
+    expect(html).not.toContain("Mortgage payment");
+    expect(html).not.toContain("Income tax saved");
     for (const text of ["The estimate", "Buying comes out ahead by $10,816", "Year 6", "Net cost of buying", "$177,295", "Net cost of renting", "$188,111", "Equity after selling", "$170,761"]) {
       expect(html, text).toContain(text);
     }
@@ -228,7 +241,86 @@ describe("the pull-ahead sentence", () => {
 describe("the figures under the headline", () => {
   it("shows the rent now, the payment and the rent in the last year", () => {
     const html = results();
-    for (const text of ["Monthly rent now", "$2,400", "Mortgage payment", "principal and interest", "Rent in year 7", "$2,866"]) expect(html, text).toContain(text);
+    for (const text of ["Monthly rent now", "$2,400", "Monthly payment to own", "$2,679", "Rent in year 7", "$2,866"]) expect(html, text).toContain(text);
+    expect(html).toContain(">principal, interest, tax and insurance<");
+    expect(html).not.toContain("Mortgage payment<");
+  });
+
+  it("names mortgage insurance and HOA dues in the payment to own when they are in it", () => {
+    expect(results(FULLER)).toContain("$3,295");
+    expect(results(FULLER)).toContain(">principal, interest, tax and insurance, mortgage insurance, HOA dues<");
+    expect(results({ monthlyHoa: "200" })).toContain(">principal, interest, tax and insurance, HOA dues<");
+    expect(results({ downPayment: "10", monthlyMi: "150" })).toContain(">principal, interest, tax and insurance, mortgage insurance<");
+    // Typed with 20% down, mortgage insurance is not charged and not named.
+    expect(results({ monthlyMi: "150" })).toContain(">principal, interest, tax and insurance<");
+    expect(results({ monthlyMi: "150" })).toContain("$2,679");
+  });
+
+  it("breaks the payment to own into its parts, with their total", () => {
+    const box = breakdown(results());
+    const line = (label: string, value: string) => new RegExp(`<dt>${label}</dt><dd[^>]*>\\${value}</dd>`);
+    expect(box).toMatch(line("Principal and interest", "$2,129"));
+    expect(box).toMatch(line("Property tax", "$400"));
+    expect(box).toMatch(line("Homeowners insurance", "$150"));
+    expect(box).toMatch(line("Monthly payment to own", "$2,679"));
+    expect(box).not.toContain("Mortgage insurance");
+    expect(box).not.toContain("HOA dues");
+    expect(box).not.toContain("Maintenance<");
+    expect(results()).toContain("Maintenance is counted in the totals below, not in this payment.");
+    expect(results()).not.toContain("the tax saving");
+
+    const fuller = breakdown(results(FULLER));
+    expect(fuller).toMatch(line("Principal and interest", "$2,395"));
+    expect(fuller).toMatch(line("Mortgage insurance", "$150"));
+    expect(fuller).toMatch(line("HOA dues", "$200"));
+    expect(fuller).toMatch(line("Monthly payment to own", "$3,295"));
+    expect(fuller.indexOf("Homeowners insurance")).toBeLessThan(fuller.indexOf("Mortgage insurance"));
+    expect(fuller.indexOf("Mortgage insurance")).toBeLessThan(fuller.indexOf("HOA dues"));
+    expect(results(FULLER)).toContain("Maintenance and the tax saving are counted in the totals below, not in this payment.");
+    // The breakdown is there for a one-year stay too.
+    expect(breakdown(results({ stayYears: "1" }))).toMatch(line("Monthly payment to own", "$2,679"));
+  });
+
+  it("adds mortgage insurance and HOA dues to the Buying column when entered, and only then", () => {
+    const html = results(FULLER);
+    const column = html.slice(html.indexOf(">Buying</h2>"), html.indexOf(">Renting</h2>"));
+    for (const text of ["Down payment", "$40,000", "Mortgage insurance", "$12,600", "HOA dues", "$18,390", "Total paid", "$361,399", "Net cost of buying", "$189,848"]) {
+      expect(column, text).toContain(text);
+    }
+    expect(column).toMatch(/<dt>Homeowners insurance<\/dt>.*<dt>Mortgage insurance<\/dt>.*<dt>HOA dues<\/dt>.*<dt>Maintenance<\/dt>.*<dt>Total paid<\/dt>/);
+    const plain = results();
+    const plainColumn = plain.slice(plain.indexOf(">Buying</h2>"), plain.indexOf(">Renting</h2>"));
+    expect(plainColumn).not.toContain("Mortgage insurance");
+    expect(plainColumn).not.toContain("HOA dues");
+    expect(plainColumn).not.toContain("Income tax saved");
+  });
+
+  it("takes the income tax saved on the interest off after Total paid, with the sentence about itemizing", () => {
+    const html = results(FULLER);
+    const column = html.slice(html.indexOf(">Buying</h2>"), html.indexOf(">Renting</h2>"));
+    expect(column).toMatch(/<dt>Total paid<\/dt><dd[^>]*>\$361,399<\/dd><\/div><div[^>]*><dt>Income tax saved on mortgage interest<\/dt><dd[^>]*>-\$37,250<\/dd>/);
+    expect(column).toContain(TAX_NOTE);
+    expect(html).toContain("Buying comes out ahead by $14,547");
+    expect(html).toContain("Buying pulls ahead in year 6.");
+    expect(results({ incomeTaxRate: "22" })).toContain("Buying comes out ahead by $43,927");
+    for (const off of [results(), results({ incomeTaxRate: "0" }), results({ incomeTaxRate: "" })]) {
+      expect(off).not.toContain("Income tax saved");
+      expect(off).not.toContain(TAX_NOTE);
+      expect(off).toContain("Buying comes out ahead by $10,816");
+    }
+    // A rate with no interest to deduct takes nothing off and never prints "-$0".
+    const noLoan = results({ downPayment: "100", incomeTaxRate: "22" });
+    expect(noLoan).toMatch(/<dt>Income tax saved on mortgage interest<\/dt><dd[^>]*>\$0<\/dd>/);
+  });
+
+  it("prints the tax saving and its sentence when the deduction is counted, and only then", () => {
+    expect(printDetails(FULLER)).toContain(TAX_NOTE);
+    expect(printDetails()).not.toContain(TAX_NOTE);
+    const i = input(FULLER);
+    const summary = renderToStaticMarkup(<RentVsBuyPrintSummary input={i} result={calculateRentVsBuy(i)!} />);
+    for (const text of ["Monthly payment to own", "$3,295", "Principal and interest", "$2,395", "Income tax saved on mortgage interest", "$37,250", "Buying comes out ahead by $14,547"]) {
+      expect(summary, text).toContain(text);
+    }
   });
 
   it("leaves out the last-year rent and the chart for a one-year stay", () => {
@@ -314,7 +406,15 @@ describe("the figures under the headline", () => {
     for (const html of [nothingDown, allCash]) expect(html).not.toContain("-$0");
   });
 
-  it("adds the mortgage insurance line only under 20% down", () => {
+  it("asks for the mortgage insurance amount only under 20% down with none entered", () => {
+    expect(MI_LINE).not.toMatch(BAD_WORDS);
+    for (const changes of [{ downPayment: "10", monthlyMi: "150" }, FULLER, { downPayment: "0", monthlyMi: "1" }]) {
+      expect(results(changes), JSON.stringify(changes)).not.toContain("most loans add mortgage insurance");
+      expect(printDetails(changes), JSON.stringify(changes)).not.toContain("most loans add mortgage insurance");
+    }
+    expect(results({ downPayment: "10", monthlyMi: "0" })).toContain(MI_LINE);
+    expect(results({ downPayment: "10", monthlyMi: "-5" })).toContain(MI_LINE);
+    expect(printDetails({ downPayment: "10" })).toContain(MI_LINE);
     expect(results()).not.toContain(MI_LINE);
     expect(results({ downPayment: "19.9" })).toContain(MI_LINE);
     expect(results(ZERO_DOWN)).toContain(MI_LINE);
@@ -332,22 +432,41 @@ describe("the figures under the headline", () => {
   });
 });
 
-describe("the assumptions list", () => {
+describe("the assumptions list, on the printed page only", () => {
   it("states every assumption the example uses", () => {
     expect(assumptionLines(input())).toEqual([
       "Loan term: 30 years",
       "Closing costs on the purchase: $8,000",
       "Property tax: $4,800 a year, rising with the home's value",
       "Homeowners insurance: $1,800 a year, rising 3% a year",
+      "Mortgage insurance: none",
+      "HOA dues: none",
       "Maintenance: $4,000 a year, rising 3% a year",
       "Home value rises 3% a year",
       "Rent rises 3% a year",
       "Selling costs: 6% of the sale price",
       "The down payment would earn 5% a year if invested instead",
-      NOT_INVESTED,
-      NOT_INCLUDED_BUYING,
-      NOT_INCLUDED_RENTING,
+      NOT_INCLUDED,
     ]);
+  });
+
+  it("states mortgage insurance, HOA dues and the income tax rate when they are used", () => {
+    const lines = assumptionLines(input(FULLER));
+    expect(lines).toHaveLength(13);
+    expect(lines).toContain("Mortgage insurance: $150 a month until the loan balance reaches 78% of the home price");
+    expect(lines).toContain("HOA dues: $200 a month, rising 3% a year");
+    expect(lines.at(-2)).toBe("Income tax rate for the interest deduction: 22%");
+    expect(lines.at(-1)).toBe(NOT_INCLUDED);
+    const printed = printDetails(FULLER);
+    for (const line of lines) expect(printed, line).toContain(escaped(line));
+  });
+
+  it("says mortgage insurance is not counted when it was typed with 20% or more down", () => {
+    expect(assumptionLines(input({ monthlyMi: "150" }))).toContain("Mortgage insurance: not counted, the down payment is 20% or more");
+    expect(assumptionLines(input({ downPayment: "19.9", monthlyMi: "150" }))).toContain("Mortgage insurance: $150 a month until the loan balance reaches 78% of the home price");
+    expect(assumptionLines(input({ downPayment: "10", monthlyMi: "-150" }))).toContain("Mortgage insurance: none");
+    expect(assumptionLines(input({ monthlyHoa: "-20" }))).toContain("HOA dues: none");
+    expect(assumptionLines(input({ incomeTaxRate: "0" })).join(" ")).not.toContain("Income tax rate");
   });
 
   it("follows what was typed", () => {
@@ -375,17 +494,16 @@ describe("the assumptions list", () => {
     expect(lines).toContain("Property tax: $0 a year");
     expect(lines).toContain("Homeowners insurance: $0 a year");
     expect(lines).toContain("Maintenance: $0 a year");
-    const html = results(ZERO_COSTS);
-    expect(html).toContain("comes out ahead by");
-    expect(count(html, "$0 a year")).toBe(3);
-    expect(html).not.toContain("none entered");
+    expect(results(ZERO_COSTS)).toContain("comes out ahead by");
+    const printed = printDetails(ZERO_COSTS);
+    expect(count(printed, "$0 a year")).toBe(3);
+    expect(printed).not.toContain("none entered");
   });
 
-  it("F5: says the monthly difference is not invested and what each side leaves out, on screen and in print", () => {
-    for (const html of [results(), results(RENTING_AHEAD), printDetails()]) {
-      for (const line of [NOT_INVESTED, NOT_INCLUDED_BUYING, NOT_INCLUDED_RENTING]) expect(html, line).toContain(line);
-      expect(html).not.toContain("Not included: ");
-    }
+  it("says what is not included, in print and not on screen", () => {
+    expect(printDetails()).toContain(NOT_INCLUDED);
+    expect(printDetails()).not.toContain("Not included on the");
+    expect(results()).not.toContain("Not included");
   });
 });
 
@@ -477,6 +595,28 @@ describe("nothing to compare", () => {
     expect(prompt({ sellingCosts: "21" })).toBe("Selling costs must be between 0% and 20%.");
     expect(prompt({ sellingCosts: "-1" })).toBe("Selling costs must be between 0% and 20%.");
     expect(results({ sellingCosts: "21" })).toContain("Selling costs must be between 0% and 20%.");
+  });
+
+  it("names unreadable mortgage insurance or HOA dues, which may be left empty", () => {
+    expect(prompt({ monthlyMi: "abc" })).toBe("Enter a number for Mortgage insurance, or leave it empty.");
+    expect(prompt({ monthlyHoa: "2..0" })).toBe("Enter a number for HOA dues, or leave it empty.");
+    expect(results({ monthlyHoa: "abc" })).toContain("Enter a number for HOA dues, or leave it empty.");
+    expect(results({ monthlyHoa: "abc" })).toContain('role="status"');
+    expect(results({ monthlyMi: "", monthlyHoa: "" })).toContain("comes out ahead by");
+  });
+
+  it("names an income tax rate that is unreadable or outside 0% to 50%", () => {
+    expect(prompt({ incomeTaxRate: "abc" })).toBe("Enter a number for Income tax rate, or leave it empty.");
+    expect(prompt({ incomeTaxRate: "." })).toBe("Enter a number for Income tax rate, or leave it empty.");
+    expect(prompt({ incomeTaxRate: "51" })).toBe("Income tax rate must be between 0% and 50%.");
+    expect(prompt({ incomeTaxRate: "-5" })).toBe("Income tax rate must be between 0% and 50%.");
+    expect(results({ incomeTaxRate: "60" })).toContain("Income tax rate must be between 0% and 50%.");
+    expect(results({ incomeTaxRate: "50" })).toContain("comes out ahead by");
+    // The must-enter costs and the four assumption rates come first.
+    expect(prompt({ incomeTaxRate: "abc", monthlyMi: "abc", yearlyTax: "" })).toBe(COSTS_PROMPT);
+    expect(prompt({ incomeTaxRate: "abc", monthlyMi: "abc" })).toBe("Enter a number for Mortgage insurance, or leave it empty.");
+    expect(prompt({ incomeTaxRate: "abc", appreciation: "" })).toBe("Enter a number for Home value rises. 0 is allowed.");
+    expect(prompt({ incomeTaxRate: "60", sellingCosts: "50" })).toBe("Selling costs must be between 0% and 20%.");
   });
 
   it("F3: gives the first message that applies, in the pinned order", () => {

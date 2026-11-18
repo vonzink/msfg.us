@@ -10,18 +10,20 @@ const field = (id: string) => [...FRONT_FIELDS, ...DETAIL_FIELDS].find((f) => f.
 const ASSUMPTION_RATES = ["appreciation", "rentIncrease", "sellingCosts", "investmentReturn"];
 
 describe("rent vs buy fields", () => {
-  it("has five inputs up front (plus the down payment unit) and nine behind Add detail", () => {
+  it("has five inputs up front (plus the down payment unit) and twelve behind Add detail", () => {
     expect(FRONT_FIELDS.map((f) => f.id)).toEqual(["monthlyRent", "homePrice", "downPayment", "downUnit", "rate", "stayYears"]);
     expect(DETAIL_FIELDS.map((f) => f.id)).toEqual([
-      "termYears", "closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance", "appreciation", "rentIncrease", "sellingCosts", "investmentReturn",
+      "termYears", "closingCosts", "yearlyTax", "yearlyInsurance", "monthlyMi", "monthlyHoa", "yearlyMaintenance",
+      "appreciation", "rentIncrease", "sellingCosts", "investmentReturn", "incomeTaxRate",
     ]);
   });
 
   it("has the pinned labels", () => {
     expect([...FRONT_FIELDS, ...DETAIL_FIELDS].map((f) => f.label)).toEqual([
       "Monthly rent", "Home price", "Down payment", "Down payment as", "Interest rate", "Years you plan to stay",
-      "Loan term", "Closing costs", "Property tax", "Homeowners insurance", "Maintenance",
+      "Loan term", "Closing costs", "Property tax", "Homeowners insurance", "Mortgage insurance", "HOA dues", "Maintenance",
       "Home value rises", "Rent rises", "Selling costs", "Return if the down payment were invested",
+      "Income tax rate, to count the interest deduction",
     ]);
   });
 
@@ -30,6 +32,11 @@ describe("rent vs buy fields", () => {
     expect(field("stayYears")).toMatchObject({ type: "num", suffix: "yr" });
     expect(field("termYears").options!.map((o) => o.value)).toEqual(["10", "15", "20", "25", "30"]);
     expect(field("downUnit").options!.map((o) => o.value)).toEqual(["pct", "usd"]);
+    expect(field("monthlyMi")).toMatchObject({ type: "money", hint: "Per month. Common with less than 20% down.", example: "" });
+    expect(field("monthlyHoa")).toMatchObject({ type: "money", hint: "Per month.", example: "" });
+    expect(field("incomeTaxRate")).toMatchObject({
+      type: "pct", example: "", hint: "Optional. Leave empty to leave it out. It only applies if you itemize deductions.",
+    });
     expect(field("closingCosts")).toMatchObject({ type: "money", hint: "The buyer's costs on the purchase, as one total.", example: "8,000" });
     for (const id of ["yearlyTax", "yearlyInsurance"]) expect(field(id)).toMatchObject({ type: "money", hint: "Per year." });
     expect(field("yearlyMaintenance")).toMatchObject({ type: "money", hint: "Per year. About 1% of the home price is a common rule of thumb." });
@@ -40,8 +47,8 @@ describe("rent vs buy fields", () => {
   it("opens with the pinned example values at the tenant's rate", () => {
     expect(example).toEqual({
       monthlyRent: "2,400", homePrice: "400,000", downPayment: "20", downUnit: "pct", rate: "7", stayYears: "7",
-      termYears: "30", closingCosts: "8,000", yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000",
-      appreciation: "3", rentIncrease: "3", sellingCosts: "6", investmentReturn: "5",
+      termYears: "30", closingCosts: "8,000", yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyMi: "", monthlyHoa: "", yearlyMaintenance: "4,000",
+      appreciation: "3", rentIncrease: "3", sellingCosts: "6", investmentReturn: "5", incomeTaxRate: "",
     });
     expect(exampleValues(6.5).rate).toBe("6.5");
   });
@@ -49,14 +56,14 @@ describe("rent vs buy fields", () => {
   it("at 7% is the golden example plus $8,000 of closing costs, with buying pulling ahead in year 6", () => {
     const goldenInput = golden.cases.find((c) => c.name === "example")!.input;
     const input = toInput(example);
-    expect(input).toEqual({ ...goldenInput, closingCosts: 8000 });
+    expect(input).toEqual({ ...goldenInput, closingCosts: 8000, monthlyMi: 0, monthlyHoa: 0, incomeTaxRate: 0 });
     const r = calculateRentVsBuy(input)!;
     expect(r.pullAheadYear).toBe(6);
     expect(r.difference).toBe(10816.32); // 18,816.32 - 8,000
     expect(r.monthlyPayment).toBe(2128.97);
     // With closing costs of 0 it is the dashboard's example to the cent.
     const zero = toInput({ ...example, closingCosts: "0" });
-    expect(zero).toEqual({ ...goldenInput, closingCosts: 0 });
+    expect(zero).toEqual({ ...goldenInput, closingCosts: 0, monthlyMi: 0, monthlyHoa: 0, incomeTaxRate: 0 });
     expect(calculateRentVsBuy(zero)).toMatchObject({ difference: 18816.32, pullAheadYear: 5 });
   });
 
@@ -79,8 +86,8 @@ describe("rent vs buy fields", () => {
   it("clears to empty amounts, the default choices and the four starting assumption rates", () => {
     expect(BLANK).toEqual({
       monthlyRent: "", homePrice: "", downPayment: "", downUnit: "pct", rate: "", stayYears: "",
-      termYears: "30", closingCosts: "", yearlyTax: "", yearlyInsurance: "", yearlyMaintenance: "",
-      appreciation: "3", rentIncrease: "3", sellingCosts: "6", investmentReturn: "5",
+      termYears: "30", closingCosts: "", yearlyTax: "", yearlyInsurance: "", monthlyMi: "", monthlyHoa: "", yearlyMaintenance: "",
+      appreciation: "3", rentIncrease: "3", sellingCosts: "6", investmentReturn: "5", incomeTaxRate: "",
     });
     for (const id of ASSUMPTION_RATES) expect(BLANK[id], id).toBe(example[id]);
   });
@@ -185,6 +192,35 @@ describe("nothing to compare gives no result, never a crash", () => {
     expect(switchUnitKeepingZero(example, "usd")).toEqual(switchDownUnit(example, "usd"));
     expect(switchUnitKeepingZero(example, "pct")).toBe(example);
     expect(switchUnitKeepingZero({ ...example, downPayment: "" }, "usd").downPayment).toBe("");
+  });
+
+  it("mortgage insurance and HOA dues are optional: empty is none, a number is monthly dollars, anything else is unreadable", () => {
+    for (const id of ["monthlyMi", "monthlyHoa"] as const) {
+      for (const text of ["", " ", "0"]) expect(toInput({ ...example, [id]: text })[id], `${id} ${JSON.stringify(text)}`).toBe(0);
+      expect(toInput({ ...example, [id]: "$1,250.50" })[id]).toBe(1250.5);
+      for (const text of [".", "abc", "15..0", "15o"]) {
+        expect(Number.isNaN(toInput({ ...example, [id]: text })[id]), `${id} ${JSON.stringify(text)}`).toBe(true);
+        expect(result({ [id]: text }), `${id} ${JSON.stringify(text)}`).toBeNull();
+      }
+    }
+    expect(result({ downPayment: "10", monthlyMi: "150", monthlyHoa: "200" })!.buying).toMatchObject({ mortgageInsurance: 12600, hoa: 18389.91 });
+    expect(result({ downPayment: "10", monthlyMi: "-150", monthlyHoa: "-200" })!.buying).toMatchObject({ mortgageInsurance: 0, hoa: 0 });
+  });
+
+  it("the income tax rate is optional: empty is off, a number is a percent, anything else is unreadable", () => {
+    for (const text of ["", " ", "0"]) expect(toInput({ ...example, incomeTaxRate: text }).incomeTaxRate, JSON.stringify(text)).toBe(0);
+    expect(toInput({ ...example, incomeTaxRate: "22" }).incomeTaxRate).toBe(0.22);
+    expect(toInput({ ...example, incomeTaxRate: "22%" }).incomeTaxRate).toBe(0.22);
+    expect(result({ incomeTaxRate: "22" })!.buying.taxSavedOnInterest).toBe(33111.11);
+    expect(result({ incomeTaxRate: "50" })).not.toBeNull();
+    for (const text of [".", "abc", "2..2", "51", "-1"]) expect(result({ incomeTaxRate: text }), JSON.stringify(text)).toBeNull();
+    for (const text of [".", "abc", "2..2"]) expect(Number.isNaN(toInput({ ...example, incomeTaxRate: text }).incomeTaxRate), JSON.stringify(text)).toBe(true);
+  });
+
+  it("the cleared form, once the five inputs and four costs are typed, needs nothing in the optional boxes", () => {
+    const r = result({ ...BLANK, monthlyRent: "2,400", homePrice: "400,000", downPayment: "20", rate: "7", stayYears: "7", closingCosts: "8,000", yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000" })!;
+    expect(r.difference).toBe(10816.32);
+    expect(r.firstMonth.total).toBe(2678.97);
   });
 
   it("counts a negative yearly cost as zero", () => {

@@ -7,9 +7,11 @@
  *
  * What is compared, over the years the visitor plans to stay
  *   - Buying: the down payment, the closing costs on the purchase, the mortgage payments
- *     (principal and interest), property tax, homeowners insurance and maintenance, added up. Then the home is sold: what is left after
- *     paying off the loan and the selling costs (the equity) is taken off. That is the net cost
- *     of buying.
+ *     (principal and interest), property tax, homeowners insurance, mortgage insurance, HOA dues
+ *     and maintenance, added up. That is the total paid. Then the income tax saved on the mortgage
+ *     interest is taken off, when a tax rate was entered, and the home is sold: what is left
+ *     after paying off the loan and the selling costs (the equity) is taken off. That is the net
+ *     cost of buying.
  *   - Renting: the rent, added up, minus what the down payment would have earned if it had been
  *     invested instead. That is the net cost of renting.
  *   - The difference is renting's net cost minus buying's. Positive means buying is ahead.
@@ -19,6 +21,8 @@
  *   - Closing costs, property tax, homeowners insurance and maintenance must each be entered. NaN
  *     means "not entered" and gives no result, so a comparison is never shown with a cost silently
  *     left out. A 0 is an entry. A negative amount counts as zero.
+ *   - Mortgage insurance, HOA dues and the income tax rate are optional: 0 means none. NaN means
+ *     the box held something unreadable and gives no result. Negative amounts count as zero.
  *   - Property tax in year y (counting from 0) is `yearlyTax x (1 + appreciation)^y`: it follows
  *     the home's value.
  *   - Insurance and maintenance in year y are multiplied by `(1 + COST_INFLATION)^y`. The
@@ -36,6 +40,28 @@
  *     at the end of year N". The year buying pulls ahead is looked for up to MAX_YEARS, also
  *     past the stay.
  *
+ * Added to the ported model. With all of these at 0 the model is the ported one, and the golden
+ * cases are run that way.
+ *   - Mortgage insurance is the monthly amount typed, by the Mortgage calculator's rule
+ *     (`mortgage/math.ts`, kept in step by hand since calculators do not import each other): it
+ *     is charged only when the loan starts above 80% of the price, on every payment before the
+ *     first one at which the scheduled balance is at or below 78% of the price, and never past the
+ *     loan's midpoint: payment numbers below `min(cutoff, termMonths / 2 + 1)`. It does not rise.
+ *     Here the scheduled balance is the unrounded closed form (`remainingBalance`); the Mortgage
+ *     calculator rounds each row to cents, so the two could differ by one payment when a balance
+ *     lands within a cent of the 78% line.
+ *   - HOA dues are a monthly amount, twelve a year, multiplied by `(1 + COST_INFLATION)^y` like
+ *     insurance and maintenance.
+ *   - The mortgage interest deduction. Interest paid in a year is that year's payments minus the
+ *     fall in the scheduled balance; it stops when the payments stop. The tax saved is
+ *     `incomeTaxRate x interest`, summed over the years and taken off the cost of buying in every
+ *     year of the path. It counts mortgage interest only (not property tax, not mortgage
+ *     insurance), assumes the visitor itemizes and that all of the interest is deductible, and
+ *     ignores the standard deduction and any cap. The page says so. A rate of 0 is "off".
+ *   - The monthly payment to own (`firstMonth`) is what the first month costs: principal and
+ *     interest, a twelfth of the yearly tax and insurance, mortgage insurance when it is charged
+ *     on payment 1, and HOA dues. Maintenance is not in it.
+ *
  * The two deliberate differences from the dashboard
  *   - Closing costs on the purchase. The dashboard has no such field. Here they are one amount,
  *     paid once at the start and added to the total paid, so they count in every year of the
@@ -49,7 +75,7 @@
  *     hand-checked in the tests.
  *
  * Not modelled, and said so on the page
- *   - Mortgage insurance, HOA dues, renters insurance and income tax effects.
+ *   - Renters insurance, and income tax effects other than the optional interest deduction.
  *   - Investing any monthly difference between the two paths: as on the dashboard, the renter's
  *     side grows only the down payment.
  *   - The loan is a fixed-rate loan with no extra payments.
@@ -66,6 +92,12 @@ export const RATE_LIMIT = 0.3;
 export const ASSUMPTION_RANGE = { low: -0.2, high: 0.3 };
 /** Allowed range, ends included, of the selling costs. */
 export const SELLING_COSTS_RANGE = { low: 0, high: 0.2 };
+/** Allowed range, ends included, of the income tax rate for the interest deduction. 0 is off. */
+export const INCOME_TAX_RANGE = { low: 0, high: 0.5 };
+/** Mortgage insurance is charged only when the loan starts above this share of the price. */
+const MI_STARTS_ABOVE = 0.8;
+/** It stops at the first payment at which the scheduled balance is at or below this share. */
+const MI_ENDS_AT = 0.78;
 
 export type RentVsBuyInput = {
   monthlyRent: number;
@@ -80,7 +112,13 @@ export type RentVsBuyInput = {
   closingCosts: number;
   yearlyTax: number;
   yearlyInsurance: number;
+  /** Monthly dollars. 0 is none. Ignored when the down payment is 20% or more. */
+  monthlyMi: number;
+  /** Monthly dollars in the first year. 0 is none. */
+  monthlyHoa: number;
   yearlyMaintenance: number;
+  /** For the mortgage interest deduction. 0 is off. */
+  incomeTaxRate: number;
   appreciation: number;
   rentIncrease: number;
   sellingCosts: number;
@@ -97,22 +135,46 @@ export type YearPoint = {
 
 export type RentVsBuyResult = {
   loanAmount: number;
+  /** Principal and interest. */
   monthlyPayment: number;
+  /** What the first month of owning costs, part by part. Maintenance is not in it. */
+  firstMonth: {
+    principalAndInterest: number;
+    /** A twelfth of the first year's property tax. */
+    tax: number;
+    /** A twelfth of the first year's homeowners insurance. */
+    insurance: number;
+    /** 0 unless mortgage insurance is charged on the first payment. */
+    mi: number;
+    hoa: number;
+    /** The five parts added up, before rounding, then rounded. */
+    total: number;
+  };
+  /** The first payment with no mortgage insurance on it. null when none is charged at all. */
+  miEndPayment: number | null;
+  /** How many payments within the stay carry mortgage insurance. */
+  miMonthsInStay: number;
   buying: {
     downPayment: number;
     closingCosts: number;
     mortgagePayments: number;
     propertyTax: number;
     insurance: number;
+    mortgageInsurance: number;
+    hoa: number;
     maintenance: number;
-    /** The six lines above added up. */
+    /** The eight lines above added up. */
     totalPaid: number;
+    /** Mortgage interest within the stay: the payments minus the fall in the balance. */
+    interestPaid: number;
+    /** incomeTaxRate x interestPaid. 0 when the rate is 0. */
+    taxSavedOnInterest: number;
     homeValue: number;
     loanBalance: number;
     sellingCosts: number;
     /** Home value minus loan balance minus selling costs. Can be negative. */
     equity: number;
-    /** totalPaid minus equity. */
+    /** totalPaid minus taxSavedOnInterest minus equity. */
     netCost: number;
   };
   renting: {
@@ -149,8 +211,15 @@ const cents = (x: number): number => (x < 0 ? -roundCents(-x) : roundCents(x)) +
  * MAX_YEARS; term not above zero; closing costs, tax, insurance or maintenance NaN (not entered); any of the four
  * assumption rates NaN; appreciation, rent increase or investment return outside ASSUMPTION_RANGE;
  * selling costs outside SELLING_COSTS_RANGE.
- * Negative closing costs, tax, insurance and maintenance count as zero.
+ * Also null when mortgage insurance or HOA dues is NaN (unreadable), or the income tax rate is NaN
+ * or outside INCOME_TAX_RANGE.
+ * Negative closing costs, tax, insurance, mortgage insurance, HOA dues and maintenance count as zero.
  */
+
+/** True when the loan starts above 80% of the price: the case in which mortgage insurance is charged. */
+export const mortgageInsuranceApplies = (input: Pick<RentVsBuyInput, "homePrice" | "downPayment">): boolean =>
+  input.homePrice - input.downPayment > input.homePrice * MI_STARTS_ABOVE;
+
 export function calculateRentVsBuy(input: RentVsBuyInput): RentVsBuyResult | null {
   const { monthlyRent, homePrice, downPayment, rate, stayYears, termMonths, appreciation, rentIncrease, sellingCosts, investmentReturn } = input;
   if (
@@ -164,16 +233,32 @@ export function calculateRentVsBuy(input: RentVsBuyInput): RentVsBuyResult | nul
     !within(appreciation, ASSUMPTION_RANGE.low, ASSUMPTION_RANGE.high) ||
     !within(rentIncrease, ASSUMPTION_RANGE.low, ASSUMPTION_RANGE.high) ||
     !within(investmentReturn, ASSUMPTION_RANGE.low, ASSUMPTION_RANGE.high) ||
-    !within(sellingCosts, SELLING_COSTS_RANGE.low, SELLING_COSTS_RANGE.high)
+    !within(sellingCosts, SELLING_COSTS_RANGE.low, SELLING_COSTS_RANGE.high) ||
+    Number.isNaN(input.monthlyMi) || Number.isNaN(input.monthlyHoa) ||
+    !within(input.incomeTaxRate, INCOME_TAX_RANGE.low, INCOME_TAX_RANGE.high)
   ) return null;
 
   const closingCosts = amount(input.closingCosts);
   const yearlyTax = amount(input.yearlyTax);
   const yearlyInsurance = amount(input.yearlyInsurance);
   const yearlyMaintenance = amount(input.yearlyMaintenance);
+  const monthlyHoa = amount(input.monthlyHoa);
+  const { incomeTaxRate } = input;
   const loanAmount = homePrice - downPayment;
   const ratePct = percent(rate);
   const payment = monthlyPayment(loanAmount, ratePct, termMonths);
+  const balanceAfter = (payments: number) => remainingBalance(loanAmount, ratePct, termMonths, Math.min(payments, termMonths));
+
+  // Mortgage insurance: on payments numbered below miEndPayment (the Mortgage calculator's rule).
+  const monthlyMi = mortgageInsuranceApplies(input) ? amount(input.monthlyMi) : 0;
+  let miEndPayment: number | null = null;
+  if (monthlyMi > 0) {
+    let cutoff = 1;
+    while (cutoff < termMonths && balanceAfter(cutoff) > homePrice * MI_ENDS_AT) cutoff++;
+    miEndPayment = Math.min(cutoff, termMonths / 2 + 1);
+  }
+  /** Payments carrying mortgage insurance among the first `payments` of the loan. */
+  const miPaymentsWithin = (payments: number) => (miEndPayment === null ? 0 : Math.max(0, Math.min(payments, Math.ceil(miEndPayment) - 1)));
 
   // Running sums, unrounded, added in the dashboard's order. After the pass for year y they hold
   // the totals for a stay of y + 1 years, so one pass gives every year's answer.
@@ -181,6 +266,9 @@ export function calculateRentVsBuy(input: RentVsBuyInput): RentVsBuyResult | nul
   let propertyTax = 0;
   let insurance = 0;
   let maintenance = 0;
+  let mortgageInsurance = 0;
+  let hoa = 0;
+  let interestPaid = 0;
   let totalPaid = downPayment + closingCosts;
   let rentPaid = 0;
   let rentNow = monthlyRent;
@@ -194,26 +282,33 @@ export function calculateRentVsBuy(input: RentVsBuyInput): RentVsBuyResult | nul
     // Payments stop when the loan ends (the one difference from the dashboard).
     const paymentsThisYear = Math.min(12, Math.max(0, termMonths - y * 12));
     const mortgageThisYear = payment * paymentsThisYear;
+    const miThisYear = monthlyMi * (miPaymentsWithin(years * 12) - miPaymentsWithin(y * 12));
+    const hoaThisYear = monthlyHoa * 12 * inflation;
+    // Interest is what was paid less what came off the balance. Nothing once the loan has ended.
+    interestPaid += paymentsThisYear > 0 ? mortgageThisYear - (balanceAfter(y * 12) - balanceAfter(years * 12)) : 0;
     mortgagePayments += mortgageThisYear;
+    mortgageInsurance += miThisYear;
+    hoa += hoaThisYear;
     propertyTax += taxThisYear;
     insurance += insuranceThisYear;
     maintenance += maintenanceThisYear;
-    totalPaid += mortgageThisYear + taxThisYear + insuranceThisYear + maintenanceThisYear;
+    totalPaid += mortgageThisYear + taxThisYear + insuranceThisYear + maintenanceThisYear + miThisYear + hoaThisYear;
 
     const lastMonthlyRent = rentNow;
     rentPaid += rentNow * 12;
     rentNow *= 1 + rentIncrease;
 
     const homeValue = homePrice * Math.pow(1 + appreciation, years);
-    const loanBalance = remainingBalance(loanAmount, ratePct, termMonths, Math.min(years * 12, termMonths));
+    const loanBalance = balanceAfter(years * 12);
     const costOfSelling = homeValue * sellingCosts;
     const equity = homeValue - loanBalance - costOfSelling;
     const downPaymentGrowth = downPayment * Math.pow(1 + investmentReturn, years) - downPayment;
-    const netCostBuying = totalPaid - equity;
+    const taxSaved = incomeTaxRate * interestPaid;
+    const netCostBuying = totalPaid - taxSaved - equity;
     const netCostRenting = rentPaid - downPaymentGrowth;
     return {
       year: years,
-      mortgagePayments, propertyTax, insurance, maintenance, totalPaid,
+      mortgagePayments, propertyTax, insurance, maintenance, mortgageInsurance, hoa, totalPaid, interestPaid, taxSaved,
       homeValue, loanBalance, costOfSelling, equity, netCostBuying,
       rentPaid, lastMonthlyRent, downPaymentGrowth, netCostRenting,
       difference: cents(netCostRenting - netCostBuying),
@@ -221,17 +316,32 @@ export function calculateRentVsBuy(input: RentVsBuyInput): RentVsBuyResult | nul
   });
 
   const end = snapshots[stayYears - 1];
+  const firstMonthMi = miPaymentsWithin(1) * monthlyMi;
   return {
     loanAmount: cents(loanAmount),
     monthlyPayment: cents(payment),
+    firstMonth: {
+      principalAndInterest: cents(payment),
+      tax: cents(yearlyTax / 12),
+      insurance: cents(yearlyInsurance / 12),
+      mi: cents(firstMonthMi),
+      hoa: cents(monthlyHoa),
+      total: cents(payment + yearlyTax / 12 + yearlyInsurance / 12 + firstMonthMi + monthlyHoa),
+    },
+    miEndPayment,
+    miMonthsInStay: miPaymentsWithin(Math.min(stayYears * 12, termMonths)),
     buying: {
       downPayment: cents(downPayment),
       closingCosts: cents(closingCosts),
       mortgagePayments: cents(end.mortgagePayments),
       propertyTax: cents(end.propertyTax),
       insurance: cents(end.insurance),
+      mortgageInsurance: cents(end.mortgageInsurance),
+      hoa: cents(end.hoa),
       maintenance: cents(end.maintenance),
       totalPaid: cents(end.totalPaid),
+      interestPaid: cents(end.interestPaid),
+      taxSavedOnInterest: cents(end.taxSaved),
       homeValue: cents(end.homeValue),
       loanBalance: cents(end.loanBalance),
       sellingCosts: cents(end.costOfSelling),

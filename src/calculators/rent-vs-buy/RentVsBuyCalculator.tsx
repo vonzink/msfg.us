@@ -8,7 +8,7 @@ import { downPaymentField, parseNumber, type FieldDef, type Numbers, type Values
 import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, keepTypedZero, switchUnitKeepingZero, toInput } from "./fields";
 import { calculateRentVsBuy } from "./math";
 import { RentVsBuyPrintDetails, RentVsBuyPrintSummary } from "./PrintSummary";
-import { headlineText, RentVsBuyResults, yearsText } from "./Results";
+import { headlineText, MI_NOT_COUNTED, mortgageInsuranceIgnored, RentVsBuyResults, yearsText } from "./Results";
 
 const grid = "grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-4 gap-y-3.5";
 const card = "rounded-xl border border-line bg-white shadow-card";
@@ -48,6 +48,10 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
   const front: FieldDef[] = FRONT_FIELDS.map((f) =>
     f.id === "downPayment" ? downPaymentField(values.downUnit) : f.id === "rate" ? { ...f, hint: exampleRateNote } : f,
   );
+  // Mortgage insurance typed with 20% or more down is not charged: say so under the box.
+  const detail: FieldDef[] = DETAIL_FIELDS.map((f) =>
+    f.id === "monthlyMi" ? { ...f, warnFn: () => (mortgageInsuranceIgnored(input) ? MI_NOT_COUNTED : null) } : f,
+  );
   const field = (def: FieldDef) => (
     <Field key={def.id} def={def} idPrefix="rentbuy" values={values} numbers={numbers} onChange={onChange} />
   );
@@ -72,7 +76,7 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
 
           <AddDetail>
             <p className="mb-3.5 text-[14px] text-muted">These are the assumptions behind the estimate. Change any that do not fit.</p>
-            <div className={grid}>{DETAIL_FIELDS.map(field)}</div>
+            <div className={grid}>{detail.map(field)}</div>
           </AddDetail>
         </div>
       }

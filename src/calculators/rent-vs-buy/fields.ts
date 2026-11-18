@@ -3,9 +3,10 @@ import type { RentVsBuyInput } from "./math";
 
 /**
  * Inputs of the Rent vs buy calculator. Five are always visible (the down payment has a unit
- * switch beside it); nine sit behind "Add detail" and are the assumptions behind the estimate.
+ * switch beside it); twelve sit behind "Add detail" and are the assumptions behind the estimate.
  * Rent is monthly dollars; closing costs are one total; property tax, insurance and maintenance
- * are yearly dollars.
+ * are yearly dollars; mortgage insurance and HOA dues are monthly dollars. Mortgage insurance, HOA
+ * dues and the income tax rate are optional and start empty: empty means none.
  */
 export const FRONT_FIELDS: FieldDef[] = [
   { id: "monthlyRent", label: "Monthly rent", type: "money", example: "2,400", hint: "Per month." },
@@ -28,11 +29,17 @@ export const DETAIL_FIELDS: FieldDef[] = [
   { id: "closingCosts", label: "Closing costs", type: "money", example: "8,000", hint: "The buyer's costs on the purchase, as one total." },
   { id: "yearlyTax", label: "Property tax", type: "money", example: "4,800", hint: "Per year." },
   { id: "yearlyInsurance", label: "Homeowners insurance", type: "money", example: "1,800", hint: "Per year." },
+  { id: "monthlyMi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month. Common with less than 20% down." },
+  { id: "monthlyHoa", label: "HOA dues", type: "money", example: "", hint: "Per month." },
   { id: "yearlyMaintenance", label: "Maintenance", type: "money", example: "4,000", hint: "Per year. About 1% of the home price is a common rule of thumb." },
   { id: "appreciation", label: "Home value rises", type: "pct", example: "3", hint: "Per year." },
   { id: "rentIncrease", label: "Rent rises", type: "pct", example: "3", hint: "Per year." },
   { id: "sellingCosts", label: "Selling costs", type: "pct", example: "6", hint: "Of the sale price." },
   { id: "investmentReturn", label: "Return if the down payment were invested", type: "pct", example: "5", hint: "Per year." },
+  {
+    id: "incomeTaxRate", label: "Income tax rate, to count the interest deduction", type: "pct", example: "",
+    hint: "Optional. Leave empty to leave it out. It only applies if you itemize deductions.",
+  },
 ];
 
 const ALL = [...FRONT_FIELDS, ...DETAIL_FIELDS];
@@ -66,6 +73,11 @@ const typedAmount = (text: string | undefined): number => {
   const cleaned = String(text ?? "").replace(/[$%,\s]/g, "");
   return /^-?(\d+\.?\d*|\.\d+)$/.test(cleaned) ? Number(cleaned) : Number.NaN;
 };
+
+/** An optional box: empty is 0 ("none"). Anything typed must be one number, or it is NaN. */
+const isEmpty = (text: string | undefined): boolean => String(text ?? "").trim() === "";
+const optionalAmount = (text: string | undefined): number => (isEmpty(text) ? 0 : typedAmount(text));
+const optionalRate = (text: string | undefined): number => (isEmpty(text) ? 0 : parseRate(text));
 
 /** The boxes in which a typed 0 is an answer and has to stay in the box. */
 const ZERO_IS_AN_ANSWER = ["downPayment", "closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance"];
@@ -108,6 +120,10 @@ export function toInput(values: Values): RentVsBuyInput {
     yearlyTax: typedAmount(values.yearlyTax),
     yearlyInsurance: typedAmount(values.yearlyInsurance),
     yearlyMaintenance: typedAmount(values.yearlyMaintenance),
+    // Optional: empty is none. Something unreadable is NaN, which the model turns down.
+    monthlyMi: optionalAmount(values.monthlyMi),
+    monthlyHoa: optionalAmount(values.monthlyHoa),
+    incomeTaxRate: optionalRate(values.incomeTaxRate),
     appreciation: parseRate(values.appreciation),
     rentIncrease: parseRate(values.rentIncrease),
     sellingCosts: parseRate(values.sellingCosts),
