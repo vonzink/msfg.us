@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, switchDownUnit, toInput } from "./fields";
+import { downPaymentField, switchDownUnit } from "../shared/fields";
+import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, toInput } from "./fields";
 import { calculateMortgage } from "./math";
 
 const start = { month: 0, year: 2027 };
@@ -33,25 +34,16 @@ describe("mortgage fields", () => {
   });
 });
 
-describe("switching the down payment between percent and dollars", () => {
-  it("keeps the same down payment, converted to the new unit", () => {
+describe("the shared down payment switch on this calculator's values", () => {
+  it("keeps the same down payment in the model after a change of unit", () => {
     const dollars = switchDownUnit(example, "usd");
     expect(dollars).toMatchObject({ downUnit: "usd", downPayment: "80,000" });
     expect(toInput(dollars, start).downPayment).toBe(80000);
-    expect(switchDownUnit(dollars, "pct")).toMatchObject({ downUnit: "pct", downPayment: "20" });
+    expect(toInput(switchDownUnit(dollars, "pct"), start).downPayment).toBe(80000);
   });
 
-  it("rounds a converted percent to two places", () => {
-    expect(switchDownUnit({ ...example, downUnit: "usd", downPayment: "33,333" }, "pct").downPayment).toBe("8.33");
-  });
-
-  it("clears the box when there is no price to convert against", () => {
-    expect(switchDownUnit({ ...example, homePrice: "" }, "usd").downPayment).toBe("");
-    expect(switchDownUnit({ ...example, homePrice: "", downUnit: "usd", downPayment: "50,000" }, "pct").downPayment).toBe("");
-  });
-
-  it("changes nothing when the unit is already selected", () => {
-    expect(switchDownUnit(example, "pct")).toEqual(example);
+  it("uses the shared down payment box up front", () => {
+    expect(FRONT_FIELDS[1]).toEqual(downPaymentField("pct"));
   });
 });
 

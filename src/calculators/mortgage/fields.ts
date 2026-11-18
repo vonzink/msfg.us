@@ -1,18 +1,12 @@
-import { parseNumber, parseRate, type FieldDef, type Values } from "../shared/fields";
+import { downPaymentField, parseNumber, parseRate, type FieldDef, type Values } from "../shared/fields";
 import type { ExtraFrequency, MortgageInput } from "./math";
 
 /**
  * Inputs of the Mortgage calculator. Six are always visible; four sit behind "Add detail".
  * Property tax and insurance are yearly dollars; HOA dues and mortgage insurance are monthly.
- * Every public calculator uses those same units.
+ * Every public calculator uses those same units. The down payment box and its unit switch come
+ * from the shared kit.
  */
-
-/** The down payment box changes between dollars and percent with the unit switch beside it. */
-export function downPaymentField(unit: string): FieldDef {
-  return unit === "usd"
-    ? { id: "downPayment", label: "Down payment", type: "money", example: "80,000" }
-    : { id: "downPayment", label: "Down payment", type: "pct", example: "20" };
-}
 
 export const FRONT_FIELDS: FieldDef[] = [
   { id: "homePrice", label: "Home price", type: "money", example: "400,000" },
@@ -54,24 +48,6 @@ export function exampleValues(exampleRatePct: number): Values {
 
 /** Cleared form. Choices keep their setting. */
 export const BLANK: Values = Object.fromEntries(ALL.map((f) => [f.id, f.type === "choice" ? f.example : ""]));
-
-/**
- * Changes the down payment unit and converts what is in the box, so 20% of a $400,000 home
- * becomes $80,000 and back. Without a price there is nothing to convert against, so the box clears.
- */
-export function switchDownUnit(values: Values, unit: string): Values {
-  if (unit === values.downUnit) return values;
-  const price = parseNumber(values.homePrice);
-  const typed = parseNumber(values.downPayment);
-  let downPayment = "";
-  if (price > 0 && typed > 0) {
-    downPayment =
-      unit === "usd"
-        ? Math.round((price * typed) / 100).toLocaleString("en-US")
-        : String(Math.round((typed / price) * 10000) / 100);
-  }
-  return { ...values, downUnit: unit, downPayment };
-}
 
 const FREQUENCIES: ExtraFrequency[] = ["monthly", "annually", "one-time"];
 

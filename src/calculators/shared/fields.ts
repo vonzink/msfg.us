@@ -36,3 +36,31 @@ export function parseRate(v: string | undefined): number {
   const text = String(v ?? "").trim().replace(/%$/, "").trim().replace(",", ".");
   return /^-?(\d+\.?\d*|\.\d+)$/.test(text) ? Number(text) / 100 : Number.NaN;
 }
+
+/**
+ * The down payment box changes between dollars and percent with the unit switch beside it.
+ * A calculator that uses it has the fields `homePrice`, `downPayment` and `downUnit` ("pct" or "usd").
+ */
+export function downPaymentField(unit: string): FieldDef {
+  return unit === "usd"
+    ? { id: "downPayment", label: "Down payment", type: "money", example: "80,000" }
+    : { id: "downPayment", label: "Down payment", type: "pct", example: "20" };
+}
+
+/**
+ * Changes the down payment unit and converts what is in the box, so 20% of a $400,000 home
+ * becomes $80,000 and back. Without a price there is nothing to convert against, so the box clears.
+ */
+export function switchDownUnit(values: Values, unit: string): Values {
+  if (unit === values.downUnit) return values;
+  const price = parseNumber(values.homePrice);
+  const typed = parseNumber(values.downPayment);
+  let downPayment = "";
+  if (price > 0 && typed > 0) {
+    downPayment =
+      unit === "usd"
+        ? Math.round((price * typed) / 100).toLocaleString("en-US")
+        : String(Math.round((typed / price) * 10000) / 100);
+  }
+  return { ...values, downUnit: unit, downPayment };
+}
