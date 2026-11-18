@@ -14,6 +14,7 @@ const ROUTES = [
   "/commercial",
   "/rates",
   "/loan-officers",
+  "/calculators/investment",
   "/developers",
   "/apply/buy",
   "/apply/refi",
