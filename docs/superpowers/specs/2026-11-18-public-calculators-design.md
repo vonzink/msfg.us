@@ -115,15 +115,17 @@ The goal is to bring seven of those calculators to the public site, restyled to 
 ### Rent vs buy
 
 - **Up front:** current monthly rent; home price; down payment; interest rate; how long you plan to stay.
-- **Add detail:** loan term; closing costs on the purchase; property tax; homeowners insurance; yearly maintenance; home appreciation rate; yearly rent increase; selling costs; return if the down payment were invested.
+- **Add detail:** loan term; closing costs on the purchase; property tax; homeowners insurance; monthly mortgage insurance; monthly HOA dues; yearly maintenance; home appreciation rate; yearly rent increase; selling costs; return if the down payment were invested; income tax rate for the interest deduction (optional).
 - **Removed:** annual cost inflation as an input, replaced by a fixed assumption that is stated on the page.
 - **Results:** a plain headline saying which path is ahead after the chosen years and by how much; the year buying pulls ahead, if it does; a chart of the two paths; a side-by-side of costs and what the buyer ends up owning.
-- **Assumptions rule:** the assumptions in use are printed under the result even when the detail section is closed.
+- **Assumptions rule: withdrawn on screen.** The first design printed the assumptions in use under the result even with the detail section closed. Zachary tested that on staging on 2026-11-18 and had the box removed ("don't need that"). The list stays on the printed page **(builder's call)**, because the form does not print and the printout would otherwise not show what the figures rest on. The values themselves are in "Add detail".
+- **Fuller payment** (added by Zachary on 2026-11-18 after testing on staging). The payment shown for buying is the "Monthly payment to own": principal and interest, property tax, homeowners insurance, mortgage insurance and HOA dues, with a breakdown under it. Mortgage insurance is typed in monthly and follows the Mortgage calculator's rule (only under 20% down; ends when the scheduled balance reaches 78% of the price or at the loan's midpoint). HOA dues rise with the fixed cost inflation. Both are optional: empty means none.
+- **Tax-deductible interest, optional** (added by Zachary on the same day). An income tax rate in "Add detail"; empty leaves the deduction out. The saving is that rate times the mortgage interest paid, taken off the cost of buying. Interest only. When used, the page says it assumes itemizing and full deductibility, that many households take the standard deduction and get no saving, and that it is not tax advice.
 - **Closing costs on the purchase** (added by Zachary on 2026-11-18 after the branch review showed that leaving them out leaned the result toward buying). One dollar total in "Add detail", paid at the start and added to what buying costs. The renting side is unchanged: only the down payment is treated as invested. The dashboard has no such field; with closing costs of 0 the page matches it to the cent.
 - **Costs must be entered.** Closing costs, property tax, homeowners insurance and maintenance have no silent default. After Clear the page shows no comparison until all four are entered; a typed 0 counts. An empty down payment is "not entered" as well. A first build counted empty costs as $0, which made buying look about $81,000 better on the example's own numbers.
 - **Fixed cost inflation is 3% a year** on insurance and maintenance **(builder's call)**. The dashboard field defaults to 0.
 - **Differences from the dashboard:** mortgage payments stop when the loan ends (the dashboard keeps charging them past the term); closing costs as above; a tie reads "The two come out even". The year-by-year path is the dashboard formula run for each year.
-- **Not modelled, and said so in the assumptions list:** mortgage insurance, HOA dues, income tax effects, renters insurance, and investing any monthly difference between the two payments.
+- **Not modelled, and said so in "How this works" and on the printout:** renters insurance, and investing any monthly difference between the two payments.
 
 ### Home budget
 

@@ -198,3 +198,13 @@ Pinned values:
 **Pinned values:** the default page reads "Buying comes out ahead by $10,816" and "Buying pulls ahead in year 6." (the golden example's $18,816.32 and year 5, less $8,000 in every year). With closing costs of 0 all seven golden cases still match the dashboard to the cent.
 
 **Deferred minors:** the chart's two lines differ only by colour and a stay over 12 years has no keyboard route to the yearly figures; rent and price read "2.400" as $2.40 (shared `parseNumber`); percents print to three decimals; the prompt is not announced by most screen readers; Clear then Print gives a letterhead-only page; "Buying" and "Renting" are each a heading twice; the shared money box empties a typed 0 on blur, worked round here in `keepTypedZero` and better fixed in `shared/Field.tsx`; the call to action reads "Like these numbers?" under a result where renting is ahead.
+
+## Amendment 2: fuller payment, interest deduction, assumptions box removed (2026-11-18)
+
+Asked for by Zachary after testing on staging (commit `a5e3445`).
+
+- **Monthly payment to own** replaces the principal-and-interest stat: principal and interest, property tax / 12, insurance / 12, mortgage insurance and HOA dues, with a breakdown box. Default page: $2,679.
+- **New optional detail fields:** `monthlyMi` (Mortgage calculator's rule, re-implemented locally), `monthlyHoa` (rises with `COST_INFLATION`), `incomeTaxRate` (0 to 50%; saving = rate x mortgage interest paid, subtracted from the cost of buying, with the itemizing sentence). Empty means none for all three.
+- **The on-screen "Assumptions in this estimate" box is removed.** The printed page keeps the list. The under-20% caution shows only when no mortgage insurance is entered.
+- **Pinned values, hand-checked by a separate month-by-month script:** default page unchanged at $10,816 and year 6. Example with 10% down, MI 150, HOA 200 and a 22% rate: payment to own $3,295.09; MI paid for all 84 months of the stay (it ends at payment 115); interest $169,318.17; tax saved $37,250.00; buying ahead by $14,547; pulls ahead in year 6.
+- **Known gap:** the mortgage insurance cutoff uses the unrounded balance, where the Mortgage calculator rounds each schedule row; they could differ by one payment at the 78% line.
