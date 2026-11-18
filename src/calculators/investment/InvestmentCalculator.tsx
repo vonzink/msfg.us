@@ -1,111 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { projectReo, type ReoResult } from "./math";
 import { formatUSD } from "@/lib/finance";
 import { cn } from "@/lib/cn";
-import { RentBreakdown, SeriesChart } from "./Charts";
-import { GaugeDial, GaugeRating } from "./Gauge";
-import { SCALES, type Scale } from "./gauges";
+import { CalculatorShell } from "../shared/CalculatorShell";
+import { SeriesChart } from "../shared/Charts";
+import { Field } from "../shared/Field";
+import { Stat } from "../shared/Stat";
+import { RentBreakdown } from "./RentBreakdown";
+import { SCALES } from "./gauges";
 import {
-  BLANK, EXAMPLE, GROUPS, parseNumber, toModel, toNumbers, verdict,
-  type FieldDef, type GroupDef, type Numbers, type Values,
+  BLANK, EXAMPLE, GROUPS, toModel, toNumbers, verdict,
+  type GroupDef, type Numbers, type Values,
 } from "./fields";
 
 const pct = (x: number, digits = 1) => (Number.isFinite(x) ? `${(x * 100).toFixed(digits)}%` : "—");
 const ratio = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : "n/a");
 
 // ---------- Inputs ----------
-
-function Field({ def, values, numbers, onChange }: {
-  def: FieldDef;
-  values: Values;
-  numbers: Numbers;
-  onChange: (id: string, value: string) => void;
-}) {
-  const id = `reo-${def.id}`;
-  const value = values[def.id] ?? "";
-
-  if (def.type === "choice") {
-    return (
-      <fieldset className="col-span-full m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0">
-        <legend className="mb-1.5 p-0 text-[13px] font-semibold">{def.label}</legend>
-        <div className="grid auto-cols-fr grid-flow-col gap-[3px] rounded-md bg-paper-2 p-[3px]">
-          {def.options?.map((o) => (
-            <label
-              key={o.value}
-              className={cn(
-                "relative cursor-pointer rounded-sm px-1.5 py-2 text-center text-[14px] font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-spring-2",
-                value === o.value ? "bg-green-600 text-white shadow-3d" : "text-muted",
-              )}
-            >
-              <input
-                type="radio" name={id} value={o.value} checked={value === o.value}
-                onChange={() => onChange(def.id, o.value)}
-                className="absolute inset-0 cursor-pointer opacity-0"
-              />
-              {o.label}
-            </label>
-          ))}
-        </div>
-        {def.hint && <span className="text-[12px] text-muted print:hidden">{def.hint}</span>}
-      </fieldset>
-    );
-  }
-
-  const suffix = def.type === "pct" ? "%" : def.suffix;
-  // Loan fields stay filled in but do nothing for an all-cash purchase.
-  const disabled = def.loanOnly === true && values.amortType === "cash";
-  const hint = disabled ? "Not used when paying all cash." : def.hintFn ? def.hintFn(numbers) : def.hint;
-  const warning = disabled ? null : (def.warnFn?.(numbers) ?? null);
-  const describedBy = [hint && `${id}-hint`, warning && `${id}-warn`].filter(Boolean).join(" ") || undefined;
-
-  return (
-    <div className={cn("flex min-w-0 flex-col gap-1.5", disabled && "opacity-60")}>
-      <label htmlFor={id} className="text-[13px] font-semibold">{def.label}</label>
-      <div
-        className={cn(
-          "flex items-center rounded-md border bg-white transition-shadow focus-within:border-spring-2 focus-within:shadow-[0_0_0_3px_var(--color-spring-soft)]",
-          warning ? "border-loss" : "border-line",
-          disabled && "bg-paper-2",
-        )}
-      >
-        {def.type === "money" && <span aria-hidden="true" className="pl-2.5 text-[15px] font-semibold text-muted">$</span>}
-        <input
-          id={id}
-          type="text"
-          inputMode="decimal"
-          autoComplete="off"
-          placeholder="0"
-          value={value}
-          disabled={disabled}
-          aria-describedby={describedBy}
-          onChange={(e) => onChange(def.id, e.target.value)}
-          onBlur={() => {
-            if (def.type !== "money") return;
-            const n = parseNumber(value);
-            onChange(def.id, n ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "");
-          }}
-          className="w-full min-w-0 flex-1 border-0 bg-transparent px-2.5 py-2.5 text-[16px] font-semibold tabular-nums text-ink outline-none placeholder:font-normal placeholder:text-muted/60 disabled:cursor-not-allowed"
-        />
-        {suffix && <span aria-hidden="true" className="pr-2.5 text-[15px] font-semibold text-muted">{suffix}</span>}
-      </div>
-      {def.slider && (
-        <input
-          type="range"
-          aria-label={def.label}
-          min={def.slider.min} max={def.slider.max} step={def.slider.step}
-          value={parseNumber(value)}
-          disabled={disabled}
-          onChange={(e) => onChange(def.id, e.target.value)}
-          className="mt-0.5 w-full accent-spring-2 disabled:cursor-not-allowed print:hidden"
-        />
-      )}
-      {hint && <span id={`${id}-hint`} className="text-[12px] text-muted print:hidden">{hint}</span>}
-      {warning && <span id={`${id}-warn`} className="text-[12px] font-semibold text-loss">{warning}</span>}
-    </div>
-  );
-}
 
 function Group({ def, values, numbers, result, onChange }: {
   def: GroupDef;
@@ -119,7 +32,12 @@ function Group({ def, values, numbers, result, onChange }: {
       <p className="mb-3.5 text-[14px] text-muted">{def.lead}</p>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-4 gap-y-3.5">
         {def.fields.map((f) => (
-          <Field key={f.id} def={f} values={values} numbers={numbers} onChange={onChange} />
+          <Field
+            key={f.id} def={f} idPrefix="reo" values={values} numbers={numbers} onChange={onChange}
+            // Loan fields stay filled in but do nothing for an all-cash purchase.
+            disabled={f.loanOnly === true && values.amortType === "cash"}
+            disabledHint="Not used when paying all cash."
+          />
         ))}
       </div>
     </div>
@@ -150,51 +68,6 @@ function Group({ def, values, numbers, result, onChange }: {
 }
 
 // ---------- Results ----------
-
-function Stat({ label, value, sub, tip, loss, gauge }: {
-  label: string;
-  value: string;
-  sub: string;
-  tip: string;
-  loss?: boolean;
-  /** Position on the speedometer, in the scale's units. NaN draws an empty dial. */
-  gauge: { value: number; scale: Scale };
-}) {
-  return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-line bg-white p-3.5 print:break-inside-avoid">
-      <span className="flex items-center gap-1.5 text-[12px] font-semibold text-muted">
-        {label}
-        <button
-          type="button"
-          aria-label={`${label}: ${tip}`}
-          className="group/tip relative size-4 flex-none cursor-help rounded-full border border-line bg-white text-[10px] font-bold leading-none text-muted print:hidden"
-        >
-          ?
-          <span
-            role="tooltip"
-            className="pointer-events-none absolute bottom-[calc(100%+8px)] left-1/2 z-[5] hidden w-[220px] -translate-x-1/2 rounded-md bg-green-900 px-3 py-2.5 text-left text-[13px] font-normal leading-snug text-white shadow-3d group-hover/tip:block group-focus/tip:block"
-          >
-            {tip}
-          </span>
-        </button>
-      </span>
-      <div className="mt-2 flex flex-col items-center gap-0.5 text-center">
-        <GaugeDial value={gauge.value} scale={gauge.scale} />
-        <span
-          className={cn(
-            "mt-1 text-[22px] font-extrabold tabular-nums tracking-[-0.01em]",
-            loss && "text-loss",
-            !Number.isFinite(gauge.value) && "text-[18px] text-muted",
-          )}
-        >
-          {value}
-        </span>
-        <GaugeRating value={gauge.value} scale={gauge.scale} />
-        <span className="text-[12px] text-muted">{sub}</span>
-      </div>
-    </div>
-  );
-}
 
 type Row =
   | { group: string }
@@ -304,43 +177,21 @@ export function InvestmentCalculator() {
   const hasLoan = r.debtService[1] > 0;
   const heldSaving = r.lossSavingAtSale[4];
 
-  // Closed <details> do not print, so open every panel for the printout and restore after.
-  useEffect(() => {
-    let reopened: HTMLDetailsElement[] = [];
-    const before = () => {
-      reopened = Array.from(document.querySelectorAll<HTMLDetailsElement>("details[data-calc-panel]")).filter((d) => !d.open);
-      reopened.forEach((d) => (d.open = true));
-    };
-    const after = () => {
-      reopened.forEach((d) => (d.open = false));
-      reopened = [];
-    };
-    window.addEventListener("beforeprint", before);
-    window.addEventListener("afterprint", after);
-    return () => {
-      window.removeEventListener("beforeprint", before);
-      window.removeEventListener("afterprint", after);
-    };
-  }, []);
-
-  const ghost = "rounded-md border border-line bg-white px-3.5 py-2 text-[14px] font-bold text-ink hover:bg-paper-2";
-
   return (
-    <>
-      <div className="mb-5 flex flex-wrap gap-2.5 print:hidden">
-        <button type="button" className={ghost} onClick={() => setValues(EXAMPLE)}>Load example</button>
-        <button type="button" className={ghost} onClick={() => setValues(BLANK)}>Clear</button>
-        <button type="button" className={ghost} onClick={() => window.print()}>Print / Save PDF</button>
-      </div>
-
-      <div className="grid grid-cols-[minmax(0,5fr)_minmax(0,6fr)] items-start gap-7 max-[980px]:grid-cols-1 max-[980px]:gap-5 print:block">
-        <form aria-label="Deal details" className="grid gap-3.5" onSubmit={(e) => e.preventDefault()} noValidate>
+    <CalculatorShell
+      formLabel="Deal details"
+      resultsId="reo-results"
+      onExample={() => setValues(EXAMPLE)}
+      onClear={() => setValues(BLANK)}
+      form={
+        <>
           {GROUPS.map((g) => (
             <Group key={g.id} def={g} values={values} numbers={numbers} result={r} onChange={onChange} />
           ))}
-        </form>
-
-        <section id="reo-results" aria-label="Results" className="grid scroll-mt-24 gap-4 print:mt-4 [@media(min-width:981px)_and_(min-height:1000px)]:sticky [@media(min-width:981px)_and_(min-height:1000px)]:top-24">
+        </>
+      }
+      results={
+        <>
           <div className="rounded-xl bg-green-800 p-6 text-on-dark shadow-card print:border print:border-ink print:bg-transparent print:text-ink print:shadow-none">
             <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-mint print:text-muted">
               {withSaleTax ? "Five-year after-tax return" : "Five-year return, before tax on the sale"}
@@ -414,11 +265,11 @@ export function InvestmentCalculator() {
               ]}
             />
           </div>
-        </section>
-
-      </div>
-
-      {/* Outside the grid above: a sticky results column may only travel within that grid,
+        </>
+      }
+      below={
+        <>
+      {/* Outside the results grid: a sticky results column may only travel within that grid,
           so it can never slide over this table. */}
       <section aria-label="Five-year projection" className="mt-7 max-[980px]:mt-5 print:break-before-page">
           <details data-calc-panel open className="group rounded-xl border border-line bg-white shadow-card print:shadow-none">
@@ -489,6 +340,8 @@ export function InvestmentCalculator() {
         </span>
         <span className="ml-auto whitespace-nowrap text-[13px] font-bold text-mint">See results</span>
       </a>
-    </>
+        </>
+      }
+    />
   );
 }

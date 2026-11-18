@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { dialPosition, rate, SCALES, type Scale } from "./gauges";
+import { dialPosition, rate } from "../shared/gaugeScale";
+import { SCALES } from "./gauges";
 
 describe("gauge ratings", () => {
   it("monthly cash flow: losing money is poor, under 10% of rent is fair, 10%+ is good", () => {
@@ -33,25 +34,6 @@ describe("gauge ratings", () => {
 });
 
 describe("needle position", () => {
-  const s: Scale = { min: 0, fair: 10, good: 20, max: 40 };
-
-  it("puts each cutoff at a third of the dial", () => {
-    expect(dialPosition(0, s)).toBeCloseTo(0);
-    expect(dialPosition(10, s)).toBeCloseTo(1 / 3);
-    expect(dialPosition(20, s)).toBeCloseTo(2 / 3);
-    expect(dialPosition(40, s)).toBeCloseTo(1);
-  });
-
-  it("moves evenly within a zone", () => {
-    expect(dialPosition(5, s)).toBeCloseTo(1 / 6);
-    expect(dialPosition(30, s)).toBeCloseTo(5 / 6);
-  });
-
-  it("pins values past either end", () => {
-    expect(dialPosition(-100, s)).toBe(0);
-    expect(dialPosition(1000, s)).toBe(1);
-  });
-
   it("keeps the needle in the zone the rating names", () => {
     for (const scale of Object.values(SCALES)) {
       for (let v = scale.min - 1; v <= scale.max + 1; v += (scale.max - scale.min) / 97) {

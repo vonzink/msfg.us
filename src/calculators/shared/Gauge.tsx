@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { dialPosition, rate, RATING_LABEL, type Rating, type Scale } from "./gauges";
+import { dialPosition, rate, RATING_LABEL, type Rating, type Scale } from "./gaugeScale";
 
 /** A half-circle speedometer: poor / fair / good zones and a needle. Inline SVG, no library. */
 

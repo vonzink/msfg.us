@@ -1,27 +1,12 @@
 import type { AmortType, ReoInput, ReoResult, SaleTaxMode } from "./math";
 import { formatUSD } from "@/lib/finance";
+import { parseNumber, type FieldDef, type Numbers, type Values } from "../shared/fields";
 
-/** Raw form state: every field is the text the user typed. */
-export type Values = Record<string, string>;
+export { parseNumber };
+export type { FieldDef, Numbers, Values };
 
-export type FieldDef = {
-  id: string;
-  label: string;
-  type: "money" | "pct" | "num" | "text" | "choice";
-  /** Value used when the page opens and by "Load example". */
-  example: string;
-  suffix?: string;
-  hint?: string;
-  /** Live hint computed from the current values. */
-  hintFn?: (n: Numbers) => string;
-  /** A problem with the value as entered, shown under the field; null when it looks fine. */
-  warnFn?: (n: Numbers) => string | null;
-  /** Only used when there is a loan: disabled while "All cash" is picked. */
-  loanOnly?: boolean;
-  slider?: { min: number; max: number; step: number };
-  options?: { value: string; label: string }[];
-  wide?: boolean;
-};
+/** An investment field. `loanOnly` fields are disabled while "All cash" is picked. */
+export type ReoFieldDef = FieldDef & { loanOnly?: boolean };
 
 export type GroupDef = {
   id: string;
@@ -31,15 +16,8 @@ export type GroupDef = {
   fixed?: boolean;
   /** Shown beside the title so a closed group still says what it holds. */
   summary?: (n: Numbers, r: ReoResult) => string;
-  fields: FieldDef[];
+  fields: ReoFieldDef[];
 };
-
-export type Numbers = Record<string, number>;
-
-export function parseNumber(v: string | undefined): number {
-  const x = Number(String(v ?? "").replace(/[^0-9.\-]/g, ""));
-  return Number.isFinite(x) ? x : 0;
-}
 
 const RENO = ["renoPaint", "renoFloor", "renoAppl", "renoRoof", "renoPest", "renoFireplace", "renoOther"];
 export const renoTotal = (n: Numbers): number => RENO.reduce((t, id) => t + n[id], 0);
@@ -175,7 +153,7 @@ export const GROUPS: GroupDef[] = [
   },
 ];
 
-export const FIELDS: FieldDef[] = GROUPS.flatMap((g) => g.fields);
+export const FIELDS: ReoFieldDef[] = GROUPS.flatMap((g) => g.fields);
 
 export const EXAMPLE: Values = Object.fromEntries(FIELDS.map((f) => [f.id, f.example]));
 /** Cleared form. Switches keep their setting; the rates behind them keep a usable default. */
