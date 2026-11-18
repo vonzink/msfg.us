@@ -80,6 +80,48 @@ describe("the headline", () => {
   });
 });
 
+describe("savings against closing costs chart", () => {
+  const chart = (changes: Record<string, string> = {}) => {
+    const html = results(changes);
+    const start = html.indexOf("<figure");
+    return start < 0 ? "" : html.slice(start, html.indexOf("</figure>", start));
+  };
+
+  it("starts the savings at zero and marks the month they reach the closing costs", () => {
+    const html = chart();
+    expect(html).toContain("Savings against closing costs");
+    expect(html).toContain("Breakeven: 23 months");
+    expect(html).toMatch(/aria-label="Savings start at \$0 and reach the \$6,000 of closing costs after 23 months\."/);
+    // The savings line begins on the baseline at month 0, not a year in.
+    expect(html).toMatch(/data-series="savings"[^>]*data-start="0"/);
+  });
+
+  it("puts the crossing at the breakeven month, not at the nearest whole year", () => {
+    const at = (html: string) => Number(html.match(/data-breakeven-month="([\d.]+)"/)![1]);
+    expect(at(chart())).toBeCloseTo(6000 / 266.93, 2); // 22.48 months, shown as 23
+    expect(at(chart({ closingCosts: "2,000" }))).toBeCloseTo(2000 / 266.93, 2);
+  });
+
+  it("still shows the crossing when the breakeven is under a year", () => {
+    const html = chart({ closingCosts: "2,000" });
+    expect(html).toContain("Breakeven: 8 months");
+    expect(html).toContain(">1 yr<");
+  });
+
+  it("labels the time axis in years from the start", () => {
+    const html = chart();
+    expect(html).toContain(">Start<");
+    expect(html).toContain(">1 yr<");
+    expect(html).toContain(">2 yr<");
+    expect(html).not.toContain("Yr 1");
+  });
+
+  it("is not drawn when there is no breakeven or nothing to recover", () => {
+    expect(chart(NO_SAVINGS)).toBe("");
+    expect(chart({ closingCosts: "0" })).toBe("");
+  });
+});
+
 describe("interest over the life of each loan", () => {
   it("is always shown, with the difference in words", () => {
     const html = results();

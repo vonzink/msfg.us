@@ -1,5 +1,5 @@
 import { formatUSD } from "@/lib/finance";
-import { SeriesChart } from "../shared/Charts";
+import { BreakevenChart } from "./BreakevenChart";
 import { Stat } from "../shared/Stat";
 import { cn } from "@/lib/cn";
 import type { BreakevenResult, KeepPeriod } from "./math";
@@ -133,7 +133,6 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
       : r.debtPaymentsPaidOff > 0
         ? `includes ${formatUSD(r.debtPaymentsPaidOff)} of debt payments paid off`
         : "payment now minus new payment";
-  const chartYears = months && months > 0 ? Math.min(10, Math.max(5, Math.ceil(months / 12) + 2)) : 0;
 
   return (
     <>
@@ -197,15 +196,8 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
 
       {r.keep && <KeepBlock keep={r.keep} />}
 
-      {chartYears > 0 && (
-        <SeriesChart
-          kind="lines"
-          title="Savings against closing costs"
-          series={[
-            { label: "Savings so far", data: Array.from({ length: chartYears }, (_, y) => r.monthlySavings * 12 * (y + 1)) },
-            { label: "Closing costs", data: Array.from({ length: chartYears }, () => r.closingCosts) },
-          ]}
-        />
+      {months !== null && months > 0 && (
+        <BreakevenChart monthlySavings={r.monthlySavings} closingCosts={r.closingCosts} breakevenMonths={months} />
       )}
 
       {r.debtPaymentsIgnored > 0 && (
