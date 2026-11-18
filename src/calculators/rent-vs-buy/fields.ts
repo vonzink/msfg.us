@@ -3,8 +3,9 @@ import type { RentVsBuyInput } from "./math";
 
 /**
  * Inputs of the Rent vs buy calculator. Five are always visible (the down payment has a unit
- * switch beside it); eight sit behind "Add detail" and are the assumptions behind the estimate.
- * Rent is monthly dollars; property tax, insurance and maintenance are yearly dollars.
+ * switch beside it); nine sit behind "Add detail" and are the assumptions behind the estimate.
+ * Rent is monthly dollars; closing costs are one total; property tax, insurance and maintenance
+ * are yearly dollars.
  */
 export const FRONT_FIELDS: FieldDef[] = [
   { id: "monthlyRent", label: "Monthly rent", type: "money", example: "2,400", hint: "Per month." },
@@ -24,6 +25,7 @@ export const DETAIL_FIELDS: FieldDef[] = [
     id: "termYears", label: "Loan term", type: "choice", example: "30",
     options: [10, 15, 20, 25, 30].map((y) => ({ value: String(y), label: `${y} yr` })),
   },
+  { id: "closingCosts", label: "Closing costs", type: "money", example: "8,000", hint: "The buyer's costs on the purchase, as one total." },
   { id: "yearlyTax", label: "Property tax", type: "money", example: "4,800", hint: "Per year." },
   { id: "yearlyInsurance", label: "Homeowners insurance", type: "money", example: "1,800", hint: "Per year." },
   { id: "yearlyMaintenance", label: "Maintenance", type: "money", example: "4,000", hint: "Per year. About 1% of the home price is a common rule of thumb." },
@@ -45,8 +47,8 @@ export function exampleValues(exampleRatePct: number): Values {
 /**
  * Cleared form. Typed amounts are empty and choices go back to their default. The four assumption
  * rates go back to their starting values instead of emptying: a comparison at 0% across the board
- * is nobody's intent. Property tax, insurance and maintenance clear to empty, which is "not
- * entered": there is no comparison until all three are typed again, and 0 is an answer.
+ * is nobody's intent. Closing costs, property tax, insurance and maintenance clear to empty, which
+ * is "not entered": there is no comparison until all four are typed again, and 0 is an answer.
  */
 export const BLANK: Values = Object.fromEntries(
   ALL.map((f) => [f.id, f.type === "choice" || ASSUMPTION_RATES.includes(f.id) ? f.example : ""]),
@@ -56,7 +58,7 @@ export const BLANK: Values = Object.fromEntries(
 const wholeYears = (text: string | undefined): number => (/\d/.test(text ?? "") ? Math.round(parseNumber(text)) : Number.NaN);
 
 /**
- * An amount where 0 is an answer: the down payment and the three yearly costs. "$", "%", commas
+ * An amount where 0 is an answer: the down payment, the closing costs and the three yearly costs. "$", "%", commas
  * and spaces are dropped; what is left must be one number. Empty or anything else ("2..5", "abc")
  * is NaN, meaning "not entered", and is never read as 0.
  */
@@ -66,7 +68,7 @@ const typedAmount = (text: string | undefined): number => {
 };
 
 /** The boxes in which a typed 0 is an answer and has to stay in the box. */
-const ZERO_IS_AN_ANSWER = ["downPayment", "yearlyTax", "yearlyInsurance", "yearlyMaintenance"];
+const ZERO_IS_AN_ANSWER = ["downPayment", "closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance"];
 
 /**
  * The shared money box empties itself when focus leaves it holding 0. In the boxes above, 0 is an
@@ -101,7 +103,8 @@ export function toInput(values: Values): RentVsBuyInput {
     rate: parseRate(values.rate),
     stayYears: wholeYears(values.stayYears),
     termMonths: n("termYears") * 12,
-    // Not entered (NaN) until typed: the model gives no result without all three. 0 is an answer.
+    // Not entered (NaN) until typed: the model gives no result without all four. 0 is an answer.
+    closingCosts: typedAmount(values.closingCosts),
     yearlyTax: typedAmount(values.yearlyTax),
     yearlyInsurance: typedAmount(values.yearlyInsurance),
     yearlyMaintenance: typedAmount(values.yearlyMaintenance),

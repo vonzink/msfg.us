@@ -15,14 +15,14 @@ export const MORTGAGE_INSURANCE_NOTE =
 export const UNDERWATER_NOTE = "On these numbers the sale would not cover the loan and the selling costs.";
 const NOT_INVESTED = "Any monthly difference between the two payments is not invested.";
 const NOT_INCLUDED_BUYING =
-  "Not included on the buying side: mortgage insurance, closing costs on the purchase, HOA dues and income tax effects. Counting them would raise the cost of buying.";
+  "Not included on the buying side: mortgage insurance, HOA dues and income tax effects. Counting them would raise the cost of buying.";
 const NOT_INCLUDED_RENTING = "Not included on the renting side: renters insurance.";
 
 const DOWN_ABOVE_PRICE_PROMPT = "The down payment is more than the home price.";
 const GENERAL_PROMPT =
   "Enter the rent, the home price, the down payment, the interest rate and how long you plan to stay to see the comparison.";
 const COSTS_PROMPT =
-  "Add property tax, homeowners insurance and maintenance under Add detail to see the comparison. Enter 0 for any that do not apply.";
+  "Add closing costs, property tax, homeowners insurance and maintenance under Add detail to see the comparison. Enter 0 for any that do not apply.";
 
 /** "7 years", "1 year". */
 export const yearsText = (n: number) => `${n} year${n === 1 ? "" : "s"}`;
@@ -56,7 +56,7 @@ export function promptText(input: RentVsBuyInput): string {
   }
   if (!Number.isFinite(rate) || rate < 0 || rate >= RATE_LIMIT) return `Enter an interest rate from 0% to under ${percentText(RATE_LIMIT)}.`;
   if (!Number.isInteger(stayYears) || stayYears < 1 || stayYears > MAX_YEARS) return `Enter a stay from 1 to ${MAX_YEARS} years.`;
-  if ([input.yearlyTax, input.yearlyInsurance, input.yearlyMaintenance].some(Number.isNaN)) return COSTS_PROMPT;
+  if ([input.closingCosts, input.yearlyTax, input.yearlyInsurance, input.yearlyMaintenance].some(Number.isNaN)) return COSTS_PROMPT;
   const notEntered = ASSUMPTION_RATES.find(({ id }) => Number.isNaN(input[id]));
   if (notEntered) return `Enter a number for ${fieldLabel(notEntered.id)}. 0 is allowed.`;
   const outside = ASSUMPTION_RATES.find(({ id, range }) => !(input[id] >= range.low && input[id] <= range.high));
@@ -97,8 +97,8 @@ export function pullAheadSentence(r: Pick<RentVsBuyResult, "ahead" | "pullAheadY
 /**
  * Every assumption behind the estimate, as the math used it. Built from the model's input, not
  * from the form, so the list cannot drift from the result. It is only shown with a result, so
- * the three yearly costs have all been entered: a typed 0, or a negative amount the math counts
- * as zero, reads "$0 a year".
+ * the closing costs and the three yearly costs have all been entered: a typed 0, or a negative
+ * amount the math counts as zero, reads "$0".
  */
 export function assumptionLines(input: RentVsBuyInput): string[] {
   const inflation = percentText(COST_INFLATION);
@@ -107,6 +107,7 @@ export function assumptionLines(input: RentVsBuyInput): string[] {
   const yearly = (rises: string, falls: string, rate: number) => `${rate < 0 ? falls : rises} ${percentText(Math.abs(rate))} a year`;
   return [
     `Loan term: ${yearsText(Number((input.termMonths / 12).toFixed(1)))}`,
+    `Closing costs on the purchase: ${input.closingCosts > 0 ? usd(input.closingCosts) : "$0"}`,
     cost("Property tax", input.yearlyTax, "rising with the home's value"),
     cost("Homeowners insurance", input.yearlyInsurance, `rising ${inflation} a year`),
     cost("Maintenance", input.yearlyMaintenance, `rising ${inflation} a year`),
@@ -224,6 +225,7 @@ export function RentVsBuyResults({ input, result: r, disclaimer }: {
           <h2 className="text-[17px] font-bold">Buying</h2>
           <dl className="m-0 mt-2 text-[14px]">
             <Line label="Down payment" value={buying.downPayment} />
+            <Line label="Closing costs" value={buying.closingCosts} />
             <Line label="Mortgage payments" value={buying.mortgagePayments} />
             <Line label="Property tax" value={buying.propertyTax} />
             <Line label="Homeowners insurance" value={buying.insurance} />

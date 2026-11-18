@@ -10,17 +10,17 @@ const field = (id: string) => [...FRONT_FIELDS, ...DETAIL_FIELDS].find((f) => f.
 const ASSUMPTION_RATES = ["appreciation", "rentIncrease", "sellingCosts", "investmentReturn"];
 
 describe("rent vs buy fields", () => {
-  it("has five inputs up front (plus the down payment unit) and eight behind Add detail", () => {
+  it("has five inputs up front (plus the down payment unit) and nine behind Add detail", () => {
     expect(FRONT_FIELDS.map((f) => f.id)).toEqual(["monthlyRent", "homePrice", "downPayment", "downUnit", "rate", "stayYears"]);
     expect(DETAIL_FIELDS.map((f) => f.id)).toEqual([
-      "termYears", "yearlyTax", "yearlyInsurance", "yearlyMaintenance", "appreciation", "rentIncrease", "sellingCosts", "investmentReturn",
+      "termYears", "closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance", "appreciation", "rentIncrease", "sellingCosts", "investmentReturn",
     ]);
   });
 
   it("has the pinned labels", () => {
     expect([...FRONT_FIELDS, ...DETAIL_FIELDS].map((f) => f.label)).toEqual([
       "Monthly rent", "Home price", "Down payment", "Down payment as", "Interest rate", "Years you plan to stay",
-      "Loan term", "Property tax", "Homeowners insurance", "Maintenance",
+      "Loan term", "Closing costs", "Property tax", "Homeowners insurance", "Maintenance",
       "Home value rises", "Rent rises", "Selling costs", "Return if the down payment were invested",
     ]);
   });
@@ -30,6 +30,7 @@ describe("rent vs buy fields", () => {
     expect(field("stayYears")).toMatchObject({ type: "num", suffix: "yr" });
     expect(field("termYears").options!.map((o) => o.value)).toEqual(["10", "15", "20", "25", "30"]);
     expect(field("downUnit").options!.map((o) => o.value)).toEqual(["pct", "usd"]);
+    expect(field("closingCosts")).toMatchObject({ type: "money", hint: "The buyer's costs on the purchase, as one total.", example: "8,000" });
     for (const id of ["yearlyTax", "yearlyInsurance"]) expect(field(id)).toMatchObject({ type: "money", hint: "Per year." });
     expect(field("yearlyMaintenance")).toMatchObject({ type: "money", hint: "Per year. About 1% of the home price is a common rule of thumb." });
     for (const id of ["appreciation", "rentIncrease", "investmentReturn"]) expect(field(id)).toMatchObject({ type: "pct", hint: "Per year." });
@@ -39,18 +40,24 @@ describe("rent vs buy fields", () => {
   it("opens with the pinned example values at the tenant's rate", () => {
     expect(example).toEqual({
       monthlyRent: "2,400", homePrice: "400,000", downPayment: "20", downUnit: "pct", rate: "7", stayYears: "7",
-      termYears: "30", yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000",
+      termYears: "30", closingCosts: "8,000", yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000",
       appreciation: "3", rentIncrease: "3", sellingCosts: "6", investmentReturn: "5",
     });
     expect(exampleValues(6.5).rate).toBe("6.5");
   });
 
-  it("at 7% is exactly the golden example, with buying pulling ahead in year 5", () => {
+  it("at 7% is the golden example plus $8,000 of closing costs, with buying pulling ahead in year 6", () => {
+    const goldenInput = golden.cases.find((c) => c.name === "example")!.input;
     const input = toInput(example);
-    expect(input).toEqual(golden.cases.find((c) => c.name === "example")!.input);
+    expect(input).toEqual({ ...goldenInput, closingCosts: 8000 });
     const r = calculateRentVsBuy(input)!;
-    expect(r.pullAheadYear).toBe(5);
+    expect(r.pullAheadYear).toBe(6);
+    expect(r.difference).toBe(10816.32); // 18,816.32 - 8,000
     expect(r.monthlyPayment).toBe(2128.97);
+    // With closing costs of 0 it is the dashboard's example to the cent.
+    const zero = toInput({ ...example, closingCosts: "0" });
+    expect(zero).toEqual({ ...goldenInput, closingCosts: 0 });
+    expect(calculateRentVsBuy(zero)).toMatchObject({ difference: 18816.32, pullAheadYear: 5 });
   });
 
   it("gives the same input for a down payment in dollars and in percent", () => {
@@ -72,30 +79,31 @@ describe("rent vs buy fields", () => {
   it("clears to empty amounts, the default choices and the four starting assumption rates", () => {
     expect(BLANK).toEqual({
       monthlyRent: "", homePrice: "", downPayment: "", downUnit: "pct", rate: "", stayYears: "",
-      termYears: "30", yearlyTax: "", yearlyInsurance: "", yearlyMaintenance: "",
+      termYears: "30", closingCosts: "", yearlyTax: "", yearlyInsurance: "", yearlyMaintenance: "",
       appreciation: "3", rentIncrease: "3", sellingCosts: "6", investmentReturn: "5",
     });
     for (const id of ASSUMPTION_RATES) expect(BLANK[id], id).toBe(example[id]);
   });
 
   const FIVE = { monthlyRent: "2,400", homePrice: "400,000", downPayment: "20", rate: "7", stayYears: "7" };
-  const COSTS = ["yearlyTax", "yearlyInsurance", "yearlyMaintenance"] as const;
+  const COSTS = ["closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance"] as const;
 
-  it("F1: after Clear the five front inputs are not enough: the three costs are not entered", () => {
+  it("F1: after Clear the five front inputs are not enough: the four costs are not entered", () => {
     const input = toInput({ ...BLANK, ...FIVE });
     expect(input).toMatchObject({ appreciation: 0.03, rentIncrease: 0.03, sellingCosts: 0.06, investmentReturn: 0.05 });
     for (const id of COSTS) expect(Number.isNaN(input[id]), id).toBe(true);
     expect(calculateRentVsBuy(input)).toBeNull();
   });
 
-  it("F1: after Clear, the five inputs and the example's three costs give the example again", () => {
-    const r = calculateRentVsBuy(toInput({ ...BLANK, ...FIVE, yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000" }))!;
-    expect(r.difference).toBe(18816.32);
+  it("F1: after Clear, the five inputs and the example's four costs give the example again", () => {
+    const costs = { yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000" };
+    expect(calculateRentVsBuy(toInput({ ...BLANK, ...FIVE, ...costs }))).toBeNull();
+    expect(calculateRentVsBuy(toInput({ ...BLANK, ...FIVE, ...costs, closingCosts: "8,000" }))!.difference).toBe(10816.32);
   });
 
   it("F1: a typed 0 in a cost is entered; empty or unreadable is not", () => {
-    const zeros = toInput({ ...BLANK, ...FIVE, yearlyTax: "0", yearlyInsurance: "0", yearlyMaintenance: "0.00" });
-    expect(zeros).toMatchObject({ yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 0 });
+    const zeros = toInput({ ...BLANK, ...FIVE, closingCosts: "0", yearlyTax: "0", yearlyInsurance: "0", yearlyMaintenance: "0.00" });
+    expect(zeros).toMatchObject({ closingCosts: 0, yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 0 });
     expect(calculateRentVsBuy(zeros)).not.toBeNull();
     for (const id of COSTS) {
       for (const text of ["", " ", ".", "abc", "4..8", "-"]) {
@@ -180,6 +188,6 @@ describe("nothing to compare gives no result, never a crash", () => {
   });
 
   it("counts a negative yearly cost as zero", () => {
-    expect(result({ yearlyTax: "-50", yearlyInsurance: "-1", yearlyMaintenance: "-4,000" })!.buying).toMatchObject({ propertyTax: 0, insurance: 0, maintenance: 0 });
+    expect(result({ closingCosts: "-8,000", yearlyTax: "-50", yearlyInsurance: "-1", yearlyMaintenance: "-4,000" })!.buying).toMatchObject({ closingCosts: 0, propertyTax: 0, insurance: 0, maintenance: 0 });
   });
 });

@@ -21,10 +21,16 @@ describe("rent vs buy page text", () => {
 
   it("F5: says what is left out on each side, with the same sentences as the assumptions list", () => {
     const how = HOW_IT_WORKS.join(" ");
-    expect(how).toContain("Not included on the buying side: mortgage insurance, closing costs on the purchase, HOA dues and income tax effects. Counting them would raise the cost of buying.");
+    expect(how).toContain("Not included on the buying side: mortgage insurance, HOA dues and income tax effects. Counting them would raise the cost of buying.");
     expect(how).toContain("Not included on the renting side: renters insurance.");
     expect(how).toContain("Any monthly difference between the two payments is not invested.");
     expect(how).not.toContain("Not included: ");
+  });
+
+  it("counts closing costs on the buying side and no longer lists them as left out", () => {
+    const how = HOW_IT_WORKS.join(" ");
+    expect(how).toContain("Buying counts the down payment, the closing costs on the purchase, the mortgage payments, property tax, homeowners insurance and maintenance.");
+    expect(how).not.toMatch(/Not included[^.]*closing costs/);
   });
 
   it("F6: the search description does not presume that buying pulls ahead", () => {

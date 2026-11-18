@@ -28,22 +28,22 @@ const BAD_WORDS = /qualif|approved|eligible|your rate|should/i;
 const EXAMPLE_DIFFERENCE = golden.cases.find((c) => c.name === "example")!.expected.differenceByYear[6];
 const RENTING_AHEAD = { monthlyRent: "1,600", stayYears: "3" };
 const ZERO_DOWN = { downPayment: "0" };
-const EMPTY_COSTS = { yearlyTax: "", yearlyInsurance: "", yearlyMaintenance: "" };
+const EMPTY_COSTS = { closingCosts: "", yearlyTax: "", yearlyInsurance: "", yearlyMaintenance: "" };
 const UNDERWATER = { downPayment: "0", appreciation: "-5", stayYears: "2" };
 const GENERAL_PROMPT = "Enter the rent, the home price, the down payment, the interest rate and how long you plan to stay to see the comparison.";
 const DOWN_PROMPT = "The down payment is more than the home price.";
 const MI_LINE = "With less than 20% down, most loans add mortgage insurance. It is not included here and would raise the cost of buying.";
 const UNDERWATER_LINE = "On these numbers the sale would not cover the loan and the selling costs.";
-const COSTS_PROMPT = "Add property tax, homeowners insurance and maintenance under Add detail to see the comparison. Enter 0 for any that do not apply.";
+const COSTS_PROMPT = "Add closing costs, property tax, homeowners insurance and maintenance under Add detail to see the comparison. Enter 0 for any that do not apply.";
 const NOT_INVESTED = "Any monthly difference between the two payments is not invested.";
-const NOT_INCLUDED_BUYING = "Not included on the buying side: mortgage insurance, closing costs on the purchase, HOA dues and income tax effects. Counting them would raise the cost of buying.";
+const NOT_INCLUDED_BUYING = "Not included on the buying side: mortgage insurance, HOA dues and income tax effects. Counting them would raise the cost of buying.";
 const NOT_INCLUDED_RENTING = "Not included on the renting side: renters insurance.";
-const ZERO_COSTS = { yearlyTax: "0", yearlyInsurance: "0", yearlyMaintenance: "0" };
+const ZERO_COSTS = { closingCosts: "0", yearlyTax: "0", yearlyInsurance: "0", yearlyMaintenance: "0" };
 const FIVE = { monthlyRent: "2,400", homePrice: "400,000", downPayment: "20", rate: "7", stayYears: "7" };
 /** The reviewer's case: buying ahead after 35 years, but behind in years 7 to 20. */
 const SLIPS_BACK = {
   monthlyRent: "5,894", homePrice: "462,086", downUnit: "usd", downPayment: "16,173", rate: "11.75", termYears: "20", stayYears: "35",
-  yearlyTax: "544", yearlyInsurance: "4,621", yearlyMaintenance: "8,156", appreciation: "1", rentIncrease: "-4", sellingCosts: "6", investmentReturn: "-4",
+  closingCosts: "0", yearlyTax: "544", yearlyInsurance: "4,621", yearlyMaintenance: "8,156", appreciation: "1", rentIncrease: "-4", sellingCosts: "6", investmentReturn: "-4",
 };
 const printDetails = (changes: Record<string, string> = {}) => {
   const i = input(changes);
@@ -51,13 +51,16 @@ const printDetails = (changes: Record<string, string> = {}) => {
 };
 
 describe("rent vs buy calculator page", () => {
-  it("opens on buying ahead by the example's difference, pulling ahead in year 5", () => {
+  it("opens on buying ahead by the example's difference less $8,000 of closing costs, pulling ahead in year 6", () => {
     const html = page();
     expect(formatUSD(EXAMPLE_DIFFERENCE)).toBe("$18,816");
+    expect(formatUSD(EXAMPLE_DIFFERENCE - 8000)).toBe("$10,816");
     expect(html).toContain("Estimated difference after 7 years");
-    expect(html).toContain("Buying comes out ahead by $18,816");
+    expect(html).toContain("Buying comes out ahead by $10,816");
+    expect(html).not.toContain("$18,816");
     expect(html).toContain("on these numbers, counting what is paid and what is left at the end");
-    expect(html).toContain("Buying pulls ahead in year 5.");
+    expect(html).toContain("Buying pulls ahead in year 6.");
+    expect(html).not.toContain("year 5");
     expect(html).toContain("$2,129");
     expect(html).toContain(NOTE);
     expect(html).toContain(DISCLAIMER);
@@ -80,7 +83,7 @@ describe("rent vs buy calculator page", () => {
 
   it("labels every typed field and gives each choice a legend", () => {
     const html = page();
-    for (const id of ["monthlyRent", "homePrice", "downPayment", "rate", "stayYears", "yearlyTax", "yearlyInsurance", "yearlyMaintenance", "appreciation", "rentIncrease", "sellingCosts", "investmentReturn"]) {
+    for (const id of ["monthlyRent", "homePrice", "downPayment", "rate", "stayYears", "closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance", "appreciation", "rentIncrease", "sellingCosts", "investmentReturn"]) {
       expect(count(html, `id="rentbuy-${id}"`), id).toBe(1);
       expect(html, id).toContain(`for="rentbuy-${id}"`);
     }
@@ -105,7 +108,7 @@ describe("rent vs buy calculator page", () => {
     expect(outside).toContain("Assumptions in this estimate");
     expect(outside).toContain("Change these under Add detail.");
     const lines = assumptionLines(input());
-    expect(lines).toHaveLength(11);
+    expect(lines).toHaveLength(12);
     for (const line of lines) {
       expect(outside, line).toContain(escaped(line));
       expect(panel, line).not.toContain(escaped(line));
@@ -118,8 +121,8 @@ describe("rent vs buy calculator page", () => {
     expect(html).toMatch(/<section id="rentbuy-results"[^>]*class="[^"]*print:hidden/);
     const printed = html.slice(html.indexOf('aria-label="Estimate summary"'));
     expect(printed).toContain("Rent vs buy estimate");
-    expect(printed).toContain("Buying comes out ahead by $18,816");
-    expect(printed).toContain("Buying pulls ahead in year 5.");
+    expect(printed).toContain("Buying comes out ahead by $10,816");
+    expect(printed).toContain("Buying pulls ahead in year 6.");
     expect(printed).toContain("Assumptions in this estimate");
     for (const line of assumptionLines(input())) expect(printed, line).toContain(escaped(line));
     expect(printed).toContain(CAUTION);
@@ -128,7 +131,7 @@ describe("rent vs buy calculator page", () => {
   });
 
   it("pins the headline to the bottom of a phone screen, linking to the results", () => {
-    expect(page()).toMatch(/<a href="#rentbuy-results"[^>]*max-\[980px\]:flex[^>]*print:hidden[^>]*>.*After 7 years.*Buying comes out ahead by \$18,816/);
+    expect(page()).toMatch(/<a href="#rentbuy-results"[^>]*max-\[980px\]:flex[^>]*print:hidden[^>]*>.*After 7 years.*Buying comes out ahead by \$10,816/);
   });
 });
 
@@ -136,10 +139,10 @@ describe("the printed summary", () => {
   it("lists the five front inputs with the payment, beside the estimate", () => {
     const i = input();
     const html = renderToStaticMarkup(<RentVsBuyPrintSummary input={i} result={calculateRentVsBuy(i)!} />);
-    for (const text of ["The numbers", "Monthly rent", "$2,400", "Home price", "$400,000", "Down payment", "$80,000", "Interest rate", "7%", "Years you plan to stay", "Mortgage payment", "$2,129"]) {
+    for (const text of ["The numbers", "Monthly rent", "$2,400", "Home price", "$400,000", "Down payment", "$80,000", "Closing costs", "$8,000", "Interest rate", "7%", "Years you plan to stay", "Mortgage payment", "$2,129"]) {
       expect(html, text).toContain(text);
     }
-    for (const text of ["The estimate", "Buying comes out ahead by $18,816", "Year 5", "Net cost of buying", "$169,295", "Net cost of renting", "$188,111", "Equity after selling", "$170,761"]) {
+    for (const text of ["The estimate", "Buying comes out ahead by $10,816", "Year 6", "Net cost of buying", "$177,295", "Net cost of renting", "$188,111", "Equity after selling", "$170,761"]) {
       expect(html, text).toContain(text);
     }
   });
@@ -206,9 +209,11 @@ describe("the pull-ahead sentence", () => {
   });
 
   it("agrees with the headline in real cases", () => {
-    const later = calculateRentVsBuy(input(RENTING_AHEAD))!;
+    // Pinned without closing costs, as recorded before the field existed.
+    const laterCase = { ...RENTING_AHEAD, closingCosts: "0" };
+    const later = calculateRentVsBuy(input(laterCase))!;
     expect(later).toMatchObject({ ahead: "renting", pullAheadYear: 20 });
-    expect(results(RENTING_AHEAD)).toContain("Buying would pull ahead in year 20, after the 3 years you plan to stay.");
+    expect(results(laterCase)).toContain("Buying would pull ahead in year 20, after the 3 years you plan to stay.");
 
     const first = { monthlyRent: "6,000" };
     expect(calculateRentVsBuy(input(first))).toMatchObject({ ahead: "buying", pullAheadYear: 1 });
@@ -245,10 +250,13 @@ describe("the figures under the headline", () => {
   it("lays out each path line by line down to its net cost", () => {
     const html = results();
     for (const text of [
-      "Down payment", "$80,000", "Mortgage payments", "$178,833", "Property tax", "$36,780", "Homeowners insurance", "$13,792", "Maintenance", "$30,650",
-      "Total paid", "$340,055", "Equity after selling", "-$170,761", "Net cost of buying", "$169,295",
+      "Down payment", "$80,000", "Closing costs", "$8,000", "Mortgage payments", "$178,833", "Property tax", "$36,780", "Homeowners insurance", "$13,792", "Maintenance", "$30,650",
+      "Total paid", "$348,055", "Equity after selling", "-$170,761", "Net cost of buying", "$177,295",
       "Rent paid", "$220,679", "Growth on the down payment, invested", "-$32,568", "Net cost of renting", "$188,111",
     ]) expect(html, text).toContain(text);
+    // Closing costs sit directly after the down payment in the Buying column.
+    expect(html).toMatch(/<dt>Down payment<\/dt><dd[^>]*>\$80,000<\/dd><\/div><div[^>]*><dt>Closing costs<\/dt><dd[^>]*>\$8,000<\/dd>/);
+    expect(results({ closingCosts: "0" })).toMatch(/<dt>Closing costs<\/dt><dd[^>]*>\$0<\/dd>/);
   });
 
   it("shows what the buyer ends up owning", () => {
@@ -328,6 +336,7 @@ describe("the assumptions list", () => {
   it("states every assumption the example uses", () => {
     expect(assumptionLines(input())).toEqual([
       "Loan term: 30 years",
+      "Closing costs on the purchase: $8,000",
       "Property tax: $4,800 a year, rising with the home's value",
       "Homeowners insurance: $1,800 a year, rising 3% a year",
       "Maintenance: $4,000 a year, rising 3% a year",
@@ -359,7 +368,10 @@ describe("the assumptions list", () => {
   });
 
   it("F1: reads $0 a year for a typed 0, and never none entered", () => {
-    const lines = assumptionLines(input({ yearlyTax: "0", yearlyInsurance: "0", yearlyMaintenance: "-50" }));
+    const lines = assumptionLines(input({ closingCosts: "0", yearlyTax: "0", yearlyInsurance: "0", yearlyMaintenance: "-50" }));
+    expect(lines).toContain("Closing costs on the purchase: $0");
+    expect(assumptionLines(input({ closingCosts: "-900" }))).toContain("Closing costs on the purchase: $0");
+    expect(assumptionLines(input({ closingCosts: "12,500" }))).toContain("Closing costs on the purchase: $12,500");
     expect(lines).toContain("Property tax: $0 a year");
     expect(lines).toContain("Homeowners insurance: $0 a year");
     expect(lines).toContain("Maintenance: $0 a year");
@@ -423,8 +435,8 @@ describe("nothing to compare", () => {
     expect(results({ stayYears: "41" })).toContain(message);
   });
 
-  it("F1: asks for the three costs when they are the only thing missing", () => {
-    const cases: Record<string, string>[] = [EMPTY_COSTS, { yearlyTax: "" }, { yearlyInsurance: "abc" }, { yearlyMaintenance: "4..0" }];
+  it("F1: asks for the four costs when they are the only thing missing", () => {
+    const cases: Record<string, string>[] = [EMPTY_COSTS, { closingCosts: "" }, { closingCosts: "8..0" }, { yearlyTax: "" }, { yearlyInsurance: "abc" }, { yearlyMaintenance: "4..0" }];
     for (const changes of cases) {
       expect(prompt(changes), JSON.stringify(changes)).toBe(COSTS_PROMPT);
     }
@@ -442,8 +454,8 @@ describe("nothing to compare", () => {
     expect(html).toContain(COSTS_PROMPT);
     expect(html).not.toContain("comes out ahead");
     expect(html).not.toContain("$100,038");
-    const filled = toInput({ ...BLANK, ...FIVE, yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000" });
-    expect(renderToStaticMarkup(<RentVsBuyResults input={filled} result={calculateRentVsBuy(filled)} disclaimer={DISCLAIMER} />)).toContain("Buying comes out ahead by $18,816");
+    const filled = toInput({ ...BLANK, ...FIVE, closingCosts: "8,000", yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000" });
+    expect(renderToStaticMarkup(<RentVsBuyResults input={filled} result={calculateRentVsBuy(filled)} disclaimer={DISCLAIMER} />)).toContain("Buying comes out ahead by $10,816");
   });
 
   it("F3: names an assumption rate that is empty or not a number", () => {

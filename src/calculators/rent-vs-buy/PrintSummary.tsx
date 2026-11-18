@@ -11,6 +11,7 @@ export function RentVsBuyPrintSummary({ input, result: r }: { input: RentVsBuyIn
     { label: "Monthly rent", value: formatUSD(input.monthlyRent) },
     { label: "Home price", value: formatUSD(input.homePrice) },
     { label: "Down payment", value: `${formatUSD(input.downPayment)} (${percentText(input.downPayment / input.homePrice)})` },
+    { label: "Closing costs", value: usd(r.buying.closingCosts) },
     { label: "Interest rate", value: percentText(input.rate) },
     { label: "Years you plan to stay", value: String(input.stayYears) },
     { label: "Mortgage payment", value: formatUSD(r.monthlyPayment) },

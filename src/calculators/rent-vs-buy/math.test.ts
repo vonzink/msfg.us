@@ -6,7 +6,8 @@ import {
 } from "./math";
 
 const cases = golden.cases;
-const named = (name: string): RentVsBuyInput => cases.find((c) => c.name === name)!.input;
+/** The golden cases come from the dashboard, which has no closing costs: they run with 0. */
+const named = (name: string): RentVsBuyInput => ({ ...cases.find((c) => c.name === name)!.input, closingCosts: 0 });
 const example = named("example");
 const calc = (changes: Partial<RentVsBuyInput> = {}) => calculateRentVsBuy({ ...example, ...changes });
 
@@ -16,8 +17,9 @@ describe("matches the dashboard (golden cases from msfg-calc)", () => {
   });
 
   it.each(cases)("$name", ({ input, expected }) => {
-    const r = calculateRentVsBuy(input)!;
+    const r = calculateRentVsBuy({ ...input, closingCosts: 0 })!;
     expect(r).not.toBeNull();
+    expect(r.buying.closingCosts).toBe(0);
     expect(r.monthlyPayment).toBe(expected.monthlyPayment);
     expect(r.buying.downPayment).toBe(expected.downPayment);
     expect(r.buying.mortgagePayments).toBe(expected.mortgagePayments);
@@ -170,6 +172,7 @@ describe("nothing to compare gives null", () => {
     ["investment return below -20%", { investmentReturn: -0.21 }],
     ["negative selling costs", { sellingCosts: -0.01 }],
     ["selling costs above 20%", { sellingCosts: 0.21 }],
+    ["closing costs not entered", { closingCosts: Number.NaN }],
     ["property tax not entered", { yearlyTax: Number.NaN }],
     ["insurance not entered", { yearlyInsurance: Number.NaN }],
     ["maintenance not entered", { yearlyMaintenance: Number.NaN }],
@@ -186,8 +189,8 @@ describe("nothing to compare gives null", () => {
 });
 
 describe("property tax, insurance and maintenance", () => {
-  it("F1: give no result until all three are entered, and a 0 is an entry", () => {
-    for (const id of ["yearlyTax", "yearlyInsurance", "yearlyMaintenance"] as const) {
+  it("F1: give no result until all four are entered, and a 0 is an entry", () => {
+    for (const id of ["closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance"] as const) {
       expect(calc({ [id]: Number.NaN }), id).toBeNull();
       expect(calc({ [id]: 0 }), id).not.toBeNull();
     }
@@ -199,7 +202,7 @@ describe("property tax, insurance and maintenance", () => {
 
   it("count as zero when negative", () => {
     const none = calc({ yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 0 })!;
-    expect(calc({ yearlyTax: -4800, yearlyInsurance: -1800, yearlyMaintenance: Number.NEGATIVE_INFINITY })).toEqual(none);
+    expect(calc({ closingCosts: -8000, yearlyTax: -4800, yearlyInsurance: -1800, yearlyMaintenance: Number.NEGATIVE_INFINITY })).toEqual(none);
   });
 
   it("rise each year: tax with the home's value, insurance and maintenance by 3%", () => {
@@ -219,7 +222,7 @@ describe("a tie", () => {
     // 12,000 of payments come straight back as equity, leaving 12,000 of maintenance against 12,000 of rent.
     const r = calculateRentVsBuy({
       monthlyRent: 1000, homePrice: 120000, downPayment: 0, rate: 0, stayYears: 1, termMonths: 120,
-      yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 12000,
+      closingCosts: 0, yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 12000,
       appreciation: 0, rentIncrease: 0, sellingCosts: 0, investmentReturn: 0,
     })!;
     expect(r.buying.netCost).toBe(12000);
@@ -269,7 +272,7 @@ describe("F7: buying ahead, then not", () => {
   it("finds the reviewer's case: first ahead in year 5, behind in years 7 to 20, ahead at the end of 35 years", () => {
     const r = calculateRentVsBuy({
       monthlyRent: 5894, homePrice: 462086, downPayment: 16173, rate: 0.1175, stayYears: 35, termMonths: 240,
-      yearlyTax: 544, yearlyInsurance: 4621, yearlyMaintenance: 8156,
+      closingCosts: 0, yearlyTax: 544, yearlyInsurance: 4621, yearlyMaintenance: 8156,
       appreciation: 0.01, rentIncrease: -0.04, sellingCosts: 0.06, investmentReturn: -0.04,
     })!;
     expect(r.ahead).toBe("buying");
@@ -278,5 +281,40 @@ describe("F7: buying ahead, then not", () => {
     expect(r.pullAheadYear).toBe(5);
     expect(buyingSlipsBack(r.years)).toBe(true);
     expect(buyingSlipsBack(calc()!.years)).toBe(false);
+  });
+});
+
+describe("closing costs on the purchase (a deliberate difference from the dashboard, which has none)", () => {
+  it("are paid once and added to the total paid: the example with $8,000 (hand-checked)", () => {
+    const r = calc({ closingCosts: 8000 })!;
+    expect(r.buying.closingCosts).toBe(8000);
+    expect(r.buying.totalPaid).toBe(348055.41); // 340,055.41 + 8,000
+    expect(r.buying.netCost).toBe(177294.56); // 169,294.56 + 8,000
+    expect(r.difference).toBe(10816.32); // 18,816.32 - 8,000
+    expect(r.ahead).toBe("buying");
+  });
+
+  it("count in every year of the path, so buying pulls ahead a year later, in year 6", () => {
+    const r = calc({ closingCosts: 8000 })!;
+    // The golden series less 8,000 in each year: year 5 was 1,451.63 ahead and is now behind.
+    expect(r.years.map((y) => y.difference)).toEqual([-28817.02, -24714.66, -19659.4, -13616.18, -6548.37, 1582.41, 10816.32]);
+    expect(r.pullAheadYear).toBe(6);
+    expect(calc({ closingCosts: 8000, stayYears: 2 })!.pullAheadYear).toBe(6);
+  });
+
+  it("change nothing on the renting side or in what the buyer ends up owning", () => {
+    const without = calc()!;
+    const r = calc({ closingCosts: 8000 })!;
+    expect(r.renting).toEqual(without.renting);
+    expect(r.buying.equity).toBe(without.buying.equity);
+    expect(r.monthlyPayment).toBe(without.monthlyPayment);
+    expect(r.loanAmount).toBe(without.loanAmount);
+    expect(r.years.map((y) => y.netCostRenting)).toEqual(without.years.map((y) => y.netCostRenting));
+  });
+
+  it("must be entered: NaN gives no result, 0 is an entry, a negative amount counts as zero", () => {
+    expect(calc({ closingCosts: Number.NaN })).toBeNull();
+    expect(calc({ closingCosts: 0 })!.difference).toBe(18816.32);
+    expect(calc({ closingCosts: -500 })).toEqual(calc({ closingCosts: 0 }));
   });
 });
