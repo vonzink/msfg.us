@@ -25,7 +25,7 @@ export function interestSentence(r: BreakevenResult): string {
   const gap = formatUSD(Math.abs(r.interestDifference));
   if (Math.round(r.interestDifference) === 0) return "The two loans cost about the same in interest.";
   if (r.interestDifference < 0) return `The new loan costs ${gap} less in interest.`;
-  return r.monthlySavings > 0
+  return r.next.payment < r.current.payment
     ? `The new loan costs ${gap} more in interest, even with the lower payment.`
     : `The new loan costs ${gap} more in interest.`;
 }
@@ -46,7 +46,25 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
     );
   }
 
+  if (r.loanShortfall > 0) {
+    return (
+      <div role="status" className="rounded-xl border border-line bg-white p-6 text-[16px] text-ink shadow-card">
+        <strong>
+          A new loan of {formatUSD(r.newLoanAmount)} is {formatUSD(r.loanShortfall)} less than the balance plus the cash out.
+        </strong>{" "}
+        Raise the new loan amount or lower the cash out to see the breakeven.
+      </div>
+    );
+  }
+
   const months = r.breakevenMonths;
+  const paymentRise = r.next.payment - r.current.payment;
+  const savingsSub =
+    paymentRise > 0 && r.monthlySavings > 0
+      ? `the new payment is ${formatUSD(paymentRise)} higher; the savings come from debt payments paid off`
+      : r.debtPaymentsPaidOff > 0
+        ? `includes ${formatUSD(r.debtPaymentsPaidOff)} of debt payments paid off`
+        : "payment now minus new payment";
   const chartYears = months && months > 0 ? Math.min(10, Math.max(5, Math.ceil(months / 12) + 2)) : 0;
 
   return (
@@ -55,7 +73,9 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
         <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-mint">Estimated breakeven</p>
         <p aria-live="polite" className="mt-1 text-[clamp(40px,5vw,58px)] font-extrabold leading-[1.05] tracking-[-0.02em] tabular-nums text-white">{breakevenText(r)}</p>
         <p className="mt-1.5 text-[16px] text-on-dark-2">
-          {months === null
+          {r.breakevenBeyondTerm
+            ? "The savings would not cover the closing costs within the life of the new loan."
+            : months === null
             ? "The new payment is not lower, so the closing costs are not recovered through the payment."
             : months === 0
               ? "there are no closing costs to recover"
@@ -80,8 +100,8 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
           label="Monthly savings"
           value={formatUSD(r.monthlySavings)}
           loss={r.monthlySavings < 0}
-          sub={r.debtPaymentsPaidOff > 0 ? `includes ${formatUSD(r.debtPaymentsPaidOff)} of debt payments paid off` : "payment now minus new payment"}
-          tip="What you would pay less each month. A negative figure means the new payment is higher."
+          sub={savingsSub}
+          tip="The payment now minus the new payment, plus any debt payments the cash out pays off. A negative figure means you would pay more each month."
         />
       </div>
 
@@ -98,6 +118,12 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
           </div>
         </dl>
         <p className="mt-3 text-[15px] font-semibold">{interestSentence(r)}</p>
+        {r.loanDifference > 0 && (
+          <p className="mt-1 text-[14px]">The new loan is {formatUSD(r.loanDifference)} larger than the balance, which adds to its interest.</p>
+        )}
+        {r.loanDifference < 0 && (
+          <p className="mt-1 text-[14px]">The new loan is {formatUSD(-r.loanDifference)} smaller than the balance; that amount is paid in at closing.</p>
+        )}
         <p className="mt-1 text-[13px] text-muted">If each loan is kept to its last payment.</p>
       </div>
 
@@ -122,6 +148,12 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
         />
       )}
 
+      {r.debtPaymentsIgnored > 0 && (
+        <p className="mx-1 text-[14px] font-semibold text-ink">
+          {formatUSD(r.debtPaymentsIgnored)} of debt payments are not counted, because the new loan is not larger than the
+          balance. Add cash out if the new loan will pay those debts off.
+        </p>
+      )}
       {r.cashOut > 0 && (
         <p className="mx-1 text-[14px] text-ink">Includes {formatUSD(r.cashOut)} of cash out, which is added to the new loan.</p>
       )}

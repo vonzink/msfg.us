@@ -32,6 +32,8 @@ export function BreakevenCalculator({ exampleRatePct, exampleRateNote, disclaime
   );
   const input = useMemo(() => toInput(values), [values]);
   const result = useMemo(() => calculateBreakeven(input), [input]);
+  // A loan too small for the balance and the cash out has no figures to print or pin.
+  const shown = result && result.loanShortfall === 0 ? result : null;
 
   const field = (def: FieldDef) => (
     <Field
@@ -71,12 +73,12 @@ export function BreakevenCalculator({ exampleRatePct, exampleRateNote, disclaime
       }
       results={<BreakevenResults result={result} disclaimer={disclaimer} />}
       below={
-        result && (
+        shown && (
           <>
             {/* The printed page: the two loans beside the estimate, then the interest line, the caution and the disclaimer. */}
-            <BreakevenPrintSummary input={input} result={result} />
+            <BreakevenPrintSummary input={input} result={shown} />
             <div className="mt-4 hidden print:block">
-              <p className="text-[12px] font-semibold">{interestSentence(result)}</p>
+              <p className="text-[12px] font-semibold">{interestSentence(shown)}</p>
               <p className="mt-1 text-[12px]">{CAUTION}</p>
               <p className="mt-2 text-[10px] text-muted">{disclaimer}</p>
             </div>
@@ -88,7 +90,7 @@ export function BreakevenCalculator({ exampleRatePct, exampleRateNote, disclaime
             >
               <span className="flex min-w-0 flex-col">
                 <span className="text-[11px] text-on-dark-2">Breakeven</span>
-                <strong className="text-[17px] tabular-nums">{breakevenText(result)}</strong>
+                <strong className="text-[17px] tabular-nums">{breakevenText(shown)}</strong>
               </span>
               <span className="ml-auto whitespace-nowrap text-[13px] font-bold text-mint">See results</span>
             </a>

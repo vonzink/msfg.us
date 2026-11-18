@@ -39,6 +39,13 @@ describe("switched-off calculators", () => {
     expect(await outcome(BlendedRatePage)).toBe("renders");
   });
 
+  it("gives the blended rate page a link to the breakeven calculator only while that one is on", async () => {
+    const href = async () => ((await BlendedRatePage()) as { props: { children: { props: { breakevenHref: string | null } } } }).props.children.props.breakevenHref;
+    expect(await href()).toBe("/calculators/refinance-breakeven");
+    settings.disabled = ["refinance-breakeven"];
+    expect(await href()).toBeNull();
+  });
+
   it("makes a switched-off blended rate calculator not found", async () => {
     expect(await outcome(BlendedRatePage)).toBe("renders");
     settings.disabled = ["blended-rate"];

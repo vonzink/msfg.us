@@ -21,9 +21,9 @@ export const FRONT_FIELDS: FieldDef[] = [
 ];
 
 export const DETAIL_FIELDS: FieldDef[] = [
-  { id: "newLoanAmount", label: "New loan amount", type: "money", example: "", hint: "Leave empty to use the balance plus any cash out. Enter more if closing costs are added to the loan." },
+  { id: "newLoanAmount", label: "New loan amount", type: "money", example: "", hint: "Leave empty to use the balance plus any cash out. Enter the full amount if closing costs are added to the loan." },
   { id: "cashOut", label: "Cash out", type: "money", example: "", hint: "Extra money borrowed on top of the balance." },
-  { id: "debtPaymentsPaidOff", label: "Debt payments paid off", type: "money", example: "", hint: "Per month, on other debts the cash out pays off." },
+  { id: "debtPaymentsPaidOff", label: "Debt payments paid off", type: "money", example: "", hint: "Per month, on other debts the cash out pays off. Counted only when the new loan is larger than the balance." },
   { id: "currentMi", label: "Mortgage insurance now", type: "money", example: "", hint: "Per month." },
   { id: "newMi", label: "Mortgage insurance on the new loan", type: "money", example: "", hint: "Per month." },
   { id: "keepYears", label: "Years you plan to keep the loan", type: "num", example: "", suffix: "yr" },

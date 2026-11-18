@@ -17,7 +17,7 @@ export const QUESTIONS: { q: string; a: string }[] = [
   },
   {
     q: "What if the closing costs are added to the loan?",
-    a: "Then you pay nothing at closing but owe more. Enter the larger amount as the new loan amount under Add detail. The payment rises a little, and the breakeven still shows how long the savings take to cover those costs.",
+    a: "Then you pay less at closing but owe more. Enter the full new loan amount under Add detail. The payment rises a little, and the breakeven still shows how long the savings take to cover those costs.",
   },
   {
     q: "Why does the new loan show more interest when the rate is lower?",

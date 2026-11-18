@@ -108,7 +108,7 @@ describe("optional detail", () => {
   });
 
   it("mentions cash out only when there is some", () => {
-    expect(results()).not.toContain("cash out");
+    expect(results()).not.toContain("of cash out");
     expect(results({ cashOut: "40,000" })).toContain("Includes $40,000 of cash out, which is added to the new loan.");
   });
 
@@ -121,6 +121,42 @@ describe("optional detail", () => {
 
   it("always carries the caution", () => {
     for (const html of [results(), results(NO_SAVINGS), results({ closingCosts: "0" })]) expect(html).toContain(CAUTION);
+  });
+});
+
+describe("statements that must stay true", () => {
+  it("does not claim a lower payment when the savings come only from debts paid off", () => {
+    const html = results({ cashOut: "60,000", debtPaymentsPaidOff: "900" });
+    expect(html).not.toContain("even with the lower payment");
+    expect(html).toContain("The new loan costs $69,072 more in interest.");
+    expect(html).toContain("the new payment is $132 higher; the savings come from debt payments paid off");
+  });
+
+  it("warns and gives no figures when the typed loan cannot cover the balance and the cash out", () => {
+    const html = results({ cashOut: "40,000", newLoanAmount: "306,000" });
+    expect(html).toContain("A new loan of $306,000 is $34,000 less than the balance plus the cash out.");
+    expect(html).not.toContain("Estimated breakeven");
+    expect(html).not.toContain("Monthly savings");
+    expect(html).not.toContain("Includes $40,000 of cash out");
+  });
+
+  it("says when debt payments were left out because no extra was borrowed", () => {
+    const html = results({ debtPaymentsPaidOff: "900" });
+    expect(html).toContain("$900 of debt payments are not counted");
+    expect(html).toContain("$267");
+  });
+
+  it("says no breakeven, with the reason, when it would outlast the new loan", () => {
+    const html = results({ currentRate: "7.02", yearsLeft: "30" });
+    expect(html).toContain("No breakeven");
+    expect(html).toContain("The savings would not cover the closing costs within the life of the new loan.");
+    expect(html).not.toMatch(/\d{3,} months/);
+  });
+
+  it("says when the new loan is a different size from the balance", () => {
+    expect(results({ cashOut: "40,000" })).toContain("The new loan is $40,000 larger than the balance, which adds to its interest.");
+    expect(results({ newLoanAmount: "280,000" })).toContain("The new loan is $20,000 smaller than the balance; that amount is paid in at closing.");
+    expect(results()).not.toContain("than the balance");
   });
 });
 

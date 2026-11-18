@@ -17,7 +17,16 @@
  *     the new loan, unless the visitor raises the new loan amount themselves.
  *   - Cash out, as on the dashboard, changes only the default size of the new loan. Monthly
  *     payments on other debts that the cash pays off are added to the savings.
- *   - There is no breakeven when the savings are not above zero.
+ *   - There is no breakeven when the savings are not above zero, or when it would take longer
+ *     than the new loan lasts.
+ *   - Differences from the dashboard, each to keep a public figure from overstating the savings:
+ *       · Debt payments paid off count only when the new loan is larger than the balance, since
+ *         the extra borrowing is what pays them off.
+ *       · A typed loan amount smaller than the balance plus the cash out is reported as a
+ *         shortfall, and the page then shows no figures.
+ *       · Net savings stop counting the old payment after the old loan would have been paid off,
+ *         and stop counting the new payment after the new loan ends. The dashboard multiplies the
+ *         monthly savings by the whole period. The two agree while both loans are running.
  *   - Not on the dashboard, so hand-checked in the tests: interest over the life of each loan,
  *     which is the payments still to be made minus the amount owed, on principal and interest
  *     only. It assumes each loan is kept to its last payment.
@@ -50,8 +59,16 @@ export type BreakevenResult = {
   next: { principalAndInterest: number; mi: number; payment: number; interestTotal: number };
   /** Current payment minus new payment, plus debt payments paid off. Can be zero or negative. */
   monthlySavings: number;
-  /** Whole months until the savings cover the closing costs. null when the savings are not above zero. */
+  /** Whole months until the savings cover the closing costs. null when there is no breakeven. */
   breakevenMonths: number | null;
+  /** True when there are savings but they would not cover the closing costs before the new loan ends. */
+  breakevenBeyondTerm: boolean;
+  /** New loan amount minus the current balance. Positive when more is borrowed, negative when money is paid in. */
+  loanDifference: number;
+  /** How far a typed loan amount falls short of the balance plus the cash out. Zero when it covers both. */
+  loanShortfall: number;
+  /** Debt payments typed in but not counted, because the new loan is not larger than the balance. */
+  debtPaymentsIgnored: number;
   closingCosts: number;
   /** New loan's total interest minus the current loan's remaining interest. Positive means the refinance costs more interest. */
   interestDifference: number;
@@ -78,7 +95,9 @@ export function calculateBreakeven(input: BreakevenInput): BreakevenResult | nul
   ) return null;
 
   const cashOut = amount(input.cashOut);
-  const newLoanAmount = amount(input.newLoanAmount) || currentBalance + cashOut;
+  const typedLoan = amount(input.newLoanAmount);
+  const newLoanAmount = typedLoan || currentBalance + cashOut;
+  const loanShortfall = typedLoan && cashOut > 0 ? Math.max(0, roundCents(currentBalance + cashOut - typedLoan)) : 0;
   const closingCosts = amount(input.closingCosts);
   const currentMi = amount(input.currentMi);
   const newMi = amount(input.newMi);
@@ -87,23 +106,34 @@ export function calculateBreakeven(input: BreakevenInput): BreakevenResult | nul
   const newPI = roundCents(monthlyPayment(newLoanAmount, percent(newRate), newTermMonths));
   const currentPayment = roundCents(currentPI + currentMi);
   const newPayment = roundCents(newPI + newMi);
-  const debtPaymentsPaidOff = amount(input.debtPaymentsPaidOff);
+  const debtTyped = amount(input.debtPaymentsPaidOff);
+  const debtPaymentsPaidOff = newLoanAmount > currentBalance ? debtTyped : 0;
   const monthlySavings = roundCents(roundCents(currentPayment - newPayment) + debtPaymentsPaidOff);
 
   const interestRemaining = roundCents(currentPI * monthsLeft - currentBalance);
   const interestTotal = roundCents(newPI * newTermMonths - newLoanAmount);
   const keepMonths = Number.isFinite(input.keepMonths) && input.keepMonths > 0 ? Math.round(input.keepMonths) : 0;
 
+  const rawBreakeven = monthlySavings > 0 ? Math.ceil(closingCosts / monthlySavings) : null;
+  const breakevenBeyondTerm = rawBreakeven !== null && rawBreakeven > newTermMonths;
+  const netSavings = roundCents(
+    roundCents(currentPayment * Math.min(keepMonths, monthsLeft) - newPayment * Math.min(keepMonths, newTermMonths) + debtPaymentsPaidOff * keepMonths) - closingCosts,
+  );
+
   return {
     newLoanAmount,
     current: { principalAndInterest: currentPI, mi: currentMi, payment: currentPayment, interestRemaining },
     next: { principalAndInterest: newPI, mi: newMi, payment: newPayment, interestTotal },
     monthlySavings,
-    breakevenMonths: monthlySavings > 0 ? Math.ceil(closingCosts / monthlySavings) : null,
+    breakevenMonths: breakevenBeyondTerm ? null : rawBreakeven,
+    breakevenBeyondTerm,
+    loanDifference: roundCents(newLoanAmount - currentBalance),
+    loanShortfall,
+    debtPaymentsIgnored: debtTyped - debtPaymentsPaidOff,
     closingCosts,
     interestDifference: roundCents(interestTotal - interestRemaining),
     cashOut,
     debtPaymentsPaidOff,
-    keep: keepMonths ? { months: keepMonths, netSavings: roundCents(roundCents(monthlySavings * keepMonths) - closingCosts) } : null,
+    keep: keepMonths ? { months: keepMonths, netSavings } : null,
   };
 }

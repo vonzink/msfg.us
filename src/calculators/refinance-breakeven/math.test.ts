@@ -109,3 +109,57 @@ describe("inputs that give no result", () => {
     expect(r.newLoanAmount).toBe(300000);
   });
 });
+
+describe("a typed loan amount against the cash out", () => {
+  it("flags a loan too small to cover the balance and the cash out", () => {
+    const r = calculateBreakeven({ ...example, cashOut: 40000, newLoanAmount: 306000 })!;
+    expect(r.loanShortfall).toBe(34000);
+    expect(calculateBreakeven({ ...example, cashOut: 40000, newLoanAmount: 346000 })!.loanShortfall).toBe(0);
+    expect(calculateBreakeven({ ...example, cashOut: 40000 })!.loanShortfall).toBe(0);
+  });
+
+  it("allows a loan below the balance when no cash is taken out, as money paid in at closing", () => {
+    const r = calculateBreakeven({ ...example, newLoanAmount: 280000 })!;
+    expect(r.loanShortfall).toBe(0);
+    expect(r.newLoanAmount).toBe(280000);
+  });
+});
+
+describe("debt payments paid off", () => {
+  it("count only when the new loan is larger than the balance, since the extra is what pays them", () => {
+    const none = calculateBreakeven({ ...example, debtPaymentsPaidOff: 900 })!;
+    expect(none.debtPaymentsPaidOff).toBe(0);
+    expect(none.debtPaymentsIgnored).toBe(900);
+    expect(none.monthlySavings).toBe(266.93);
+    const withCash = calculateBreakeven({ ...example, cashOut: 40000, debtPaymentsPaidOff: 900 })!;
+    expect(withCash.debtPaymentsPaidOff).toBe(900);
+    expect(withCash.debtPaymentsIgnored).toBe(0);
+  });
+});
+
+describe("a breakeven the loan never reaches", () => {
+  it("is no breakeven when it would take longer than the new loan lasts", () => {
+    const r = calculateBreakeven({ ...example, currentRate: 0.0702, monthsLeft: 360 })!;
+    expect(r.monthlySavings).toBeGreaterThan(0);
+    expect(r.breakevenMonths).toBeNull();
+    expect(r.breakevenBeyondTerm).toBe(true);
+    expect(calculateBreakeven(example)!.breakevenBeyondTerm).toBe(false);
+    expect(calculateBreakeven(named("no-savings"))!.breakevenBeyondTerm).toBe(false);
+  });
+});
+
+describe("net savings past the end of a loan (differs from the dashboard on purpose)", () => {
+  it("stops counting the old payment once the old loan would have been paid off", () => {
+    // $100,000 at 7% with 10 years left pays $1,161.08; a new 6.5% 30-year loan pays $632.07.
+    const r = calculateBreakeven({ ...example, currentBalance: 100000, currentRate: 0.07, monthsLeft: 120, newRate: 0.065, closingCosts: 6000, keepMonths: 180 })!;
+    expect(r.current.payment).toBe(1161.08);
+    expect(r.next.payment).toBe(632.07);
+    // 120 old payments avoided, 180 new payments made, minus closing costs.
+    expect(r.keep!.netSavings).toBeCloseTo(1161.08 * 120 - 632.07 * 180 - 6000, 2);
+  });
+
+  it("matches the dashboard while both loans are still running", () => {
+    expect(calculateBreakeven({ ...example, keepMonths: 60 })!.keep!.netSavings).toBe(10015.8);
+  });
+});
+
