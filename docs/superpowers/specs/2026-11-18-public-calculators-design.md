@@ -67,7 +67,7 @@ The goal is to bring seven of those calculators to the public site, restyled to 
 - **Example interest rate** comes from tenant config, default 7%, with a note on the field that it is an example and not an offer.
 - **Totals or itemized, never both.** Where the front has one total (closing costs, housing, debts, living costs) and the detail section has the itemized lines, opening the lines replaces the total with their sum.
 - **Results are labeled estimates.** Disclaimer wording comes from tenant config.
-- **Page structure:** heading phrased as the visitor's question, a one or two sentence intro, the calculator, a short "How this works" in plain language with no formulas, three or four common questions specific to that calculator, then the call to action. Claude drafts the text; Zachary approves it on staging.
+- **Page structure:** heading phrased as the visitor's question, an optional one or two sentence intro (Mortgage has none), the calculator, a short "How this works" in plain language with no formulas, three or four common questions specific to that calculator, then the call to action. Claude drafts the text; Zachary approves it on staging.
 - **Call to action** under the results using the existing `CtaBand`: a link to the matching apply path plus a plain link to `/loan-officers`. On calculator pages the second button must not open the booking calendar pop-up that `CtaBand` uses elsewhere (`ScheduleCallButton`); add a variant for this and leave other pages as they are. Mortgage, Rent vs buy, Rate buydown, APR, Home budget and Investment link to `/apply/buy`. Refinance breakeven and Blended rate link to `/apply/refi`.
 - **Buttons:** Load example, Clear, Print, as on the investment calculator.
 
@@ -78,8 +78,9 @@ The goal is to bring seven of those calculators to the public site, restyled to 
 - **Up front:** home price; down payment (dollars or percent); interest rate; loan term; property tax; homeowners insurance.
 - **Add detail:** HOA dues; mortgage insurance (typed in monthly); extra principal (amount and frequency); loan start month.
 - **Loan type assumed:** conventional, stated in "How this works". Mortgage insurance follows the dashboard rule in `amortization-math.js`: it applies only when the down payment is under 20% and ends when the scheduled balance reaches 78% of the home price.
-- **Removed:** purchase/refinance toggle; loan program selector; VA use, VA refinance type, funding fee exemption; cash-out and appraised value; the month-by-month slider on the donut.
-- **Results:** monthly payment headline with a donut (principal and interest, tax, insurance, HOA, mortgage insurance); total interest; payoff date; interest saved and time saved when extra principal is entered; balance-over-time chart; amortization schedule collapsed by default, grouped by year.
+- **Removed:** purchase/refinance toggle; loan program selector; VA use, VA refinance type, funding fee exemption; cash-out and appraised value.
+- **Results:** monthly payment headline; the payment slider (below); total interest; payoff date; interest saved and time saved when extra principal is entered; balance-over-time chart; then, under the calculator at page width, the amortization schedule by year, where each year opens to its payments.
+- **The payment slider stays.** "Where each payment goes" has a slider from the first payment to the last. A ring splits that payment into principal, interest, tax, insurance, HOA, mortgage insurance and extra principal, and a line gives principal against interest as percentages, as the dashboard does. An earlier draft of this document listed the slider under "Removed". Zachary reversed that on 2026-11-18 after the first staging review: **keep the slider. Do not remove it or replace it with a static chart.**
 
 ### Rate buydown
 
@@ -194,6 +195,6 @@ Zachary is the compliance sign-off. Compliance review of the disclaimers and all
 Decided by Zachary after testing the Mortgage calculator on staging. Where these differ from the text above, these win.
 
 - **Mortgage has no intro sentence.** The intro under the heading is optional per calculator.
-- **The payment slider is back.** "Where each payment goes" has a slider from the first payment to the last. The ring splits that payment into principal, interest, tax, insurance and the rest, and a line gives principal against interest as percentages, as the dashboard does. This replaces the static donut and reverses "Removed: the month-by-month slider".
+- **The payment slider is kept.** It was listed under "Removed" in the approved design and Zachary reversed that. The Mortgage section above now says so directly.
 - **The amortization schedule is a full-width section under the calculator**, always visible. Each year row opens to its payments, to the cent, and "Show every payment" opens them all.
 - **Print is a laid-out page:** a company letterhead with the licensing line, a two-column summary of the loan and the estimate, then the schedule as it is on screen, then the disclaimer. The form, charts, site header and footer do not print. Later calculators built on `CalculatorPage` get the letterhead and can supply their own printed summary.

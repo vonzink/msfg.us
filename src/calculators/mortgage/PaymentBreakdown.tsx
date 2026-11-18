@@ -21,6 +21,10 @@ const share = (x: number) => `${(x * 100).toFixed(1)}%`;
 /**
  * One payment at a time: a slider walks from the first payment to the last, and the ring shows how
  * that payment splits. Early payments are mostly interest; the slider shows it shifting to principal.
+ *
+ * Kept on purpose. The first design removed this slider to simplify the page and the owner
+ * reversed that after testing: see "The payment slider stays" in
+ * docs/superpowers/specs/2026-11-18-public-calculators-design.md. Do not replace it with a static chart.
  */
 export function PaymentBreakdown({ result, start }: {
   result: MortgageResult;
