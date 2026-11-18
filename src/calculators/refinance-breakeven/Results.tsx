@@ -33,14 +33,69 @@ export function interestSentence(r: BreakevenResult): string {
 
 /** Which loan leaves less owed at the end of the keep period. */
 export function balanceSentence(k: KeepPeriod): string {
-  if (Math.round(k.balanceDifference) === 0) return "You would owe about the same on either loan.";
-  return `You would owe ${formatUSD(Math.abs(k.balanceDifference))} ${k.balanceDifference > 0 ? "less" : "more"} with the new loan.`;
+  if (Math.round(k.additionalEquity) === 0) return "You would owe about the same on either loan.";
+  return `You would owe ${formatUSD(Math.abs(k.additionalEquity))} ${k.additionalEquity > 0 ? "less" : "more"} with the new loan.`;
 }
 
-/** The overall result once payments, closing costs and the balance are all counted. */
-export function positionSentence(k: KeepPeriod): string {
-  const side = k.netPosition >= 0 ? "ahead" : "behind";
-  return `Counting the payments, the closing costs and what would still be owed, the refinance leaves you ${formatUSD(Math.abs(k.netPosition))} ${side} after ${yearsText(k.months)}.`;
+/** "$70,294 ahead" or "$974 behind". */
+export const netText = (k: KeepPeriod) => `${formatUSD(Math.abs(k.net))} ${k.net >= 0 ? "ahead" : "behind"}`;
+
+const figure = "m-0 text-[22px] font-extrabold tabular-nums";
+const row = "flex items-baseline justify-between gap-4 border-b border-line py-1.5";
+
+/**
+ * Where the visitor stands after the years they plan to keep the loan. The sum is laid out line by
+ * line so nothing is folded in out of sight: monthly savings, minus closing costs, plus additional
+ * equity. Borrowed money is reported under the sum and never added to it.
+ */
+function KeepBlock({ keep: k }: { keep: KeepPeriod }) {
+  const period = yearsText(k.months);
+  return (
+    <div className="rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4">
+      <h2 className="text-[17px] font-bold">After {period}</h2>
+      <dl className="m-0 mt-3 grid grid-cols-2 gap-3 max-[600px]:grid-cols-1">
+        <div>
+          <dt className="text-[13px] font-semibold text-muted">Still owed on the loan now</dt>
+          <dd className={figure}>{formatUSD(k.balanceNowLoan)}</dd>
+        </div>
+        <div>
+          <dt className="text-[13px] font-semibold text-muted">Still owed on the new loan</dt>
+          <dd className={figure}>{formatUSD(k.balanceNewLoan)}</dd>
+        </div>
+      </dl>
+      <p className="mt-2 text-[15px]">{balanceSentence(k)}</p>
+
+      <dl className="m-0 mt-4 text-[15px]">
+        <div className={row}>
+          <dt>Monthly savings over {period}</dt>
+          <dd className={cn("m-0 font-semibold tabular-nums", k.paymentSavings < 0 && "text-loss")}>{formatUSD(k.paymentSavings)}</dd>
+        </div>
+        <div className={row}>
+          <dt>Closing costs</dt>
+          <dd className="m-0 font-semibold tabular-nums">{formatUSD(-k.closingCostsPaid)}</dd>
+        </div>
+        <div className={row}>
+          <dt>Additional equity</dt>
+          <dd className={cn("m-0 font-semibold tabular-nums", k.additionalEquity < 0 && "text-loss")}>{formatUSD(k.additionalEquity)}</dd>
+        </div>
+        <div className="flex items-baseline justify-between gap-4 pt-2 text-[17px] font-extrabold">
+          <dt>Net after {period}</dt>
+          <dd className={cn("m-0 tabular-nums", k.net < 0 && "text-loss")}>{netText(k)}</dd>
+        </div>
+      </dl>
+
+      {k.closingCostsFinanced > 0 && (
+        <p className="mt-3 text-[13px] text-muted">
+          {formatUSD(k.closingCostsFinanced)} of closing costs are added to the loan, so they are counted in the equity, not here.
+        </p>
+      )}
+      {k.cashBorrowed > 0 && (
+        <p className="mt-3 text-[13px] text-muted">
+          The new loan includes {formatUSD(k.cashBorrowed)} borrowed on top of the balance. That money is not counted as savings; it is part of why more is owed.
+        </p>
+      )}
+    </div>
+  );
 }
 
 const included = (mi: number) => (mi > 0 ? `principal, interest and ${formatUSD(mi)} mortgage insurance` : "principal and interest");
@@ -140,33 +195,7 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
         <p className="mt-1 text-[13px] text-muted">If each loan is kept to its last payment.</p>
       </div>
 
-      {r.keep && (
-        <div className="rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4">
-          <h2 className="text-[17px] font-bold">After {yearsText(r.keep.months)}</h2>
-          <dl className="m-0 mt-3 grid grid-cols-3 gap-3 max-[600px]:grid-cols-1">
-            <div>
-              <dt className="text-[13px] font-semibold text-muted">Net savings over {yearsText(r.keep.months)}</dt>
-              <dd className={cn("m-0 text-[22px] font-extrabold tabular-nums", r.keep.netSavings < 0 && "text-loss")}>{formatUSD(r.keep.netSavings)}</dd>
-              <dd className="m-0 text-[12px] text-muted">payments saved, minus closing costs</dd>
-            </div>
-            <div>
-              <dt className="text-[13px] font-semibold text-muted">Still owed on the loan now</dt>
-              <dd className="m-0 text-[22px] font-extrabold tabular-nums">{formatUSD(r.keep.balanceNowLoan)}</dd>
-            </div>
-            <div>
-              <dt className="text-[13px] font-semibold text-muted">Still owed on the new loan</dt>
-              <dd className="m-0 text-[22px] font-extrabold tabular-nums">{formatUSD(r.keep.balanceNewLoan)}</dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-[15px]">{balanceSentence(r.keep)}</p>
-          <p className="mt-1 text-[15px] font-semibold">{positionSentence(r.keep)}</p>
-          {r.loanDifference > 0 && (
-            <p className="mt-1 text-[13px] text-muted">
-              This counts the {formatUSD(r.loanDifference)} borrowed on top of the balance as money received at the start.
-            </p>
-          )}
-        </div>
-      )}
+      {r.keep && <KeepBlock keep={r.keep} />}
 
       {chartYears > 0 && (
         <SeriesChart

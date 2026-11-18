@@ -1,7 +1,7 @@
 import { formatUSD } from "@/lib/finance";
 import { PrintSummary, type PrintColumn } from "../shared/PrintSummary";
 import type { BreakevenInput, BreakevenResult } from "./math";
-import { breakevenText, yearsText } from "./Results";
+import { breakevenText, netText, yearsText } from "./Results";
 
 const percent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 type Rows = PrintColumn["rows"];
@@ -27,10 +27,11 @@ export function BreakevenPrintSummary({ input, result: r }: { input: BreakevenIn
     { label: "Interest on the new loan", value: formatUSD(r.next.interestTotal) },
     ...(r.keep
       ? [
-          { label: `Net savings over ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.netSavings) },
+          { label: `Monthly savings over ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.paymentSavings) },
           { label: `Owed on the loan now after ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.balanceNowLoan) },
           { label: `Owed on the new loan after ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.balanceNewLoan) },
-          { label: `Overall position after ${yearsText(r.keep.months)}`, value: `${formatUSD(Math.abs(r.keep.netPosition))} ${r.keep.netPosition >= 0 ? "ahead" : "behind"}` },
+          { label: `Additional equity after ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.additionalEquity) },
+          { label: `Net after ${yearsText(r.keep.months)}`, value: netText(r.keep) },
         ]
       : []),
   ];

@@ -30,10 +30,11 @@
  *   - Not on the dashboard, so hand-checked in the tests: interest over the life of each loan,
  *     which is the payments still to be made minus the amount owed, on principal and interest
  *     only. It assumes each loan is kept to its last payment.
- *   - With a keep period, the model also gives what is still owed on each loan at its end, from
- *     the dashboard's remaining-balance formula, and an overall position that counts it. A
- *     shorter loan at a lower rate can cost more each month and still come out ahead, because
- *     far less is owed at the end; payments alone would hide that.
+ *   - With a keep period, the model gives what is still owed on each loan at its end, from the
+ *     dashboard's remaining-balance formula, and a net figure: monthly savings over the period,
+ *     minus closing costs paid, plus additional equity. A shorter loan at a lower rate can cost
+ *     more each month and still come out ahead, because far less is owed at the end. Borrowed
+ *     money is never counted as a gain (see KeepPeriod).
  *   - Left out on purpose: the dashboard's itemized fees, cost-of-waiting scenario, "refinance
  *     twice" analysis, loan-type insurance rules and manual payment overrides.
  */
@@ -57,23 +58,35 @@ export type BreakevenInput = {
   keepMonths: number;
 };
 
-/** Where each loan stands after the time the visitor plans to keep it. */
+/**
+ * Where the visitor stands after the time they plan to keep the loan:
+ *
+ *   net = monthly savings over the period − closing costs paid at closing + additional equity
+ *
+ * Borrowed money is never a gain. Cash taken out is reported in `cashBorrowed` and shows up only
+ * as more owed. Closing costs added to the loan are already in the higher balance, so they reach
+ * the result through the equity and are not subtracted a second time.
+ */
 export type KeepPeriod = {
   months: number;
-  /** Payments avoided minus payments made over the period, minus closing costs. */
+  /** The dashboard's figure: monthly savings over the period minus all closing costs. Kept for parity tests; the page shows `net`. */
   netSavings: number;
   /** Still owed on the current loan at the end of the period. Zero if it would be paid off. */
   balanceNowLoan: number;
   /** Still owed on the new loan at the end of the period. */
   balanceNewLoan: number;
-  /** Current loan's balance minus the new loan's. Positive means less is owed with the new loan. */
-  balanceDifference: number;
-  /**
-   * Net savings, plus the balance difference, plus anything borrowed on top of the current balance
-   * (received at the start as cash or as costs not paid out of pocket), minus anything paid in.
-   * Positive means the refinance leaves the visitor ahead at the end of the period.
-   */
-  netPosition: number;
+  /** Payments avoided on the old loan minus payments made on the new one, plus debt payments paid off. Negative when the new payment is higher. */
+  paymentSavings: number;
+  /** Closing costs paid at closing, out of pocket. */
+  closingCostsPaid: number;
+  /** Closing costs added to the new loan instead: borrowing above the balance and the cash out, up to the closing costs. */
+  closingCostsFinanced: number;
+  /** Money borrowed on top of the balance that is not financed closing costs: the cash out. */
+  cashBorrowed: number;
+  /** Current loan's balance minus the new loan's. Positive means more equity with the new loan. */
+  additionalEquity: number;
+  /** paymentSavings − closingCostsPaid + additionalEquity. Positive means ahead. */
+  net: number;
 };
 
 export type BreakevenResult = {
@@ -146,14 +159,22 @@ export function calculateBreakeven(input: BreakevenInput): BreakevenResult | nul
   const keepPeriod = (): KeepPeriod => {
     const balanceNowLoan = roundCents(remainingBalance(currentBalance, percent(currentRate), monthsLeft, Math.min(keepMonths, monthsLeft)));
     const balanceNewLoan = roundCents(remainingBalance(newLoanAmount, percent(newRate), newTermMonths, Math.min(keepMonths, newTermMonths)));
-    const balanceDifference = roundCents(balanceNowLoan - balanceNewLoan);
+    const additionalEquity = roundCents(balanceNowLoan - balanceNewLoan);
+    const paymentSavings = roundCents(netSavings + closingCosts);
+    // Borrowing above the balance and the cash out is closing costs added to the loan, up to their total.
+    const closingCostsFinanced = Math.min(closingCosts, Math.max(0, roundCents(newLoanAmount - currentBalance - cashOut)));
+    const closingCostsPaid = roundCents(closingCosts - closingCostsFinanced);
     return {
       months: keepMonths,
       netSavings,
       balanceNowLoan,
       balanceNewLoan,
-      balanceDifference,
-      netPosition: roundCents(netSavings + balanceDifference + (newLoanAmount - currentBalance)),
+      paymentSavings,
+      closingCostsPaid,
+      closingCostsFinanced,
+      cashBorrowed: Math.max(0, roundCents(newLoanAmount - currentBalance - closingCostsFinanced)),
+      additionalEquity,
+      net: roundCents(paymentSavings - closingCostsPaid + additionalEquity),
     };
   };
 

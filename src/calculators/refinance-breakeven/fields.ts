@@ -26,7 +26,7 @@ export const DETAIL_FIELDS: FieldDef[] = [
   { id: "debtPaymentsPaidOff", label: "Debt payments paid off", type: "money", example: "", hint: "Per month, on other debts the cash out pays off. Counted only when the new loan is larger than the balance." },
   { id: "currentMi", label: "Mortgage insurance now", type: "money", example: "", hint: "Per month." },
   { id: "newMi", label: "Mortgage insurance on the new loan", type: "money", example: "", hint: "Per month." },
-  { id: "keepYears", label: "Years you plan to keep the loan", type: "num", example: "", suffix: "yr", hint: "Shows the net savings and what you would still owe on each loan by then." },
+  { id: "keepYears", label: "Years you plan to keep the loan", type: "num", example: "", suffix: "yr", hint: "Shows what you would still owe on each loan by then, and the net of savings, costs and equity." },
 ];
 
 const ALL = [...FRONT_FIELDS, ...DETAIL_FIELDS];

@@ -25,7 +25,7 @@ export const QUESTIONS: { q: string; a: string }[] = [
   },
   {
     q: "What if the new loan has a shorter term and a higher payment?",
-    a: "Then there is no breakeven on the payment, because you pay more each month. The gain is in how fast the balance falls. Enter how long you plan to keep the loan under Add detail to see what you would still owe on each loan at that point, and where you stand once that is counted.",
+    a: "Then there is no breakeven on the payment, because you pay more each month. The gain is in how fast the balance falls. Enter how long you plan to keep the loan under Add detail to see what you would still owe on each loan at that point. The page then adds up the monthly savings, the closing costs and the additional equity.",
   },
   {
     q: "Is a short breakeven enough to decide?",

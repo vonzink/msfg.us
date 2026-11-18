@@ -101,10 +101,10 @@ describe("interest over the life of each loan", () => {
 
 describe("optional detail", () => {
   it("shows net savings only when the years to keep the loan are given", () => {
-    expect(results()).not.toContain("Net savings over");
+    expect(results()).not.toContain("Net after");
     const html = results({ keepYears: "5" });
-    expect(html).toContain("Net savings over 5 years");
-    expect(html).toContain("$10,016");
+    expect(html).toContain("Net after 5 years");
+    expect(html).toContain("$16,016"); // 60 months at $266.93
   });
 
   it("shows what would still be owed on each loan after the years entered", () => {
@@ -116,14 +116,38 @@ describe("optional detail", () => {
     expect(html).toContain("Still owed on the new loan");
     expect(html).toContain("$133,563");
     expect(html).toContain("You would owe $118,351 less with the new loan.");
-    expect(html).toContain("-$48,058");
-    expect(html).toContain("Counting the payments, the closing costs and what would still be owed, the refinance leaves you $70,294 ahead after 10 years.");
   });
 
-  it("says when the refinance leaves you behind once the balance is counted", () => {
+  it("adds up monthly savings, closing costs and additional equity in the open", () => {
+    const html = results({ newRate: "6.5", newTermYears: "15", keepYears: "10" });
+    expect(html).toContain("Monthly savings over 10 years");
+    expect(html).toContain("-$42,058");
+    expect(html).toContain("Closing costs");
+    expect(html).toContain("-$6,000");
+    expect(html).toContain("Additional equity");
+    expect(html).toContain("$118,351");
+    expect(html).toContain("Net after 10 years");
+    expect(html).toContain("$70,294 ahead");
+  });
+
+  it("says behind when the lost equity outweighs the monthly savings", () => {
     const html = results({ ...STRETCHED, keepYears: "7" });
     expect(html).toContain("You would owe $19,135 more with the new loan.");
-    expect(html).toContain("the refinance leaves you $974 behind after 7 years.");
+    expect(html).toContain("-$19,135");
+    expect(html).toContain("$974 behind");
+  });
+
+  it("reports borrowed cash without ever adding it to the result", () => {
+    const html = results({ currentRate: "7", yearsLeft: "25", newRate: "6.5", newTermYears: "20", cashOut: "20,000", keepYears: "5" });
+    expect(html).toContain("behind");
+    expect(html).not.toContain("ahead");
+    expect(html).not.toContain("money received at the start");
+    expect(html).toContain("The new loan includes $20,000 borrowed on top of the balance. That money is not counted as savings; it is part of why more is owed.");
+  });
+
+  it("says when closing costs were added to the loan and so show up in the equity instead", () => {
+    const html = results({ newLoanAmount: "306,000", keepYears: "5" });
+    expect(html).toContain("$6,000 of closing costs are added to the loan, so they are counted in the equity, not here.");
   });
 
   it("mentions cash out only when there is some", () => {
@@ -192,7 +216,7 @@ describe("print summary", () => {
     const i = input({ keepYears: "5" });
     const html = renderToStaticMarkup(<BreakevenPrintSummary input={i} result={calculateBreakeven(i)!} />);
     expect(html).toMatch(/^<section[^>]*class="[^"]*hidden[^"]*print:block/);
-    for (const text of ["Loan balance", "$300,000", "Current rate", "8%", "27 years", "New rate", "7%", "30 years", "Closing costs", "$6,000", "Breakeven", "23 months", "Monthly savings", "$267", "Interest left on the loan now", "$433,160", "Interest on the new loan", "$418,528", "Net savings over 5 years", "$10,016", "Owed on the loan now after 5 years", "Owed on the new loan after 5 years", "Overall position after 5 years"]) {
+    for (const text of ["Loan balance", "$300,000", "Current rate", "8%", "27 years", "New rate", "7%", "30 years", "Closing costs", "$6,000", "Breakeven", "23 months", "Monthly savings", "$267", "Interest left on the loan now", "$433,160", "Interest on the new loan", "$418,528", "Monthly savings over 5 years", "$16,016", "Owed on the loan now after 5 years", "Owed on the new loan after 5 years", "Additional equity after 5 years", "Net after 5 years"]) {
       expect(html, text).toContain(text);
     }
   });

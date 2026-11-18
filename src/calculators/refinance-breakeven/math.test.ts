@@ -165,28 +165,57 @@ describe("net savings past the end of a loan (differs from the dashboard on purp
   });
 });
 
-describe("what is owed after the keep period", () => {
-  it("shows a shorter, lower-rate loan ahead on balance even though its payment is higher", () => {
+describe("the net result after the keep period: monthly savings, minus closing costs, plus additional equity", () => {
+  it("shows a shorter, lower-rate loan ahead because of the equity, though its payment is higher", () => {
     const k = calculateBreakeven(named("shorter-term"))!.keep!;
-    expect(k.netSavings).toBe(-48057.6);
     expect(k.balanceNowLoan).toBe(251914.54);
     expect(k.balanceNewLoan).toBe(133563.44);
-    expect(k.balanceDifference).toBe(118351.1);
-    // Payments and closing costs put you $48,057.60 behind; owing $118,351.10 less puts you ahead overall.
-    expect(k.netPosition).toBe(70293.5);
+    expect(k.paymentSavings).toBe(-42057.6); // 120 months at $350.48 more
+    expect(k.closingCostsPaid).toBe(6000);
+    expect(k.additionalEquity).toBe(118351.1);
+    expect(k.net).toBe(70293.5); // -42,057.60 - 6,000 + 118,351.10
   });
 
-  it("shows a longer loan behind overall once the higher balance is counted", () => {
+  it("shows a longer loan behind once the lost equity is counted", () => {
     const k = calculateBreakeven(named("longer-term-more-interest"))!.keep!;
-    expect(k.netSavings).toBe(18161.32);
-    expect(k.balanceDifference).toBe(-19135.35);
-    expect(k.netPosition).toBe(-974.03);
+    expect(k.paymentSavings).toBe(23161.32);
+    expect(k.additionalEquity).toBe(-19135.35);
+    expect(k.net).toBe(-974.03);
   });
 
-  it("counts money borrowed on top of the balance as received at the start", () => {
+  it("never counts borrowed money as a gain", () => {
     const k = calculateBreakeven(named("cash-out-with-debts"))!.keep!;
-    // $47,048.60 net savings, $39,360.04 more owed, $40,000 received up front.
-    expect(k.netPosition).toBe(47688.56);
+    expect(k.paymentSavings).toBe(54048.6);
+    expect(k.additionalEquity).toBe(-39360.04);
+    expect(k.cashBorrowed).toBe(40000);
+    // 54,048.60 - 7,000 - 39,360.04. The $40,000 of cash is reported, not added.
+    expect(k.net).toBe(7688.56);
+  });
+
+  it("reproduces the owner's example shape: more owed and higher payments is behind, whatever was borrowed", () => {
+    const k = calculateBreakeven({ ...example, currentRate: 0.07, monthsLeft: 300, newRate: 0.065, newTermMonths: 240, cashOut: 30000, keepMonths: 60 })!.keep!;
+    expect(k.paymentSavings).toBeLessThan(0);
+    expect(k.additionalEquity).toBeLessThan(0);
+    expect(k.net).toBeLessThan(0);
+    expect(k.net).toBeCloseTo(k.paymentSavings - 6000 + k.additionalEquity, 2);
+  });
+
+  it("does not subtract closing costs twice when they are added to the loan", () => {
+    const rolled = calculateBreakeven({ ...example, newLoanAmount: 306000, keepMonths: 60 })!.keep!;
+    expect(rolled.closingCostsFinanced).toBe(6000);
+    expect(rolled.closingCostsPaid).toBe(0);
+    expect(rolled.cashBorrowed).toBe(0);
+    // The $6,000 is already in the higher balance, so it only appears through the equity.
+    expect(rolled.net).toBeCloseTo(rolled.paymentSavings + rolled.additionalEquity, 2);
+    const partly = calculateBreakeven({ ...example, newLoanAmount: 304000, keepMonths: 60 })!.keep!;
+    expect(partly.closingCostsFinanced).toBe(4000);
+    expect(partly.closingCostsPaid).toBe(2000);
+  });
+
+  it("treats borrowing beyond the closing costs as cash, not as financed costs", () => {
+    const k = calculateBreakeven({ ...example, newLoanAmount: 330000, keepMonths: 60 })!.keep!;
+    expect(k.closingCostsFinanced).toBe(6000);
+    expect(k.cashBorrowed).toBe(24000);
   });
 
   it("is zero on a loan that has ended", () => {
@@ -195,4 +224,3 @@ describe("what is owed after the keep period", () => {
     expect(k.balanceNewLoan).toBeGreaterThan(0);
   });
 });
-

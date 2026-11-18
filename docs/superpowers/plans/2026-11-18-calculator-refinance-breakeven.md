@@ -156,3 +156,27 @@ export function remainingBalance(principal: number, annualRatePct: number, termM
 - $250,000 at 7.25% with 22 years left into 6.75% for 30 years, kept 7 years: net savings $18,161.32; $19,135.35 more owed; overall $974.03 behind.
 - Sentences: "You would owe {X} less|more with the new loan." and "Counting the payments, the closing costs and what would still be owed, the refinance leaves you {Y} ahead|behind after {N} years."
 
+## Amendment 2: the net after the keep period (2026-11-18)
+
+Amendment 1 added an "overall position" that counted money borrowed on top of the balance as received at the start. Zachary tested it and called it misleading: a refinance with higher payments and more owed read as "$9,060 ahead" because of $20,000 borrowed. His formula replaces it:
+
+**net = monthly savings over the period - closing costs + additional equity**
+
+```ts
+export type KeepPeriod = {
+  months: number;
+  netSavings: number;            // dashboard parity only; not shown
+  balanceNowLoan: number; balanceNewLoan: number;
+  paymentSavings: number;        // payments avoided minus payments made, plus debt payments paid off
+  closingCostsPaid: number;      // paid at closing
+  closingCostsFinanced: number;  // min(closing costs, new loan - balance - cash out), never below zero
+  cashBorrowed: number;          // new loan - balance - closingCostsFinanced, never below zero
+  additionalEquity: number;      // now-loan balance minus new-loan balance
+  net: number;                   // paymentSavings - closingCostsPaid + additionalEquity
+};
+```
+
+`netPosition` and `balanceDifference` in Amendment 1 are superseded by `net` and `additionalEquity`.
+
+**Pinned values:** the shorter-term case is still $70,293.50 ahead (-$42,057.60 - $6,000 + $118,351.10). The cash-out case is $7,688.56 ahead ($54,048.60 - $7,000 - $39,360.04), with its $40,000 reported and not added. The page lists the three lines and the total; it never prints a single sentence that hides the parts.
+
