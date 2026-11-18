@@ -9,9 +9,10 @@ import { EXAMPLE_ROWS, parseCompareRate, toDebts, updateRow, type Row } from "./
 
 const DISCLAIMER = "This is an estimate based on the numbers you entered.";
 const page = () => renderToStaticMarkup(<BlendedRateCalculator disclaimer={DISCLAIMER} breakevenHref={null} />);
-const calc = (rows: Row[] = EXAMPLE_ROWS, compare = "", term = 30) => calculateBlended(toDebts(rows), parseCompareRate(compare), term);
-const results = (rows: Row[] = EXAMPLE_ROWS, compare = "", breakevenHref: string | null = null) =>
-  renderToStaticMarkup(<BlendedResults result={calc(rows, compare)} disclaimer={DISCLAIMER} breakevenHref={breakevenHref} />);
+const calc = (rows: Row[] = EXAMPLE_ROWS, compare = "", term = 30, loanAmount = Number.NaN) =>
+  calculateBlended(toDebts(rows), parseCompareRate(compare), term, loanAmount);
+const results = (rows: Row[] = EXAMPLE_ROWS, compare = "", breakevenHref: string | null = null, loanAmount = Number.NaN) =>
+  renderToStaticMarkup(<BlendedResults result={calc(rows, compare, 30, loanAmount)} disclaimer={DISCLAIMER} breakevenHref={breakevenHref} />);
 const count = (html: string, needle: string) => html.split(needle).length - 1;
 const set = (index: number, field: "name" | "balance" | "rate" | "payment", value: string, rows = EXAMPLE_ROWS) =>
   updateRow(rows, rows[index].id, field, value);
@@ -129,6 +130,38 @@ describe("blended rate results", () => {
       expect(results(paying)).not.toContain("Monthly savings");
       expect(results(EXAMPLE_ROWS, "7")).not.toContain("Monthly savings");
       expect(results(EXAMPLE_ROWS, "7")).not.toContain("Enter the current payment");
+    });
+
+    it("shows cash back when the new loan is larger than the debts, and counts it in the payment", () => {
+      const html = results(paying, "7", null, 350000);
+      expect(html).toContain("Cash back");
+      expect(html).toContain("$40,000");
+      expect(html).toContain("-$756");
+      expect(html).toContain("$2,329 new payment against $1,573 now");
+      expect(html).toContain("Assumes one new 30-year loan of $350,000 at 7%: $310,000 to pay off the debts and $40,000 cash back, with no closing costs added.");
+    });
+
+    it("shows cash back even before any payment is entered", () => {
+      const html = results(EXAMPLE_ROWS, "7", null, 350000);
+      expect(html).toContain("Cash back");
+      expect(html).toContain("$40,000");
+      expect(html).not.toContain("Monthly savings");
+    });
+
+    it("says so when the new loan would not pay off the debts, and gives no savings", () => {
+      const html = results(paying, "7", null, 300000);
+      expect(html).toContain("A new loan of $300,000 is $10,000 less than the debts listed, so it would not pay them all off.");
+      expect(html).not.toContain("Monthly savings");
+      expect(html).not.toContain("Cash back");
+    });
+
+    it("shows no cash back when no loan amount is entered", () => {
+      expect(results(paying, "7")).not.toContain("Cash back");
+    });
+
+    it("prints the loan amount and the cash back", () => {
+      const html = renderToStaticMarkup(<BlendedPrintSummary result={calc(paying, "7", 30, 350000)!} />);
+      for (const text of ["New loan amount", "$350,000", "Cash back", "$40,000", "-$756"]) expect(html, text).toContain(text);
     });
 
     it("prints the new payment and the savings", () => {

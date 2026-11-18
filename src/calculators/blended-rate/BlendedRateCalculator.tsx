@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AddDetail } from "../shared/AddDetail";
 import { CalculatorShell } from "../shared/CalculatorShell";
 import { Field } from "../shared/Field";
-import type { FieldDef } from "../shared/fields";
+import { parseNumber, type FieldDef } from "../shared/fields";
 import { calculateBlended } from "./math";
 import { BlendedPrintSummary } from "./PrintSummary";
 import { BlendedResults, blendedPercent, CAUTION } from "./Results";
@@ -22,6 +22,10 @@ const TERM: FieldDef = {
   options: [10, 15, 20, 25, 30].map((y) => ({ value: String(y), label: `${y} yr` })),
   hint: "Used with the new rate to work out the new payment and the monthly savings.",
 };
+const LOAN_AMOUNT: FieldDef = {
+  id: "loanAmount", label: "New loan amount", type: "money", example: "",
+  hint: "Leave empty to borrow just enough to pay off the debts. Enter more to take cash back.",
+};
 const ghost = "rounded-md border border-line bg-white px-3.5 py-2 text-[14px] font-bold text-ink hover:bg-paper-2";
 
 /**
@@ -36,7 +40,11 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
   const [rows, setRows] = useState<Row[]>(EXAMPLE_ROWS);
   const [compare, setCompare] = useState("");
   const [term, setTerm] = useState("30");
-  const result = useMemo(() => calculateBlended(toDebts(rows), parseCompareRate(compare), Number(term)), [rows, compare, term]);
+  const [loanAmount, setLoanAmount] = useState("");
+  const result = useMemo(
+    () => calculateBlended(toDebts(rows), parseCompareRate(compare), Number(term), parseNumber(loanAmount) || Number.NaN),
+    [rows, compare, term, loanAmount],
+  );
 
   // Adding or removing a row unmounts the button that was just pressed. Without this, keyboard
   // focus would drop to the top of the page. Send it to the new row, or to the Add button.
@@ -71,8 +79,8 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
       formLabel="Debts"
       resultsId="blended-results"
       printBelowOnly
-      onExample={() => { setRows(EXAMPLE_ROWS); setCompare(""); setTerm("30"); }}
-      onClear={() => { setRows(blankRows()); setCompare(""); setTerm("30"); }}
+      onExample={() => { setRows(EXAMPLE_ROWS); setCompare(""); setTerm("30"); setLoanAmount(""); }}
+      onClear={() => { setRows(blankRows()); setCompare(""); setTerm("30"); setLoanAmount(""); }}
       form={
         <>
           <section className="rounded-xl border border-line bg-white shadow-card">
@@ -109,7 +117,7 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
           <AddDetail>
             <p className="mb-3.5 text-[14px] text-muted">
               Optional. Enter what you pay on each debt now and a new rate to see the monthly savings from one new
-              loan. Payments do not change the blended rate.
+              loan. Add a new loan amount to include cash back. None of this changes the blended rate.
             </p>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-4 gap-y-3.5">
               {rows.map((row, i) => (
@@ -124,6 +132,7 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
                 numbers={{}}
                 onChange={(_id, value) => setCompare(value)}
               />
+              <Field def={LOAN_AMOUNT} idPrefix="blended" values={{ loanAmount }} numbers={{}} onChange={(_id, value) => setLoanAmount(value)} />
               <Field def={TERM} idPrefix="blended" values={{ term }} numbers={{}} onChange={(_id, value) => setTerm(value)} />
             </div>
           </AddDetail>

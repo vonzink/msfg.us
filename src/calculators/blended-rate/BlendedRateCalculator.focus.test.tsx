@@ -47,6 +47,11 @@ describe("monthly savings, typed in", () => {
     expect(screen.getAllByText("-$489").length).toBeGreaterThan(0);
     expect(screen.getByText("The new payment would be higher.")).toBeTruthy();
 
+    type("New loan amount", "350000");
+    expect(screen.getAllByText("-$756").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("$40,000").length).toBeGreaterThan(0);
+    type("New loan amount", "");
+
     fireEvent.click(screen.getByLabelText("15 yr"));
     expect(screen.getAllByText("-$1,213").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Assumes one new 15-year loan for the full \$310,000 at 7%/).length).toBeGreaterThan(0);

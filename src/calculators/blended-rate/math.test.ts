@@ -123,3 +123,32 @@ describe("monthly savings against one new loan", () => {
     }
   });
 });
+
+describe("a new loan amount, with cash back", () => {
+  const paying = [{ ...two[0], payment: 1123 }, { ...two[1], payment: 450 }];
+
+  it("defaults to the total of the debts, with no cash back", () => {
+    for (const amount of [Number.NaN, 0, -1]) {
+      const c = calculateBlended(paying, 0.07, 30, amount)!.comparison!;
+      expect(c.loanAmount).toBe(310000);
+      expect(c.cashBack).toBe(0);
+    }
+    expect(calculateBlended(paying, 0.07, 30)!.comparison!.loanAmount).toBe(310000);
+  });
+
+  it("treats anything borrowed above the debts as cash back and prices the payment on the whole loan", () => {
+    const c = calculateBlended(paying, 0.07, 30, 350000)!.comparison!;
+    expect(c.loanAmount).toBe(350000);
+    expect(c.cashBack).toBe(40000);
+    // $350,000 at 7% over 30 years is $2,328.56 a month.
+    expect(c.newPayment).toBeCloseTo(2328.56, 2);
+    expect(c.monthlySavings).toBeCloseTo(1573 - 2328.56, 2);
+  });
+
+  it("gives a negative cash back and no savings when the loan would not pay off the debts", () => {
+    const c = calculateBlended(paying, 0.07, 30, 300000)!.comparison!;
+    expect(c.cashBack).toBe(-10000);
+    expect(c.monthlySavings).toBeNull();
+  });
+});
+

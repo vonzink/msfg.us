@@ -27,6 +27,9 @@ export function comparisonSentence(comparison: NonNullable<BlendedResult["compar
 export function newLoanAssumption(r: BlendedResult): string {
   const c = r.comparison;
   if (!c) return "";
+  if (c.cashBack > 0) {
+    return `Assumes one new ${c.termYears}-year loan of ${formatUSD(c.loanAmount)} at ${percent(c.rate)}: ${formatUSD(r.totalBalance)} to pay off the debts and ${formatUSD(c.cashBack)} cash back, with no closing costs added.`;
+  }
   return `Assumes one new ${c.termYears}-year loan for the full ${formatUSD(r.totalBalance)} at ${percent(c.rate)}, with no closing costs or cash out added.`;
 }
 
@@ -115,7 +118,24 @@ export function BlendedResults({ result: r, disclaimer, breakevenHref }: {
           {newLoanAssumption(r)}
         </p>
       )}
-      {r.comparison && r.totalPayment > 0 && savings === null && (
+      {r.comparison && r.comparison.cashBack > 0 && (
+        <>
+          <Stat
+            label="Cash back"
+            value={formatUSD(r.comparison.cashBack)}
+            sub={`from a new loan of ${formatUSD(r.comparison.loanAmount)}`}
+            tip="The new loan amount minus the debts it pays off. It is borrowed money, and it is included in the new payment."
+          />
+          {savings === null && <p className="mx-1 text-[14px] text-ink">{newLoanAssumption(r)}</p>}
+        </>
+      )}
+      {r.comparison && r.comparison.cashBack < 0 && (
+        <p className="mx-1 text-[14px] font-semibold text-loss">
+          A new loan of {formatUSD(r.comparison.loanAmount)} is {formatUSD(-r.comparison.cashBack)} less than the debts
+          listed, so it would not pay them all off.
+        </p>
+      )}
+      {r.comparison && r.comparison.cashBack >= 0 && r.totalPayment > 0 && savings === null && (
         <p className="mx-1 text-[14px] font-semibold text-ink">
           Enter the current payment for every debt to see the monthly savings.
         </p>

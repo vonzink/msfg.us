@@ -28,6 +28,10 @@ export const QUESTIONS: { q: string; a: string }[] = [
     a: "Not for the blended rate, which payments do not change. Add them under Add detail, along with a new rate and term, to see how one new loan's payment would compare with what you pay now.",
   },
   {
+    q: "What does taking cash back do to the numbers?",
+    a: "Cash back is extra borrowing on top of what pays off the debts. It raises the new loan amount, so the new payment is higher and the monthly savings are lower than they would be without it. The calculator includes it in the new payment.",
+  },
+  {
     q: "The monthly savings look large. Is that the whole story?",
     a: "No. A new 30-year loan spreads the balance over many more years than a car loan or a credit card, so the payment drops even when the total interest goes up. Closing costs are not included either. Treat the monthly savings as one part of the picture and ask a loan officer for the full comparison.",
   },

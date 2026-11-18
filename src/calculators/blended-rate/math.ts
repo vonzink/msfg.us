@@ -15,7 +15,10 @@
  *   - Monthly savings (not on the dashboard): with a comparison rate, the model prices ONE new
  *     loan for the whole balance at that rate over the chosen term, and compares its payment with
  *     the payments entered. Savings are today's payments minus the new payment, so a higher new
- *     payment is a negative number. No closing costs or cash out are added to the new loan. The
+ *     payment is a negative number. The new loan is the total of the debts unless a larger loan
+ *     amount is given; the excess is cash back, and the payment is priced on the whole loan. A
+ *     loan smaller than the debts would not pay them off, so no savings figure is given for it.
+ *     No closing costs are added. The
  *     figure is only given when every counted debt has a payment, since a missing one would make
  *     the savings look worse than they are. A lower payment is not a lower cost: a longer term
  *     can lower the payment and raise the total interest.
@@ -52,11 +55,18 @@ export type Comparison = {
   difference: number;
   /** Term of the one new loan, in years. */
   termYears: number;
-  /** Monthly principal and interest on one new loan for the whole balance. */
+  /** The new loan: the amount entered, or the total of the debts when none was. */
+  loanAmount: number;
+  /** The new loan minus the debts it pays off. Negative when the loan would not cover them. */
+  cashBack: number;
+  /** Monthly principal and interest on the new loan. */
   newPayment: number;
   /** Counted debts with no payment entered. */
   missingPayments: number;
-  /** Today's payments minus the new payment. Negative when the new payment is higher. null until every counted debt has a payment. */
+  /**
+   * Today's payments minus the new payment. Negative when the new payment is higher. null until
+   * every counted debt has a payment, and null when the loan would not pay off the debts.
+   */
   monthlySavings: number | null;
 };
 
@@ -65,9 +75,10 @@ const usable = (x: number): boolean => Number.isFinite(x) && x >= 0;
 /**
  * null when no debt has a balance above zero. `compareRate` is a decimal, or NaN for none.
  * `newTermYears` is the term of the one new loan the comparison prices; anything but a whole
- * number of years from 1 to 40 is read as 30.
+ * number of years from 1 to 40 is read as 30. `newLoanAmount` is that loan's size; anything not
+ * above zero means "the total of the debts".
  */
-export function calculateBlended(debts: Debt[], compareRate: number, newTermYears = 30): BlendedResult | null {
+export function calculateBlended(debts: Debt[], compareRate: number, newTermYears = 30, newLoanAmount = Number.NaN): BlendedResult | null {
   const counted = debts.filter((d) => Number.isFinite(d.balance) && d.balance > 0);
   const totalBalance = counted.reduce((t, d) => t + d.balance, 0);
   if (counted.length === 0 || !(totalBalance > 0)) return null;
@@ -86,15 +97,19 @@ export function calculateBlended(debts: Debt[], compareRate: number, newTermYear
   let comparison: Comparison | null = null;
   if (usable(compareRate)) {
     const termYears = Number.isInteger(newTermYears) && newTermYears >= 1 && newTermYears <= 40 ? newTermYears : 30;
-    const newPayment = monthlyPayment(totalBalance, compareRate * 100, termYears * 12);
+    const loanAmount = Number.isFinite(newLoanAmount) && newLoanAmount > 0 ? newLoanAmount : totalBalance;
+    const cashBack = loanAmount - totalBalance;
+    const newPayment = monthlyPayment(loanAmount, compareRate * 100, termYears * 12);
     const missingPayments = withRates.filter((d) => !(d.payment > 0)).length;
     comparison = {
       rate: compareRate,
       difference: compareRate - blendedRate,
       termYears,
+      loanAmount,
+      cashBack,
       newPayment,
       missingPayments,
-      monthlySavings: missingPayments === 0 ? totalPayment - newPayment : null,
+      monthlySavings: missingPayments === 0 && cashBack >= 0 ? totalPayment - newPayment : null,
     };
   }
 

@@ -160,3 +160,19 @@ export function calculateBlended(debts: Debt[], compareRate: number, newTermYear
 
 **Review focus for this amendment:** a missing payment must never make the figure look better or worse than it is; the figure must never appear without its assumptions and the term-length caution.
 
+## Amendment 2: new loan amount and cash back (2026-11-18)
+
+Asked for by Zachary. The spec's "Blended rate" section is updated to match.
+
+**Change:** "Add detail" gains a **New loan amount** money field. `calculateBlended` takes it as a fourth argument, `newLoanAmount = NaN`. `Comparison` gains `loanAmount` (the amount entered, or the total of the debts) and `cashBack` (`loanAmount` minus the debts; negative when the loan would not cover them). `newPayment` is priced on `loanAmount`. `monthlySavings` is null when `cashBack` is negative.
+
+**Pinned values:**
+- The example debts with payments of $1,123 and $450, a 7% rate, 30 years and a $350,000 loan: cash back $40,000, new payment $2,329, monthly savings -$756.
+- A "Cash back" stat with the sub line "from a new loan of {amount}", shown with a comparison rate whether or not payments are entered.
+- Assumption with cash back: "Assumes one new {N}-year loan of {loan} at {rate}: {debts} to pay off the debts and {cash} cash back, with no closing costs added."
+- A loan below the debts: "A new loan of {loan} is {gap} less than the debts listed, so it would not pay them all off." and no savings figure.
+- Field hint: "Leave empty to borrow just enough to pay off the debts. Enter more to take cash back."
+- A new common question explains that cash back is extra borrowing and raises the new payment.
+
+**Reading of the request:** "a loan amount field as cash back" was taken as one field for the new loan amount, with cash back worked out as the excess over the debts. The other reading, a field for the cash back amount with the loan amount worked out, gives the same numbers from the other end.
+

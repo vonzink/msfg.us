@@ -24,6 +24,12 @@ export function BlendedPrintSummary({ result: r }: { result: BlendedResult }) {
               { label: "Total balance", value: formatUSD(r.totalBalance) },
               ...(r.totalPayment > 0 ? [{ label: "Total monthly payment", value: formatUSD(r.totalPayment) }] : []),
               ...(r.comparison ? [{ label: "Compared with", value: `${percent(r.comparison.rate)} on a ${r.comparison.termYears}-year loan` }] : []),
+              ...(r.comparison && r.comparison.cashBack > 0
+                ? [
+                    { label: "New loan amount", value: formatUSD(r.comparison.loanAmount) },
+                    { label: "Cash back", value: formatUSD(r.comparison.cashBack) },
+                  ]
+                : []),
               ...(r.comparison && r.comparison.monthlySavings !== null
                 ? [
                     { label: "New loan payment", value: formatUSD(r.comparison.newPayment) },
