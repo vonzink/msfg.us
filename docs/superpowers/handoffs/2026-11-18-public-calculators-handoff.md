@@ -83,7 +83,3 @@ None block anything. Zachary has seen all of them.
 ## Not verified by any session
 
 Phone layout on a real phone. Headless Chrome cannot render narrower than 500 pixels, so every phone check so far is Zachary's.
-
-## Housekeeping
-
-Merged local branches that can be deleted: `feat/calculators-shared-kit`, `feat/calculator-mortgage`, `feat/mortgage-schedule-and-print`, `feat/calculator-buydown`, `feat/calculator-blended-rate`, `feat/calculator-refinance-breakeven`. None were pushed.

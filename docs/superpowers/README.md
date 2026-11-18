@@ -59,6 +59,7 @@ File names start with the date the document was written.
 | 2026-11-18 | [Rate Buydown Calculator](plans/2026-11-18-calculator-buydown.md) |
 | 2026-11-18 | [Blended Rate Calculator](plans/2026-11-18-calculator-blended-rate.md) |
 | 2026-11-18 | [Refinance Breakeven Calculator](plans/2026-11-18-calculator-refinance-breakeven.md) |
+| 2026-11-18 | [Rent vs Buy Calculator](plans/2026-11-18-calculator-rent-vs-buy.md) |
 
 ## Handoffs
 
