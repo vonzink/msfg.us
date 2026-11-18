@@ -72,6 +72,9 @@ export function SeriesChart({
   const band = (W - PAD.left - PAD.right) / a.length;
   const cx = (i: number) => PAD.left + band * (i + 0.5);
   const barW = Math.min(22, band * 0.3);
+  // A long chart (a 30-year loan) labels and marks about six years, always with the first and last.
+  const every = a.length > 12 ? Math.ceil(a.length / 6) : 1;
+  const marked = (i: number) => (i + 1) % every === 0 || i === 0 || i === a.length - 1;
 
   return (
     <figure className="m-0 min-w-0 rounded-lg border border-line bg-paper p-4">
@@ -105,7 +108,7 @@ export function SeriesChart({
               </text>
             </g>
           ))}
-          {a.map((_, i) => (
+          {a.map((_, i) => marked(i) && (
             <text key={i} x={cx(i)} y={H - 8} textAnchor="middle" className="fill-muted text-[12px]">
               Yr {i + 1}
             </text>
@@ -135,7 +138,7 @@ export function SeriesChart({
                     fill="none" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round"
                     className={STROKE[s]}
                   />
-                  {arr.map((v, i) => (
+                  {arr.map((v, i) => marked(i) && (
                     <circle key={i} cx={cx(i)} cy={y(v)} r={4} strokeWidth={2} className={cn(FILL[s], "stroke-paper")} />
                   ))}
                 </g>
