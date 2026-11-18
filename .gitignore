@@ -52,3 +52,6 @@ next-env.d.ts
 /output
 /test-results
 /playwright-report
+
+# Personal Claude Code notes for this repo (not shared)
+CLAUDE.local.md
