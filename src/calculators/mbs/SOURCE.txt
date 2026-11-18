@@ -1,2 +1,2 @@
-Generated from msfg-calc commit 17143ce on 2026-11-18 by scripts/sync-where-the-money-goes.mjs.
+Generated from msfg-calc commit a1f25e4 on 2026-11-18 by scripts/sync-where-the-money-goes.mjs.
 Served at /calculators/mbs. Do not edit these files by hand; change the msfg-calc page and rerun the script.
