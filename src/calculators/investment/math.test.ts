@@ -9,7 +9,7 @@
  */
 import { describe, it } from "vitest";
 import assert from "node:assert";
-import { projectReo, type ReoInput } from "./reoMath";
+import { projectReo, type ReoInput } from "./math";
 
 const M = { project: projectReo };
 

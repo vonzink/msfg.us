@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
-import { ReoCalculator } from "@/components/calculators/reo/ReoCalculator";
+import { InvestmentCalculator } from "@/calculators/investment/InvestmentCalculator";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
 
 const PATH = "/calculators/investment";
@@ -37,7 +37,7 @@ export default function InvestmentCalculatorPage() {
 
       <section className="bg-paper pb-24 text-ink max-[980px]:pb-28">
         <div className="wrap">
-          <ReoCalculator />
+          <InvestmentCalculator />
         </div>
       </section>
     </>

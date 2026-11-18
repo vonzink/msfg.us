@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { projectReo } from "@/lib/calculators/reoMath";
+import { projectReo } from "./math";
 import { BLANK, EXAMPLE, FIELDS, toModel, toNumbers, verdict, type Values } from "./fields";
 
 const project = (values: Values) => {

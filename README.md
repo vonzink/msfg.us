@@ -54,6 +54,7 @@ src/
     auth/         Cognito login, callback, logout
     api/          v1/ = app and partner API, internal/ = cron endpoints
   components/     React components, grouped by the feature they belong to
+  calculators/    One self-contained folder per calculator: UI, math and tests
   content/        Typed copy and configuration: nav, pages, funnel steps, legal text
   lib/            Shared helpers that are safe on client and server
   server/         Server-only code: AI, CMS, leads, integrations, tenant, webhooks

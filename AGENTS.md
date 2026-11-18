@@ -40,6 +40,7 @@ All tokens live in `src/app/globals.css` `@theme` and generate utilities. **Neve
 ## Patterns
 
 - **Server Components by default.** `"use client"` only for interactivity (widgets, wizard, estimator, filters, toggles).
+- **Calculators** live in `src/calculators/<name>/` (component, `math.ts`, tests together); the route file under `src/app/(marketing)/calculators/<name>/` stays thin. Never put source in `public/calculators/` — that folder is generated static pages only.
 - **Content & config** live in typed `src/content/*.ts` modules; placeholder values are tagged `// [PLACEHOLDER]`. Phase 1 pages read these modules; they are also the seed source for Postgres.
 - **Lead pipeline:** client → `POST /api/v1/leads` → `captureLead` (Postgres system-of-record, idempotent on `idempotencyKey`) → best-effort GHL sync (never blocks the user). Integrations sit behind interfaces in `src/server/integrations/` — route handlers depend on the interface, never a vendor SDK.
 - **API:** public-stable under `/api/v1/*`; internal helpers under `/api/internal/*`. Webhook receiver verifies signature → dedupes on `WebhookEvent` → dispatches via registry.

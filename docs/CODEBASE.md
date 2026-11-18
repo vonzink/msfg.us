@@ -24,7 +24,7 @@ Route files stay thin: metadata plus a component from `src/components/`.
 | `(marketing)/` | Public pages. `layout.tsx` wraps them in the nav and footer. One folder per URL. |
 | `(marketing)/page.tsx` | Homepage |
 | `(marketing)/buy`, `refinance`, `home-equity`, `veterans`, `reverse`, `investment`, `commercial` | Loan category pages. All render the same `CategoryPage` template with a different config key. |
-| `(marketing)/calculators/investment` | Investment property ROI calculator |
+| `(marketing)/calculators/investment` | Route for the investment property calculator. The calculator itself is in `src/calculators/investment/`. |
 | `(marketing)/resources/mortgage-glossary` | Glossary |
 | `(marketing)/licensing`, `privacy-notice`, `privacy-policy`, `terms`, `accessibility`, `texas-required-notice`, `nmls-consumer-access` | Legal and compliance pages |
 | `apply/[intent]/` | The apply funnel for `buy`, `refi` and `cash`. Has its own layout with no site chrome. |
@@ -50,12 +50,15 @@ Grouped by feature. Server Components by default, `"use client"` only where ther
 | `category/` | The category page template and its quick payment estimator |
 | `apply/` | Funnel shell (`Wizard`), one component per step type in `steps/`, and the in-funnel AI panel in `ask-ai/` |
 | `ai/` | The "Ask AI" launcher and markdown renderer for chat answers |
-| `calculators/reo/` | Investment property calculator UI and charts |
 | `glossary/`, `officers/`, `rates/`, `legal/` | The body of each of those pages |
 | `seo/` | JSON-LD structured data tags |
 | `integrations/` | Go High Level chat widget, calendar embed, schedule-a-call button |
 | `theme/` | Injects per-tenant brand colors as CSS variables |
 | `admin/fields/` | Form fields for the admin editors |
+
+### `src/calculators/` (calculators)
+
+One self-contained folder per calculator: component, model, and tests. See "Adding a calculator" below.
 
 ### `src/content/` (copy and configuration)
 
@@ -84,7 +87,7 @@ Typed modules. This is where most wording changes happen.
 | `seo/` | `buildMetadata` for page metadata, `structuredData` for the homepage schema.org block |
 | `leads.ts` | Browser-side lead and contact-request submission |
 | `applyFields.ts`, `applyIntake.ts` | Funnel answer formatting, and mapping a lead into the loan application's intake format |
-| `finance.ts`, `calculators/` | Payment math and the investment calculator model |
+| `finance.ts` | Payment math shared across the site |
 | `glossary/` | Glossary markdown parser and slug helper |
 | `siteMap.ts` | Link groups for the human-readable `/sitemap` page |
 | `analytics.ts`, `log.ts`, `cn.ts` | Event names, structured logger, class-name merge |
@@ -149,19 +152,29 @@ Code that must never reach the browser. Vendor SDKs are wrapped behind interface
 
 ## Adding a calculator
 
-A calculator is split across three folders, one per job. Use the same short name in each. The investment property calculator uses `reo` and is the example to copy.
+Calculators live in `src/calculators/`, one folder per calculator. Everything for a calculator goes in its folder except the route file. Copy `src/calculators/investment/` as the starting point.
 
-| Piece | Location | Rule |
-|---|---|---|
-| Math | `src/lib/calculators/<name>Math.ts` with `<name>Math.test.ts` beside it | Pure functions, no React and no DOM. This is the part that gets tested. |
-| UI | `src/components/calculators/<name>/` | A `"use client"` component, with field definitions in `fields.ts` and any charts in their own file |
-| Page | `src/app/(marketing)/calculators/<slug>/page.tsx` | Metadata, breadcrumb, heading, then the component. Copy `calculators/investment/page.tsx`. |
+```
+src/calculators/
+  investment/
+    InvestmentCalculator.tsx   the "use client" component people interact with
+    math.ts                    the model: pure functions, no React and no DOM
+    fields.ts, gauges.ts       field definitions and rating scales
+    Charts.tsx, Gauge.tsx      pieces of the UI
+    *.test.ts                  tests, beside the file they cover
+```
 
-Then link it from `src/content/nav.ts` and add the path to `ROUTES` in `src/app/sitemap.ts`.
+Steps for a new one:
+
+1. Create `src/calculators/<name>/` with the same shape. Name the folder after the URL slug.
+2. Add the route at `src/app/(marketing)/calculators/<name>/page.tsx`. Copy the investment one. It holds only metadata, breadcrumb, heading, and the calculator component.
+3. Link it from `src/content/nav.ts` and add the path to `ROUTES` in `src/app/sitemap.ts`.
+
+When two calculators need the same input, gauge or chart, move that piece to `src/calculators/shared/` rather than importing from one calculator into another.
 
 Shared money helpers such as `formatUSD` and the amortization formula are in `src/lib/finance.ts`. Reuse them so every calculator rounds and formats the same way.
 
-`public/calculators/` is different. It holds finished static pages copied in from the msfg-calc repo, and its contents are generated. Do not hand-edit files there or put new React calculators in it.
+**Do not put calculator source in `public/calculators/`.** Next.js serves everything under `public/` to visitors exactly as it is on disk and never compiles it. That folder is only for finished static pages, such as `mbs/`, which is generated from the msfg-calc repo and must not be edited by hand.
 
 ## Tests
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { projectReo, type ReoResult } from "@/lib/calculators/reoMath";
+import { projectReo, type ReoResult } from "./math";
 import { formatUSD } from "@/lib/finance";
 import { cn } from "@/lib/cn";
 import { RentBreakdown, SeriesChart } from "./Charts";
@@ -287,7 +287,7 @@ function Note({ term, children }: { term: string; children: ReactNode }) {
 
 // ---------- Calculator ----------
 
-export function ReoCalculator() {
+export function InvestmentCalculator() {
   const [values, setValues] = useState<Values>(EXAMPLE);
   const onChange = (id: string, value: string) => setValues((v) => ({ ...v, [id]: value }));
 

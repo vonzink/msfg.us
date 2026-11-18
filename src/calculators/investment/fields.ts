@@ -1,4 +1,4 @@
-import type { AmortType, ReoInput, ReoResult, SaleTaxMode } from "@/lib/calculators/reoMath";
+import type { AmortType, ReoInput, ReoResult, SaleTaxMode } from "./math";
 import { formatUSD } from "@/lib/finance";
 
 /** Raw form state: every field is the text the user typed. */
