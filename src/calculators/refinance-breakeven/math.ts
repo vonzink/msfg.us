@@ -56,6 +56,9 @@ export type BreakevenResult = {
   /** New loan's total interest minus the current loan's remaining interest. Positive means the refinance costs more interest. */
   interestDifference: number;
   keep: { months: number; netSavings: number } | null;
+  /** Cash out and the debt payments it pays off, as counted. Zero when none. */
+  cashOut: number;
+  debtPaymentsPaidOff: number;
 };
 
 /** Junk or negative optional amounts count as zero. */
@@ -84,7 +87,8 @@ export function calculateBreakeven(input: BreakevenInput): BreakevenResult | nul
   const newPI = roundCents(monthlyPayment(newLoanAmount, percent(newRate), newTermMonths));
   const currentPayment = roundCents(currentPI + currentMi);
   const newPayment = roundCents(newPI + newMi);
-  const monthlySavings = roundCents(roundCents(currentPayment - newPayment) + amount(input.debtPaymentsPaidOff));
+  const debtPaymentsPaidOff = amount(input.debtPaymentsPaidOff);
+  const monthlySavings = roundCents(roundCents(currentPayment - newPayment) + debtPaymentsPaidOff);
 
   const interestRemaining = roundCents(currentPI * monthsLeft - currentBalance);
   const interestTotal = roundCents(newPI * newTermMonths - newLoanAmount);
@@ -98,6 +102,8 @@ export function calculateBreakeven(input: BreakevenInput): BreakevenResult | nul
     breakevenMonths: monthlySavings > 0 ? Math.ceil(closingCosts / monthlySavings) : null,
     closingCosts,
     interestDifference: roundCents(interestTotal - interestRemaining),
+    cashOut,
+    debtPaymentsPaidOff,
     keep: keepMonths ? { months: keepMonths, netSavings: roundCents(roundCents(monthlySavings * keepMonths) - closingCosts) } : null,
   };
 }
