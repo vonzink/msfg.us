@@ -155,7 +155,13 @@ export const GROUPS: GroupDef[] = [
 
 export const FIELDS: ReoFieldDef[] = GROUPS.flatMap((g) => g.fields);
 
+/** The worked example at a 7% rate. Tests use it; the page opens with `exampleValues`. */
 export const EXAMPLE: Values = Object.fromEntries(FIELDS.map((f) => [f.id, f.example]));
+
+/** The worked example the page opens with, at the tenant's example interest rate (a percent). */
+export function exampleValues(exampleRatePct: number): Values {
+  return { ...EXAMPLE, rate: String(exampleRatePct) };
+}
 /** Cleared form. Switches keep their setting; the rates behind them keep a usable default. */
 const KEEP_ON_CLEAR = new Set(["capGainsRate", "altReturn"]);
 export const BLANK: Values = Object.fromEntries(

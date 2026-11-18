@@ -24,7 +24,13 @@ Rules for anything under `src/calculators/`. Full walkthrough for humans: `docs/
 ## Sharing
 
 - Never import from one calculator's folder into another.
-- When two calculators need the same input, gauge or chart, move it to `src/calculators/shared/`. Create that folder the first time it is needed.
+- Build from the kit in `src/calculators/shared/`: `CalculatorShell`, `Field`, `AddDetail`, `Stat`, `Gauge`, `Charts`. Do not rebuild these inside a calculator.
+- When two calculators need the same piece and it is not in the kit, move it to `shared/`.
+
+## Settings
+
+- The example interest rate and the disclaimers come from tenant config: `calculators.exampleRatePct`, `legal.exampleRateNote`, `legal.calculatorDisclaimer`.
+- The route page reads them with `getTenantConfig()` and passes them as props. Never read them from a constant inside a calculator.
 
 ## Wording
 
@@ -34,9 +40,10 @@ Rules for anything under `src/calculators/`. Full walkthrough for humans: `docs/
 ## Wiring a new calculator
 
 1. Add the route page.
-2. Link it in `src/content/nav.ts`.
-3. Add the path to `ROUTES` in `src/app/sitemap.ts`.
-4. Run `npm run check`.
+2. Add one entry to `src/calculators/registry.ts`. The sitemap and the per-tenant on/off switch read it.
+3. In the route page, call `notFound()` when `isCalculatorEnabled(slug, config.calculators)` is false, as the investment page does.
+4. Link it in `src/content/nav.ts`, until the calculators menu reads the registry.
+5. Run `npm run check`.
 
 ## Do not
 

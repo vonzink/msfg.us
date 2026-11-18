@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { projectReo } from "./math";
-import { BLANK, EXAMPLE, FIELDS, toModel, toNumbers, verdict, type Values } from "./fields";
+import { BLANK, EXAMPLE, exampleValues, FIELDS, toModel, toNumbers, verdict, type Values } from "./fields";
 
 const project = (values: Values) => {
   const n = toNumbers(values);
@@ -80,5 +80,15 @@ describe("verdict", () => {
   it("leaves the comparison out when it is switched off", () => {
     const { n, r } = project({ ...EXAMPLE, compareAlt: "off" });
     expect(verdict(n, r)).not.toContain("a year");
+  });
+});
+
+describe("example values", () => {
+  it("opens with the tenant's example rate", () => {
+    expect(exampleValues(6.5).rate).toBe("6.5");
+  });
+
+  it("is the 7% example when the rate is the default", () => {
+    expect(exampleValues(7)).toEqual(EXAMPLE);
   });
 });

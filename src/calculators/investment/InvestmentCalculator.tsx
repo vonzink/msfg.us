@@ -11,7 +11,7 @@ import { Stat } from "../shared/Stat";
 import { RentBreakdown } from "./RentBreakdown";
 import { SCALES } from "./gauges";
 import {
-  BLANK, EXAMPLE, GROUPS, toModel, toNumbers, verdict,
+  BLANK, exampleValues, GROUPS, toModel, toNumbers, verdict,
   type GroupDef, type Numbers, type Values,
 } from "./fields";
 
@@ -160,8 +160,9 @@ function Note({ term, children }: { term: string; children: ReactNode }) {
 
 // ---------- Calculator ----------
 
-export function InvestmentCalculator() {
-  const [values, setValues] = useState<Values>(EXAMPLE);
+/** `exampleRatePct` is the tenant's example interest rate, from config, not a constant. */
+export function InvestmentCalculator({ exampleRatePct }: { exampleRatePct: number }) {
+  const [values, setValues] = useState<Values>(() => exampleValues(exampleRatePct));
   const onChange = (id: string, value: string) => setValues((v) => ({ ...v, [id]: value }));
 
   const numbers = useMemo(() => toNumbers(values), [values]);
@@ -181,7 +182,7 @@ export function InvestmentCalculator() {
     <CalculatorShell
       formLabel="Deal details"
       resultsId="reo-results"
-      onExample={() => setValues(EXAMPLE)}
+      onExample={() => setValues(exampleValues(exampleRatePct))}
       onClear={() => setValues(BLANK)}
       form={
         <>

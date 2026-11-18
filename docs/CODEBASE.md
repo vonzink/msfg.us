@@ -168,9 +168,23 @@ Steps for a new one:
 
 1. Create `src/calculators/<name>/` with the same shape. Name the folder after the URL slug.
 2. Add the route at `src/app/(marketing)/calculators/<name>/page.tsx`. Copy the investment one. It holds only metadata, breadcrumb, heading, and the calculator component.
-3. Link it from `src/content/nav.ts` and add the path to `ROUTES` in `src/app/sitemap.ts`.
+3. Add one entry to `src/calculators/registry.ts`. The sitemap reads it, and so does the per-company on/off switch at `/admin/config`. The route page must call `notFound()` when its calculator is switched off; copy that from the investment page.
+4. Link it from `src/content/nav.ts`. This step goes away once the calculators menu reads the registry.
 
-When two calculators need the same input, gauge or chart, move that piece to `src/calculators/shared/` rather than importing from one calculator into another.
+Build the page from the shared kit, so every calculator looks and behaves the same:
+
+| File in `src/calculators/shared/` | What it is |
+|---|---|
+| `CalculatorShell.tsx` | The page frame: Load example, Clear and Print buttons, inputs left, results right, print handling |
+| `Field.tsx`, `fields.ts` | One input (money, percent, number, text or choice) and the types for defining fields |
+| `AddDetail.tsx` | The closed-by-default panel for optional inputs |
+| `Stat.tsx` | A headline number in a card, with an optional gauge |
+| `Gauge.tsx`, `gaugeScale.ts` | The speedometer and the maths that places the needle. Each calculator keeps its own scales |
+| `Charts.tsx` | Year-by-year bar and line charts |
+
+When two calculators need the same input, gauge or chart that is not in the kit yet, move that piece to `src/calculators/shared/` rather than importing from one calculator into another.
+
+**Settings come from the company's config, not from constants.** The example interest rate (`calculators.exampleRatePct`) and the disclaimers (`legal.calculatorDisclaimer`, `legal.exampleRateNote`) are edited at `/admin/config`. The route page reads them with `getTenantConfig()` and passes them to the calculator as props.
 
 Shared money helpers such as `formatUSD` and the amortization formula are in `src/lib/finance.ts`. Reuse them so every calculator rounds and formats the same way.
 

@@ -44,7 +44,7 @@ export default async function InvestmentCalculatorPage() {
 
       <section className="bg-paper pb-24 text-ink max-[980px]:pb-28">
         <div className="wrap">
-          <InvestmentCalculator />
+          <InvestmentCalculator exampleRatePct={config.calculators.exampleRatePct} />
         </div>
       </section>
     </>
