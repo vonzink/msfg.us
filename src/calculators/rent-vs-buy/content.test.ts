@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { HOW_IT_WORKS, QUESTIONS } from "./content";
+import { HOW_IT_WORKS, META_DESCRIPTION, QUESTIONS } from "./content";
 
-const text = [...HOW_IT_WORKS, ...QUESTIONS.flatMap(({ q, a }) => [q, a])];
+const text = [META_DESCRIPTION, ...HOW_IT_WORKS, ...QUESTIONS.flatMap(({ q, a }) => [q, a])];
 
 describe("rent vs buy page text", () => {
   it("explains the method and answers three or four questions", () => {
@@ -17,6 +17,26 @@ describe("rent vs buy page text", () => {
 
   it("is plain text: no formulas and no dashes used as punctuation", () => {
     for (const t of text) expect(t, t).not.toMatch(/[—–=^×]| x /);
+  });
+
+  it("F5: says what is left out on each side, with the same sentences as the assumptions list", () => {
+    const how = HOW_IT_WORKS.join(" ");
+    expect(how).toContain("Not included on the buying side: mortgage insurance, closing costs on the purchase, HOA dues and income tax effects. Counting them would raise the cost of buying.");
+    expect(how).toContain("Not included on the renting side: renters insurance.");
+    expect(how).toContain("Any monthly difference between the two payments is not invested.");
+    expect(how).not.toContain("Not included: ");
+  });
+
+  it("F6: the search description does not presume that buying pulls ahead", () => {
+    expect(META_DESCRIPTION).toBe(
+      "Compare the estimated cost of renting with the cost of buying over the years you plan to stay, and see whether and when buying pulls ahead.",
+    );
+  });
+
+  it("F6: does not presume that buying catches up", () => {
+    const how = HOW_IT_WORKS.join(" ");
+    expect(how).toContain("It can catch up as the loan is paid down and as the home's value changes.");
+    expect(how).not.toContain("It catches up");
   });
 
   it("says what is left out and that the loan is fixed-rate", () => {

@@ -1,14 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AddDetail } from "../shared/AddDetail";
 import { CalculatorShell } from "../shared/CalculatorShell";
 import { Field } from "../shared/Field";
-import { downPaymentField, parseNumber, switchDownUnit, type FieldDef, type Numbers, type Values } from "../shared/fields";
-import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, toInput } from "./fields";
+import { downPaymentField, parseNumber, type FieldDef, type Numbers, type Values } from "../shared/fields";
+import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, keepTypedZero, switchUnitKeepingZero, toInput } from "./fields";
 import { calculateRentVsBuy } from "./math";
-import { RentVsBuyPrintSummary } from "./PrintSummary";
-import { Assumptions, CAUTION, headlineText, lowDownPayment, MORTGAGE_INSURANCE_NOTE, pullAheadSentence, RentVsBuyResults, yearsText } from "./Results";
+import { RentVsBuyPrintDetails, RentVsBuyPrintSummary } from "./PrintSummary";
+import { headlineText, RentVsBuyResults, yearsText } from "./Results";
 
 const grid = "grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-4 gap-y-3.5";
 const card = "rounded-xl border border-line bg-white shadow-card";
@@ -29,8 +29,13 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
   disclaimer: string;
 }) {
   const [values, setValues] = useState<Values>(() => exampleValues(exampleRatePct));
-  const onChange = (id: string, value: string) =>
-    setValues((v) => (id === "downUnit" ? switchDownUnit(v, value) : { ...v, [id]: value }));
+  // True while focus is leaving a box. The shared money box empties itself on the way out when it
+  // holds 0; here a typed 0 is an answer (zero down, no property tax), so that one change is undone.
+  const leaving = useRef(false);
+  const onChange = (id: string, value: string) => {
+    const fromBlur = leaving.current;
+    setValues((v) => (id === "downUnit" ? switchUnitKeepingZero(v, value) : { ...v, [id]: fromBlur ? keepTypedZero(id, v[id], value) : value }));
+  };
 
   const numbers = useMemo<Numbers>(
     () => Object.fromEntries(Object.entries(values).map(([id, v]) => [id, parseNumber(v)])),
@@ -55,7 +60,7 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
       onExample={() => setValues(exampleValues(exampleRatePct))}
       onClear={() => setValues(BLANK)}
       form={
-        <>
+        <div className="contents" onBlurCapture={() => { leaving.current = true; }} onBlur={() => { leaving.current = false; }}>
           {CARDS.map(({ heading, ids }) => (
             <section key={heading} className={card}>
               <h2 className="px-5 py-4 text-[17px] font-bold max-[600px]:px-4">{heading}</h2>
@@ -69,7 +74,7 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
             <p className="mb-3.5 text-[14px] text-muted">These are the assumptions behind the estimate. Change any that do not fit.</p>
             <div className={grid}>{DETAIL_FIELDS.map(field)}</div>
           </AddDetail>
-        </>
+        </div>
       }
       results={<RentVsBuyResults input={input} result={result} disclaimer={disclaimer} />}
       below={
@@ -77,13 +82,7 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
           <>
             {/* The printed page: the numbers beside the estimate, then the assumptions, the caution and the disclaimer. */}
             <RentVsBuyPrintSummary input={input} result={result} />
-            <div className="mt-4 hidden print:block">
-              <p className="text-[12px] font-semibold">{pullAheadSentence(result, input.stayYears)}</p>
-              <Assumptions input={input} print />
-              {lowDownPayment(input) && <p className="mt-3 text-[12px] font-semibold">{MORTGAGE_INSURANCE_NOTE}</p>}
-              <p className="mt-3 text-[12px]">{CAUTION}</p>
-              <p className="mt-2 text-[10px] text-muted">{disclaimer}</p>
-            </div>
+            <RentVsBuyPrintDetails input={input} result={result} disclaimer={disclaimer} />
 
             {/* Phone: the headline pinned to the bottom of the screen, linking up to the results. */}
             <a

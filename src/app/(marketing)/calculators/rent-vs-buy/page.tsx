@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CalculatorPage } from "@/calculators/shared/CalculatorPage";
 import { RentVsBuyCalculator } from "@/calculators/rent-vs-buy/RentVsBuyCalculator";
-import { HOW_IT_WORKS, QUESTIONS } from "@/calculators/rent-vs-buy/content";
+import { HOW_IT_WORKS, META_DESCRIPTION, QUESTIONS } from "@/calculators/rent-vs-buy/content";
 import { CALCULATORS, isCalculatorEnabled } from "@/calculators/registry";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
 import { getTenantConfig } from "@/server/tenant/config";
@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
   if (!isCalculatorEnabled(ENTRY.slug, config.calculators)) notFound();
   return buildMetadata(ENTRY.path, {
     title: "Rent vs Buy Calculator",
-    description: "Compare the estimated cost of renting with the cost of buying over the years you plan to stay, and see the year buying pulls ahead.",
+    description: META_DESCRIPTION,
     canonical: ENTRY.path,
   });
 }

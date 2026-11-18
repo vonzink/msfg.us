@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import golden from "./golden.json";
-import { calculateRentVsBuy, COST_INFLATION, MAX_YEARS, type RentVsBuyInput } from "./math";
+import {
+  ASSUMPTION_RANGE, buyingSlipsBack, calculateRentVsBuy, COST_INFLATION, MAX_YEARS, RATE_LIMIT, SELLING_COSTS_RANGE,
+  type RentVsBuyInput, type YearPoint,
+} from "./math";
 
 const cases = golden.cases;
 const named = (name: string): RentVsBuyInput => cases.find((c) => c.name === name)!.input;
@@ -167,6 +170,9 @@ describe("nothing to compare gives null", () => {
     ["investment return below -20%", { investmentReturn: -0.21 }],
     ["negative selling costs", { sellingCosts: -0.01 }],
     ["selling costs above 20%", { sellingCosts: 0.21 }],
+    ["property tax not entered", { yearlyTax: Number.NaN }],
+    ["insurance not entered", { yearlyInsurance: Number.NaN }],
+    ["maintenance not entered", { yearlyMaintenance: Number.NaN }],
   ])("%s", (_name, changes) => {
     expect(calc(changes)).toBeNull();
   });
@@ -180,12 +186,20 @@ describe("nothing to compare gives null", () => {
 });
 
 describe("property tax, insurance and maintenance", () => {
-  it("count as zero when negative or junk", () => {
+  it("F1: give no result until all three are entered, and a 0 is an entry", () => {
+    for (const id of ["yearlyTax", "yearlyInsurance", "yearlyMaintenance"] as const) {
+      expect(calc({ [id]: Number.NaN }), id).toBeNull();
+      expect(calc({ [id]: 0 }), id).not.toBeNull();
+    }
     const none = calc({ yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 0 })!;
-    const junk = calc({ yearlyTax: Number.NaN, yearlyInsurance: -1800, yearlyMaintenance: Number.NEGATIVE_INFINITY })!;
-    expect(junk).toEqual(none);
-    expect(junk.buying).toMatchObject({ propertyTax: 0, insurance: 0, maintenance: 0 });
-    expect(junk.buying.totalPaid).toBe(258833.31); // down payment plus 84 payments
+    expect(none.buying).toMatchObject({ propertyTax: 0, insurance: 0, maintenance: 0 });
+    expect(none.buying.totalPaid).toBe(258833.31); // down payment plus 84 payments
+    expect(none.difference).toBe(100038.41); // the figure the page used to show for costs left empty
+  });
+
+  it("count as zero when negative", () => {
+    const none = calc({ yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 0 })!;
+    expect(calc({ yearlyTax: -4800, yearlyInsurance: -1800, yearlyMaintenance: Number.NEGATIVE_INFINITY })).toEqual(none);
   });
 
   it("rise each year: tax with the home's value, insurance and maintenance by 3%", () => {
@@ -213,5 +227,56 @@ describe("a tie", () => {
     expect(r.difference).toBe(0);
     expect(r.ahead).toBe("even");
     expect(r.pullAheadYear).toBeNull();
+  });
+});
+
+describe("F3: the limits the checks and the prompts share", () => {
+  it("are the pinned values", () => {
+    expect(RATE_LIMIT).toBe(0.3);
+    expect(ASSUMPTION_RANGE).toEqual({ low: -0.2, high: 0.3 });
+    expect(SELLING_COSTS_RANGE).toEqual({ low: 0, high: 0.2 });
+  });
+
+  it("are what the model checks against", () => {
+    expect(calc({ rate: RATE_LIMIT })).toBeNull();
+    expect(calc({ rate: RATE_LIMIT - 0.0001 })).not.toBeNull();
+    for (const id of ["appreciation", "rentIncrease", "investmentReturn"] as const) {
+      expect(calc({ [id]: ASSUMPTION_RANGE.low }), id).not.toBeNull();
+      expect(calc({ [id]: ASSUMPTION_RANGE.high }), id).not.toBeNull();
+      expect(calc({ [id]: ASSUMPTION_RANGE.low - 0.0001 }), id).toBeNull();
+      expect(calc({ [id]: ASSUMPTION_RANGE.high + 0.0001 }), id).toBeNull();
+    }
+    expect(calc({ sellingCosts: SELLING_COSTS_RANGE.low })).not.toBeNull();
+    expect(calc({ sellingCosts: SELLING_COSTS_RANGE.high })).not.toBeNull();
+    expect(calc({ sellingCosts: SELLING_COSTS_RANGE.high + 0.0001 })).toBeNull();
+  });
+});
+
+describe("F7: buying ahead, then not", () => {
+  const point = (year: number, difference: number): YearPoint => ({ year, netCostBuying: 0, netCostRenting: difference, difference });
+  const series = (...differences: number[]) => differences.map((d, i) => point(i + 1, d));
+
+  it("is true only when a year after the first ahead year is not ahead", () => {
+    expect(buyingSlipsBack(series(-5, -1, 3, 8))).toBe(false);
+    expect(buyingSlipsBack(series(4, 8))).toBe(false);
+    expect(buyingSlipsBack(series(-5, -1))).toBe(false);
+    expect(buyingSlipsBack([])).toBe(false);
+    expect(buyingSlipsBack(series(-5, 3, -1, 8))).toBe(true);
+    expect(buyingSlipsBack(series(3, 0, 8))).toBe(true);
+    expect(buyingSlipsBack(series(3, 8, -2))).toBe(true);
+  });
+
+  it("finds the reviewer's case: first ahead in year 5, behind in years 7 to 20, ahead at the end of 35 years", () => {
+    const r = calculateRentVsBuy({
+      monthlyRent: 5894, homePrice: 462086, downPayment: 16173, rate: 0.1175, stayYears: 35, termMonths: 240,
+      yearlyTax: 544, yearlyInsurance: 4621, yearlyMaintenance: 8156,
+      appreciation: 0.01, rentIncrease: -0.04, sellingCosts: 0.06, investmentReturn: -0.04,
+    })!;
+    expect(r.ahead).toBe("buying");
+    // Behind for the first four years, ahead in years 5 and 6, behind again in years 7 to 20.
+    expect(r.years.filter((y) => y.difference <= 0).map((y) => y.year)).toEqual([1, 2, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+    expect(r.pullAheadYear).toBe(5);
+    expect(buyingSlipsBack(r.years)).toBe(true);
+    expect(buyingSlipsBack(calc()!.years)).toBe(false);
   });
 });

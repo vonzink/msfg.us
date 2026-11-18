@@ -3,12 +3,16 @@
  * Rules: plain language, no formulas, results are estimates, no forecast of home prices, and
  * nothing that reads as a recommendation to buy or to rent, a rate offer or a loan decision.
  */
+/** The page's description for search results and link previews. */
+export const META_DESCRIPTION =
+  "Compare the estimated cost of renting with the cost of buying over the years you plan to stay, and see whether and when buying pulls ahead.";
+
 export const HOW_IT_WORKS: string[] = [
   "Each path is added up over the years you plan to stay. The path with the lower net cost at the end is the one that comes out ahead on these numbers.",
   "Buying counts the down payment, the mortgage payments, property tax, homeowners insurance and maintenance. Then it takes off what you would walk away with after selling: the home's value, less the loan balance and the selling costs.",
   "Renting counts the rent, which changes each year by the amount you set. Then it takes off what the down payment could have earned if it had been invested instead.",
-  "Buying usually starts behind, because selling a home costs money and little of the loan is paid off in the early years. It catches up as the loan is paid down and as the home's value changes.",
-  "The loan is a fixed-rate loan, and the payment shown is principal and interest. Not included: mortgage insurance, closing costs on the purchase, HOA dues, renters insurance and income tax effects. The page also does not invest any monthly difference between the two paths. Only the down payment is treated as invested on the renting side.",
+  "Buying usually starts behind, because selling a home costs money and little of the loan is paid off in the early years. It can catch up as the loan is paid down and as the home's value changes.",
+  "The loan is a fixed-rate loan, and the payment shown is principal and interest. Not included on the buying side: mortgage insurance, closing costs on the purchase, HOA dues and income tax effects. Counting them would raise the cost of buying. Not included on the renting side: renters insurance. Any monthly difference between the two payments is not invested. Only the down payment is treated as invested on the renting side.",
   "The result is an estimate. It depends on the assumptions listed under the result, and you can change each one under Add detail.",
 ];
 

@@ -58,7 +58,7 @@ export const CALCULATORS: CalculatorEntry[] = [
     path: "/calculators/rent-vs-buy",
     label: "Rent vs buy calculator",
     question: "Does renting or buying cost less over time?",
-    description: "Compare the cost of renting with the cost of buying over the years you plan to stay, and see when buying pulls ahead.",
+    description: "Compare the cost of renting with the cost of buying over the years you plan to stay, and see whether and when buying pulls ahead.",
     applyHref: "/apply/buy",
   },
   {

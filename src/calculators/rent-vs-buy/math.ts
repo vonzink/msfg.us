@@ -16,6 +16,9 @@
  *
  * Conventions
  *   - Rates are decimals (0.07 = 7%). The loan term is whole months. The stay is whole years.
+ *   - Property tax, homeowners insurance and maintenance must each be entered. NaN means "not
+ *     entered" and gives no result, so a comparison is never shown with a cost silently left out.
+ *     A 0 is an entry. A negative amount counts as zero.
  *   - Property tax in year y (counting from 0) is `yearlyTax x (1 + appreciation)^y`: it follows
  *     the home's value.
  *   - Insurance and maintenance in year y are multiplied by `(1 + COST_INFLATION)^y`. The
@@ -53,6 +56,12 @@ import { monthlyPayment, remainingBalance, roundCents } from "@/lib/finance";
 export const COST_INFLATION = 0.03;
 /** The longest stay, and how far ahead the model looks for the year buying pulls ahead. */
 export const MAX_YEARS = 40;
+/** The interest rate runs from 0 up to, but not including, this. */
+export const RATE_LIMIT = 0.3;
+/** Allowed range, ends included, of the home value, rent and investment return assumptions. */
+export const ASSUMPTION_RANGE = { low: -0.2, high: 0.3 };
+/** Allowed range, ends included, of the selling costs. */
+export const SELLING_COSTS_RANGE = { low: 0, high: 0.2 };
 
 export type RentVsBuyInput = {
   monthlyRent: number;
@@ -116,7 +125,7 @@ export type RentVsBuyResult = {
   pullAheadYear: number | null;
 };
 
-/** Negative or junk yearly costs count as zero. */
+/** A negative yearly cost counts as zero. One that was not entered (NaN) never gets this far. */
 const amount = (x: number): number => (Number.isFinite(x) && x > 0 ? x : 0);
 const within = (x: number, low: number, high: number): boolean => Number.isFinite(x) && x >= low && x <= high;
 /** The finance helpers take a percent; drop the float noise of 0.07 * 100. */
@@ -128,11 +137,12 @@ const percent = (rate: number): number => Number((rate * 100).toFixed(6));
 const cents = (x: number): number => (x < 0 ? -roundCents(-x) : roundCents(x)) + 0;
 
 /**
- * null when there is nothing to compare: rent or price not above zero; down payment negative or
- * above the price; rate NaN, negative or 30% and above; stay not a whole number from 1 to MAX_YEARS;
- * term not above zero; any of the four assumption rates NaN; appreciation, rent increase or
- * investment return outside -20% to 30%; selling costs outside 0 to 20%.
- * Negative or junk tax, insurance and maintenance count as zero.
+ * null when there is nothing to compare: rent or price not above zero; down payment NaN, negative
+ * or above the price; rate NaN, negative or RATE_LIMIT and above; stay not a whole number from 1 to
+ * MAX_YEARS; term not above zero; tax, insurance or maintenance NaN (not entered); any of the four
+ * assumption rates NaN; appreciation, rent increase or investment return outside ASSUMPTION_RANGE;
+ * selling costs outside SELLING_COSTS_RANGE.
+ * Negative tax, insurance and maintenance count as zero.
  */
 export function calculateRentVsBuy(input: RentVsBuyInput): RentVsBuyResult | null {
   const { monthlyRent, homePrice, downPayment, rate, stayYears, termMonths, appreciation, rentIncrease, sellingCosts, investmentReturn } = input;
@@ -140,11 +150,14 @@ export function calculateRentVsBuy(input: RentVsBuyInput): RentVsBuyResult | nul
     !Number.isFinite(monthlyRent) || monthlyRent <= 0 ||
     !Number.isFinite(homePrice) || homePrice <= 0 ||
     !within(downPayment, 0, homePrice) ||
-    !Number.isFinite(rate) || rate < 0 || rate >= 0.3 ||
+    !Number.isFinite(rate) || rate < 0 || rate >= RATE_LIMIT ||
     !Number.isInteger(stayYears) || stayYears < 1 || stayYears > MAX_YEARS ||
     !Number.isFinite(termMonths) || termMonths <= 0 ||
-    !within(appreciation, -0.2, 0.3) || !within(rentIncrease, -0.2, 0.3) || !within(investmentReturn, -0.2, 0.3) ||
-    !within(sellingCosts, 0, 0.2)
+    Number.isNaN(input.yearlyTax) || Number.isNaN(input.yearlyInsurance) || Number.isNaN(input.yearlyMaintenance) ||
+    !within(appreciation, ASSUMPTION_RANGE.low, ASSUMPTION_RANGE.high) ||
+    !within(rentIncrease, ASSUMPTION_RANGE.low, ASSUMPTION_RANGE.high) ||
+    !within(investmentReturn, ASSUMPTION_RANGE.low, ASSUMPTION_RANGE.high) ||
+    !within(sellingCosts, SELLING_COSTS_RANGE.low, SELLING_COSTS_RANGE.high)
   ) return null;
 
   const yearlyTax = amount(input.yearlyTax);
@@ -232,4 +245,14 @@ export function calculateRentVsBuy(input: RentVsBuyInput): RentVsBuyResult | nul
     })),
     pullAheadYear: snapshots.find((s) => s.difference > 0)?.year ?? null,
   };
+}
+
+/**
+ * True when buying is ahead in some year of the series and then, in a later year of it, is not
+ * (behind or even). The page uses it so "pulls ahead in year N" is never said of a path that
+ * falls back afterwards.
+ */
+export function buyingSlipsBack(years: YearPoint[]): boolean {
+  const first = years.findIndex((y) => y.difference > 0);
+  return first !== -1 && years.slice(first + 1).some((y) => y.difference <= 0);
 }

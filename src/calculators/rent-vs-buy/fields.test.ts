@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { switchDownUnit } from "../shared/fields";
-import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, toInput } from "./fields";
+import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, keepTypedZero, switchUnitKeepingZero, toInput } from "./fields";
 import golden from "./golden.json";
 import { calculateRentVsBuy } from "./math";
 
@@ -78,10 +78,44 @@ describe("rent vs buy fields", () => {
     for (const id of ASSUMPTION_RATES) expect(BLANK[id], id).toBe(example[id]);
   });
 
-  it("after Clear needs only the five front inputs again, with empty costs counted as zero", () => {
-    const input = toInput({ ...BLANK, monthlyRent: "2,400", homePrice: "400,000", downPayment: "20", rate: "7", stayYears: "7" });
-    expect(input).toMatchObject({ yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 0, appreciation: 0.03, rentIncrease: 0.03, sellingCosts: 0.06, investmentReturn: 0.05 });
-    expect(calculateRentVsBuy(input)).not.toBeNull();
+  const FIVE = { monthlyRent: "2,400", homePrice: "400,000", downPayment: "20", rate: "7", stayYears: "7" };
+  const COSTS = ["yearlyTax", "yearlyInsurance", "yearlyMaintenance"] as const;
+
+  it("F1: after Clear the five front inputs are not enough: the three costs are not entered", () => {
+    const input = toInput({ ...BLANK, ...FIVE });
+    expect(input).toMatchObject({ appreciation: 0.03, rentIncrease: 0.03, sellingCosts: 0.06, investmentReturn: 0.05 });
+    for (const id of COSTS) expect(Number.isNaN(input[id]), id).toBe(true);
+    expect(calculateRentVsBuy(input)).toBeNull();
+  });
+
+  it("F1: after Clear, the five inputs and the example's three costs give the example again", () => {
+    const r = calculateRentVsBuy(toInput({ ...BLANK, ...FIVE, yearlyTax: "4,800", yearlyInsurance: "1,800", yearlyMaintenance: "4,000" }))!;
+    expect(r.difference).toBe(18816.32);
+  });
+
+  it("F1: a typed 0 in a cost is entered; empty or unreadable is not", () => {
+    const zeros = toInput({ ...BLANK, ...FIVE, yearlyTax: "0", yearlyInsurance: "0", yearlyMaintenance: "0.00" });
+    expect(zeros).toMatchObject({ yearlyTax: 0, yearlyInsurance: 0, yearlyMaintenance: 0 });
+    expect(calculateRentVsBuy(zeros)).not.toBeNull();
+    for (const id of COSTS) {
+      for (const text of ["", " ", ".", "abc", "4..8", "-"]) {
+        expect(Number.isNaN(toInput({ ...example, [id]: text })[id]), `${id} ${JSON.stringify(text)}`).toBe(true);
+        expect(result({ [id]: text }), `${id} ${JSON.stringify(text)}`).toBeNull();
+      }
+      expect(toInput({ ...example, [id]: "$1,234.50" })[id]).toBe(1234.5);
+    }
+  });
+
+  it("keeps a typed 0 when the money box would empty it on leaving the field", () => {
+    for (const id of ["downPayment", ...COSTS]) {
+      expect(keepTypedZero(id, "0", ""), id).toBe("0");
+      expect(keepTypedZero(id, "0.00", ""), id).toBe("0");
+      expect(keepTypedZero(id, "", ""), id).toBe("");
+      expect(keepTypedZero(id, "abc", ""), id).toBe("");
+      expect(keepTypedZero(id, "4800", "4,800"), id).toBe("4,800");
+    }
+    expect(keepTypedZero("homePrice", "0", "")).toBe("");
+    expect(keepTypedZero("monthlyRent", "0", "")).toBe("");
   });
 });
 
@@ -120,10 +154,32 @@ describe("nothing to compare gives no result, never a crash", () => {
   it("accepts a typed 0% interest rate and a zero down payment", () => {
     expect(result({ rate: "0" })!.monthlyPayment).toBe(888.89);
     expect(result({ downPayment: "0" })!.loanAmount).toBe(400000);
-    expect(result({ downPayment: "" })!.loanAmount).toBe(400000);
+    expect(result({ downUnit: "usd", downPayment: "0" })!.loanAmount).toBe(400000);
   });
 
-  it("treats junk in a yearly cost as zero", () => {
-    expect(result({ yearlyTax: "abc", yearlyInsurance: "", yearlyMaintenance: "-50" })!.buying).toMatchObject({ propertyTax: 0, insurance: 0, maintenance: 0 });
+  it("F2: an empty or unreadable down payment is not entered, in either unit", () => {
+    for (const downUnit of ["pct", "usd"]) {
+      for (const downPayment of ["", " ", "2..5", ".", "abc"]) {
+        const name = `${downUnit} ${JSON.stringify(downPayment)}`;
+        expect(Number.isNaN(toInput({ ...example, downUnit, downPayment }).downPayment), name).toBe(true);
+        expect(result({ downUnit, downPayment }), name).toBeNull();
+      }
+    }
+    expect(toInput({ ...example, downPayment: "2.5" }).downPayment).toBe(10000);
+    expect(toInput({ ...example, downPayment: "20%" }).downPayment).toBe(80000);
+  });
+
+  it("F2: keeps a typed 0 down when the unit changes, and converts everything else as before", () => {
+    const zero = { ...example, downPayment: "0" };
+    expect(switchUnitKeepingZero(zero, "usd")).toMatchObject({ downUnit: "usd", downPayment: "0" });
+    expect(switchUnitKeepingZero({ ...zero, downUnit: "usd" }, "pct")).toMatchObject({ downUnit: "pct", downPayment: "0" });
+    expect(result(switchUnitKeepingZero(zero, "usd"))!.loanAmount).toBe(400000);
+    expect(switchUnitKeepingZero(example, "usd")).toEqual(switchDownUnit(example, "usd"));
+    expect(switchUnitKeepingZero(example, "pct")).toBe(example);
+    expect(switchUnitKeepingZero({ ...example, downPayment: "" }, "usd").downPayment).toBe("");
+  });
+
+  it("counts a negative yearly cost as zero", () => {
+    expect(result({ yearlyTax: "-50", yearlyInsurance: "-1", yearlyMaintenance: "-4,000" })!.buying).toMatchObject({ propertyTax: 0, insurance: 0, maintenance: 0 });
   });
 });

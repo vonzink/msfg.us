@@ -1,4 +1,4 @@
-import { downPaymentField, parseNumber, parseRate, type FieldDef, type Values } from "../shared/fields";
+import { downPaymentField, parseNumber, parseRate, switchDownUnit, type FieldDef, type Values } from "../shared/fields";
 import type { RentVsBuyInput } from "./math";
 
 /**
@@ -45,7 +45,8 @@ export function exampleValues(exampleRatePct: number): Values {
 /**
  * Cleared form. Typed amounts are empty and choices go back to their default. The four assumption
  * rates go back to their starting values instead of emptying: a comparison at 0% across the board
- * is nobody's intent. Property tax, insurance and maintenance clear to empty and count as $0.
+ * is nobody's intent. Property tax, insurance and maintenance clear to empty, which is "not
+ * entered": there is no comparison until all three are typed again, and 0 is an answer.
  */
 export const BLANK: Values = Object.fromEntries(
   ALL.map((f) => [f.id, f.type === "choice" || ASSUMPTION_RATES.includes(f.id) ? f.example : ""]),
@@ -54,22 +55,56 @@ export const BLANK: Values = Object.fromEntries(
 /** Years typed as text, rounded to a whole year. Empty or junk is NaN, meaning "not entered". */
 const wholeYears = (text: string | undefined): number => (/\d/.test(text ?? "") ? Math.round(parseNumber(text)) : Number.NaN);
 
+/**
+ * An amount where 0 is an answer: the down payment and the three yearly costs. "$", "%", commas
+ * and spaces are dropped; what is left must be one number. Empty or anything else ("2..5", "abc")
+ * is NaN, meaning "not entered", and is never read as 0.
+ */
+const typedAmount = (text: string | undefined): number => {
+  const cleaned = String(text ?? "").replace(/[$%,\s]/g, "");
+  return /^-?(\d+\.?\d*|\.\d+)$/.test(cleaned) ? Number(cleaned) : Number.NaN;
+};
+
+/** The boxes in which a typed 0 is an answer and has to stay in the box. */
+const ZERO_IS_AN_ANSWER = ["downPayment", "yearlyTax", "yearlyInsurance", "yearlyMaintenance"];
+
+/**
+ * The shared money box empties itself when focus leaves it holding 0. In the boxes above, 0 is an
+ * answer, so the calculator passes that change through here: `before` is what the box held,
+ * `after` what the box wants to become. An emptied typed 0 stays "0"; all else goes through.
+ */
+export function keepTypedZero(id: string, before: string | undefined, after: string): string {
+  return after === "" && ZERO_IS_AN_ANSWER.includes(id) && typedAmount(before) === 0 ? "0" : after;
+}
+
+/**
+ * Changes the down payment unit. The shared switch clears a box that holds 0, which here would
+ * turn "zero down" into "not entered"; zero down is zero in either unit, so it stays.
+ */
+export function switchUnitKeepingZero(values: Values, unit: string): Values {
+  const next = switchDownUnit(values, unit);
+  return next !== values && typedAmount(values.downPayment) === 0 ? { ...next, downPayment: "0" } : next;
+}
+
 /** Turns what was typed into the model's input. */
 export function toInput(values: Values): RentVsBuyInput {
   const n = (id: string) => parseNumber(values[id]);
   const homePrice = n("homePrice");
+  const down = typedAmount(values.downPayment);
   return {
     monthlyRent: n("monthlyRent"),
     homePrice,
-    downPayment: values.downUnit === "usd" ? n("downPayment") : (homePrice * n("downPayment")) / 100,
+    // An empty or unreadable down payment is "not entered" (NaN). A typed 0 is zero down.
+    downPayment: values.downUnit === "usd" ? down : (homePrice * down) / 100,
     // A rate that is not one number (empty, "." mid-typing, letters) is "not entered yet", which
     // the model rejects. A typed 0 is a real 0%. The same goes for the four assumption rates.
     rate: parseRate(values.rate),
     stayYears: wholeYears(values.stayYears),
     termMonths: n("termYears") * 12,
-    yearlyTax: n("yearlyTax"),
-    yearlyInsurance: n("yearlyInsurance"),
-    yearlyMaintenance: n("yearlyMaintenance"),
+    // Not entered (NaN) until typed: the model gives no result without all three. 0 is an answer.
+    yearlyTax: typedAmount(values.yearlyTax),
+    yearlyInsurance: typedAmount(values.yearlyInsurance),
+    yearlyMaintenance: typedAmount(values.yearlyMaintenance),
     appreciation: parseRate(values.appreciation),
     rentIncrease: parseRate(values.rentIncrease),
     sellingCosts: parseRate(values.sellingCosts),
