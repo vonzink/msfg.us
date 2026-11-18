@@ -19,6 +19,7 @@ A second deploy script, `deploy.sh`, sits at the repo root. It is marked as a dr
 | `sync-where-the-money-goes.mjs [path-to-msfg-calc]` | Copies the "Where the Money Goes" training page from the msfg-calc repo into `src/calculators/mbs/`. |
 | `calculators/golden-mortgage.mjs [path-to-msfg-calc]` | Runs test scenarios through the dashboard's amortization code in the msfg-calc repo and records the results in `src/calculators/mortgage/golden.json`. The Mortgage calculator's tests must reproduce them. Rerun it when the dashboard math changes. |
 | `calculators/golden-buydown.mjs [path-to-msfg-calc]` | The same for the Rate buydown calculator: runs scenarios through the dashboard's buydown code and records them in `src/calculators/buydown/golden.json`. |
+| `calculators/golden-blended-rate.mjs [path-to-msfg-calc]` | The same for the Blended rate calculator. The dashboard code reads its inputs from the page, so the script gives it a stand-in page, and records what it would display in `src/calculators/blended-rate/golden.json`. |
 
 ## Operations
 

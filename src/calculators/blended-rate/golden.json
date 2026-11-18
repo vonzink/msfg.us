@@ -1,0 +1,150 @@
+{
+  "source": "msfg-calc a1f25e4",
+  "generatedBy": "scripts/calculators/golden-blended-rate.mjs",
+  "cases": [
+    {
+      "name": "mortgage-and-heloc",
+      "debts": [
+        {
+          "name": "Debt 1",
+          "balance": 250000,
+          "ratePct": 3.5,
+          "payment": 1123
+        },
+        {
+          "name": "Debt 2",
+          "balance": 60000,
+          "ratePct": 9,
+          "payment": 450
+        }
+      ],
+      "expected": {
+        "blendedRate": "4.565%",
+        "totalBalance": "$310,000",
+        "totalPayment": "$1,573"
+      }
+    },
+    {
+      "name": "single-debt",
+      "debts": [
+        {
+          "name": "Debt 1",
+          "balance": 180000,
+          "ratePct": 6.25,
+          "payment": 1108
+        }
+      ],
+      "expected": {
+        "blendedRate": "6.250%",
+        "totalBalance": "$180,000",
+        "totalPayment": "$1,108"
+      }
+    },
+    {
+      "name": "five-debts",
+      "debts": [
+        {
+          "name": "Debt 1",
+          "balance": 300000,
+          "ratePct": 4,
+          "payment": 1432
+        },
+        {
+          "name": "Debt 2",
+          "balance": 45000,
+          "ratePct": 8.5,
+          "payment": 390
+        },
+        {
+          "name": "Debt 3",
+          "balance": 22000,
+          "ratePct": 6.9,
+          "payment": 410
+        },
+        {
+          "name": "Debt 4",
+          "balance": 9000,
+          "ratePct": 24.99,
+          "payment": 270
+        },
+        {
+          "name": "Debt 5",
+          "balance": 15000,
+          "ratePct": 5.5,
+          "payment": 163
+        }
+      ],
+      "expected": {
+        "blendedRate": "5.222%",
+        "totalBalance": "$391,000",
+        "totalPayment": "$2,665"
+      }
+    },
+    {
+      "name": "missing-rate",
+      "debts": [
+        {
+          "name": "Debt 1",
+          "balance": 200000,
+          "ratePct": 4,
+          "payment": 955
+        },
+        {
+          "name": "Debt 2",
+          "balance": 50000,
+          "ratePct": "",
+          "payment": 300
+        }
+      ],
+      "expected": {
+        "blendedRate": "3.200%",
+        "totalBalance": "$250,000",
+        "totalPayment": "$1,255"
+      }
+    },
+    {
+      "name": "no-payments",
+      "debts": [
+        {
+          "name": "Debt 1",
+          "balance": 250000,
+          "ratePct": 3.5,
+          "payment": ""
+        },
+        {
+          "name": "Debt 2",
+          "balance": 60000,
+          "ratePct": 9,
+          "payment": ""
+        }
+      ],
+      "expected": {
+        "blendedRate": "4.565%",
+        "totalBalance": "$310,000",
+        "totalPayment": "$0"
+      }
+    },
+    {
+      "name": "zero-rate-debt",
+      "debts": [
+        {
+          "name": "Debt 1",
+          "balance": 20000,
+          "ratePct": 0,
+          "payment": 400
+        },
+        {
+          "name": "Debt 2",
+          "balance": 80000,
+          "ratePct": 7,
+          "payment": 532
+        }
+      ],
+      "expected": {
+        "blendedRate": "5.600%",
+        "totalBalance": "$100,000",
+        "totalPayment": "$932"
+      }
+    }
+  ]
+}
