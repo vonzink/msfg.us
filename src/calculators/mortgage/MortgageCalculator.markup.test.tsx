@@ -78,6 +78,13 @@ describe("mortgage results", () => {
     expect(results({})).not.toContain("most conventional loans add mortgage insurance");
   });
 
+  it("shows the dashboard's reference case as the dashboard does", () => {
+    // msfg-calc's own test: $250,000 home, $50,000 down, 7.5%, 30 years, $2,500 tax, $125/mo insurance, $100 HOA.
+    const html = results({ homePrice: "250,000", downUnit: "usd", downPayment: "50,000", rate: "7.5", yearlyTax: "2,500", yearlyInsurance: "1,500", monthlyHoa: "100" });
+    expect(html).toContain("$1,398");
+    expect(html).toContain("$1,832");
+  });
+
   it("gives the payoff as a length of time until the start date is known", () => {
     expect(results({})).toContain("30 years");
   });
