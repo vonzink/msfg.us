@@ -1,4 +1,4 @@
-import { parseNumber, type FieldDef, type Values } from "../shared/fields";
+import { parseNumber, parseRate, type FieldDef, type Values } from "../shared/fields";
 import { REDUCTIONS, type BuydownInput, type BuydownType } from "./math";
 
 /**
@@ -42,8 +42,8 @@ export function toInput(values: Values): BuydownInput {
   const n = (id: string) => parseNumber(values[id]);
   return {
     loanAmount: n("loanAmount"),
-    // A rate with no digit in it is "not entered yet", which the model rejects.
-    annualRate: /\d/.test(values.rate ?? "") ? n("rate") / 100 : Number.NaN,
+    // A rate that is not one number is "not entered yet", which the model rejects.
+    annualRate: parseRate(values.rate),
     termYears: n("termYears"),
     type: values.buydownType in REDUCTIONS ? (values.buydownType as BuydownType) : "2-1",
     yearlyTax: n("yearlyTax"),

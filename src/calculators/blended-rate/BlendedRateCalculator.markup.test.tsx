@@ -71,6 +71,12 @@ describe("blended rate results", () => {
     expect(html).toContain("19%");
   });
 
+  it("does not round a small debt's share down to 0%", () => {
+    const html = results(set(1, "balance", "1,000"));
+    expect(html).toContain("under 1% of the balance");
+    expect(html).not.toContain(">0% of the balance");
+  });
+
   it("always carries the caution, and links to the breakeven calculator only when it is live", () => {
     expect(results()).toContain(CAUTION);
     expect(results()).not.toContain("Check the breakeven on a refinance");
@@ -111,5 +117,13 @@ describe("blended rate print summary", () => {
     for (const text of ["First mortgage", "$250,000 at 3.5%", "Home equity line", "$60,000 at 9%", "Blended rate", "4.565%", "Total balance", "$310,000", "Compared with", "7%"]) {
       expect(html, text).toContain(text);
     }
+    expect(html).not.toMatch(/>\d\. /); // no numbering that could disagree with a row's own name
+  });
+
+  it("words a comparison the same way in print as on screen", () => {
+    const print = (compare: string) => renderToStaticMarkup(<BlendedPrintSummary result={calc(EXAMPLE_ROWS, compare)!} />);
+    expect(print("7")).toContain("A new rate of 7% is 2.435 percentage points above this blended rate.");
+    expect(print("4.565")).toContain("A new rate of 4.565% is the same as this blended rate.");
+    expect(print("4.565")).not.toContain("0 points");
   });
 });

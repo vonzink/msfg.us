@@ -36,6 +36,7 @@ describe("junk in a field gives no result, never a crash", () => {
     ["an empty rate", { rate: "" }],
     ["a rate that is only a decimal point so far", { rate: "." }],
     ["a 99% rate", { rate: "99" }],
+    ["a rate with two decimal points", { rate: "7..5" }],
     ["a negative rate", { rate: "-5" }],
     ["a cleared form", BLANK],
   ])("%s", (_name, changes) => {

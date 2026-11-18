@@ -9,6 +9,9 @@ export const percent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 /** The blended rate always shows three decimals, as the dashboard does. */
 export const blendedPercent = (rate: number) => `${(rate * 100).toFixed(3)}%`;
 
+/** A share of the balance as a whole percent. A real debt never shows as 0%. */
+export const sharePercent = (share: number) => (Math.round(share * 100) < 1 ? "under 1%" : `${Math.round(share * 100)}%`);
+
 export const CAUTION =
   "A lower rate is not the whole decision. Moving a short-term debt into a 30-year loan can lower the rate and still raise the total interest you pay.";
 
@@ -67,7 +70,7 @@ export function BlendedResults({ result: r, disclaimer, breakevenHref }: {
               <span className="text-muted">
                 {formatUSD(d.balance)} at {percent(d.rate)}
               </span>
-              <span className="ml-auto font-semibold tabular-nums">{Math.round(d.share * 100)}% of the balance</span>
+              <span className="ml-auto font-semibold tabular-nums">{sharePercent(d.share)} of the balance</span>
             </li>
           ))}
         </ul>

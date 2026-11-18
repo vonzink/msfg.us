@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AddDetail } from "../shared/AddDetail";
 import { CalculatorShell } from "../shared/CalculatorShell";
 import { Field } from "../shared/Field";
@@ -31,6 +31,24 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
   const [rows, setRows] = useState<Row[]>(EXAMPLE_ROWS);
   const [compare, setCompare] = useState("");
   const result = useMemo(() => calculateBlended(toDebts(rows), parseCompareRate(compare)), [rows, compare]);
+
+  // Adding or removing a row unmounts the button that was just pressed. Without this, keyboard
+  // focus would drop to the top of the page. Send it to the new row, or to the Add button.
+  const focusNext = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusNext.current) return;
+    document.getElementById(focusNext.current)?.focus();
+    focusNext.current = null;
+  }, [rows]);
+  const add = () => {
+    const next = addRow(rows);
+    if (next !== rows) focusNext.current = `blended-${next[next.length - 1].id}-name`;
+    setRows(next);
+  };
+  const remove = (id: number) => {
+    focusNext.current = "blended-add";
+    setRows(removeRow(rows, id));
+  };
 
   const cell = (row: Row, def: FieldDef) => (
     <Field
@@ -66,7 +84,7 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
                     <button
                       type="button"
                       aria-label={`Remove ${rowName(row, i)}`}
-                      onClick={() => setRows((was) => removeRow(was, row.id))}
+                      onClick={() => remove(row.id)}
                       className="mt-2.5 text-[13px] font-semibold text-muted underline hover:text-ink"
                     >
                       Remove
@@ -75,7 +93,7 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
                 </fieldset>
               ))}
               {rows.length < MAX_ROWS && (
-                <button type="button" className={`${ghost} justify-self-start`} onClick={() => setRows(addRow)}>
+                <button id="blended-add" type="button" className={`${ghost} justify-self-start`} onClick={add}>
                   Add another debt
                 </button>
               )}

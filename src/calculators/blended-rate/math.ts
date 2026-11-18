@@ -12,8 +12,9 @@
  *     it does not show which arrangement costs less over time.
  *   - A debt with a balance and no rate counts at 0%, as on the dashboard, and is flagged so the
  *     page can say so.
- *   - Difference from the dashboard: a row whose balance is not above zero is left out entirely.
- *     The dashboard adds a negative balance into its totals. Golden cases use none.
+ *   - Difference from the dashboard: a row whose balance is not above zero is left out entirely,
+ *     its payment included. The dashboard adds a negative balance into its totals, and adds the
+ *     payment of a row that has no balance. Golden cases use neither.
  */
 export type Debt = { name: string; balance: number; rate: number; payment: number };
 

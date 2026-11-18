@@ -1,4 +1,4 @@
-import { parseNumber } from "../shared/fields";
+import { parseNumber, parseRate } from "../shared/fields";
 import type { Debt } from "./math";
 
 /**
@@ -43,18 +43,15 @@ export function rowName(row: Row, index: number): string {
   return row.name.trim() || `Debt ${index + 1}`;
 }
 
-/** A percent typed as text, as a decimal. Text with no digit in it is "not entered". */
-const rate = (text: string): number => (/\d/.test(text) ? parseNumber(text) / 100 : Number.NaN);
-
 export function toDebts(rows: Row[]): Debt[] {
   return rows.map((row, i) => ({
     name: rowName(row, i),
     balance: parseNumber(row.balance),
-    rate: rate(row.rate),
+    rate: parseRate(row.rate),
     payment: parseNumber(row.payment),
   }));
 }
 
 export function parseCompareRate(text: string): number {
-  return rate(text);
+  return parseRate(text);
 }

@@ -1,4 +1,4 @@
-import { parseNumber, type FieldDef, type Values } from "../shared/fields";
+import { parseNumber, parseRate, type FieldDef, type Values } from "../shared/fields";
 import type { ExtraFrequency, MortgageInput } from "./math";
 
 /**
@@ -83,9 +83,9 @@ export function toInput(values: Values, start: { month: number; year: number }):
   return {
     homePrice,
     downPayment: values.downUnit === "usd" ? n("downPayment") : (homePrice * n("downPayment")) / 100,
-    // A rate with no digit in it (empty, "." mid-typing, letters) is "not entered yet", which the
-    // model rejects. A typed 0 is a real 0% loan.
-    annualRate: /\d/.test(values.rate ?? "") ? n("rate") / 100 : Number.NaN,
+    // A rate that is not one number (empty, "." mid-typing, letters) is "not entered yet", which
+    // the model rejects. A typed 0 is a real 0% loan.
+    annualRate: parseRate(values.rate),
     termYears: n("termYears"),
     yearlyTax: n("yearlyTax"),
     yearlyInsurance: n("yearlyInsurance"),

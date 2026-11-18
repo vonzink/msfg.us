@@ -65,6 +65,7 @@ describe("junk in a field gives no result, never a crash", () => {
     ["a negative rate", { rate: "-5" }],
     ["an empty rate", { rate: "" }],
     ["letters for the rate", { rate: "abc" }],
+    ["a rate with two decimal points", { rate: "7..5" }],
     ["a rate that is only a decimal point so far", { rate: "." }],
     ["a negative down payment", { downPayment: "-5" }],
     ["a cleared form", BLANK],

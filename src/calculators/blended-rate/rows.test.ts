@@ -60,6 +60,14 @@ describe("turning rows into debts", () => {
     expect(toDebts(updateRow(EXAMPLE_ROWS, EXAMPLE_ROWS[1].id, "name", "  ")).map((d) => d.name)).toEqual(["First mortgage", "Debt 2"]);
   });
 
+  it("flags a rate it cannot read instead of counting it at 0% silently", () => {
+    for (const typed of ["9..0", "9.0.1", "abc"]) {
+      const debts = toDebts(updateRow(EXAMPLE_ROWS, EXAMPLE_ROWS[1].id, "rate", typed));
+      expect(calculateBlended(debts, Number.NaN)!.debts[1].missingRate, typed).toBe(true);
+    }
+    expect(Number.isNaN(parseCompareRate("7..5"))).toBe(true);
+  });
+
   it("treats a rate with no digit as not entered", () => {
     const debts = toDebts(updateRow(EXAMPLE_ROWS, EXAMPLE_ROWS[1].id, "rate", "."));
     expect(Number.isNaN(debts[1].rate)).toBe(true);
