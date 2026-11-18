@@ -1,0 +1,174 @@
+{
+  "source": "msfg-calc a1f25e4",
+  "generatedBy": "scripts/calculators/golden-refinance-breakeven.mjs",
+  "cases": [
+    {
+      "name": "example",
+      "input": {
+        "currentBalance": 300000,
+        "currentRate": 0.08,
+        "monthsLeft": 324,
+        "newRate": 0.07,
+        "newTermMonths": 360,
+        "closingCosts": 6000,
+        "newLoanAmount": null,
+        "cashOut": 0,
+        "debtPaymentsPaidOff": 0,
+        "currentMi": 0,
+        "newMi": 0,
+        "keepMonths": null
+      },
+      "expected": {
+        "currentPayment": 2262.84,
+        "newPayment": 1995.91,
+        "monthlySavings": 266.93,
+        "breakevenMonths": 23,
+        "netSavings": null
+      }
+    },
+    {
+      "name": "shorter-term",
+      "input": {
+        "currentBalance": 300000,
+        "currentRate": 0.08,
+        "monthsLeft": 324,
+        "newRate": 0.065,
+        "newTermMonths": 180,
+        "closingCosts": 6000,
+        "newLoanAmount": null,
+        "cashOut": 0,
+        "debtPaymentsPaidOff": 0,
+        "currentMi": 0,
+        "newMi": 0,
+        "keepMonths": 120
+      },
+      "expected": {
+        "currentPayment": 2262.84,
+        "newPayment": 2613.32,
+        "monthlySavings": -350.48,
+        "breakevenMonths": null,
+        "netSavings": -48057.6
+      }
+    },
+    {
+      "name": "no-savings",
+      "input": {
+        "currentBalance": 300000,
+        "currentRate": 0.06,
+        "monthsLeft": 324,
+        "newRate": 0.07,
+        "newTermMonths": 360,
+        "closingCosts": 6000,
+        "newLoanAmount": null,
+        "cashOut": 0,
+        "debtPaymentsPaidOff": 0,
+        "currentMi": 0,
+        "newMi": 0,
+        "keepMonths": null
+      },
+      "expected": {
+        "currentPayment": 1871.96,
+        "newPayment": 1995.91,
+        "monthlySavings": -123.95,
+        "breakevenMonths": null,
+        "netSavings": null
+      }
+    },
+    {
+      "name": "longer-term-more-interest",
+      "input": {
+        "currentBalance": 250000,
+        "currentRate": 0.0725,
+        "monthsLeft": 264,
+        "newRate": 0.0675,
+        "newTermMonths": 360,
+        "closingCosts": 5000,
+        "newLoanAmount": null,
+        "cashOut": 0,
+        "debtPaymentsPaidOff": 0,
+        "currentMi": 0,
+        "newMi": 0,
+        "keepMonths": 84
+      },
+      "expected": {
+        "currentPayment": 1897.23,
+        "newPayment": 1621.5,
+        "monthlySavings": 275.73,
+        "breakevenMonths": 19,
+        "netSavings": 18161.32
+      }
+    },
+    {
+      "name": "cash-out-with-debts",
+      "input": {
+        "currentBalance": 300000,
+        "currentRate": 0.08,
+        "monthsLeft": 324,
+        "newRate": 0.07,
+        "newTermMonths": 360,
+        "closingCosts": 7000,
+        "newLoanAmount": 340000,
+        "cashOut": 40000,
+        "debtPaymentsPaidOff": 900,
+        "currentMi": 0,
+        "newMi": 0,
+        "keepMonths": 60
+      },
+      "expected": {
+        "currentPayment": 2262.84,
+        "newPayment": 2262.03,
+        "monthlySavings": 900.81,
+        "breakevenMonths": 8,
+        "netSavings": 47048.6
+      }
+    },
+    {
+      "name": "with-mi",
+      "input": {
+        "currentBalance": 300000,
+        "currentRate": 0.08,
+        "monthsLeft": 324,
+        "newRate": 0.07,
+        "newTermMonths": 360,
+        "closingCosts": 6000,
+        "newLoanAmount": null,
+        "cashOut": 0,
+        "debtPaymentsPaidOff": 0,
+        "currentMi": 140,
+        "newMi": 95,
+        "keepMonths": null
+      },
+      "expected": {
+        "currentPayment": 2402.84,
+        "newPayment": 2090.91,
+        "monthlySavings": 311.93,
+        "breakevenMonths": 20,
+        "netSavings": null
+      }
+    },
+    {
+      "name": "zero-closing-costs",
+      "input": {
+        "currentBalance": 300000,
+        "currentRate": 0.08,
+        "monthsLeft": 324,
+        "newRate": 0.07,
+        "newTermMonths": 360,
+        "closingCosts": 0,
+        "newLoanAmount": null,
+        "cashOut": 0,
+        "debtPaymentsPaidOff": 0,
+        "currentMi": 0,
+        "newMi": 0,
+        "keepMonths": null
+      },
+      "expected": {
+        "currentPayment": 2262.84,
+        "newPayment": 1995.91,
+        "monthlySavings": 266.93,
+        "breakevenMonths": 0,
+        "netSavings": null
+      }
+    }
+  ]
+}
