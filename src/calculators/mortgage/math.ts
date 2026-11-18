@@ -56,7 +56,16 @@ export type ScheduleRow = {
 };
 
 /** One year of the loan, counted from the first payment (year 1 is payments 1 to 12). */
-export type YearRow = { year: number; principal: number; interest: number; extra: number; endBalance: number };
+export type YearRow = {
+  year: number;
+  principal: number;
+  interest: number;
+  extra: number;
+  pmi: number;
+  /** Everything paid that year, including tax, insurance, HOA and PMI. */
+  paid: number;
+  endBalance: number;
+};
 
 export type MortgageResult = {
   loanAmount: number;
@@ -151,10 +160,12 @@ export function calculateMortgage(input: MortgageInput): MortgageResult | null {
   const years: YearRow[] = [];
   schedule.forEach((row, index) => {
     const y = Math.floor(index / 12);
-    years[y] ??= { year: y + 1, principal: 0, interest: 0, extra: 0, endBalance: 0 };
+    years[y] ??= { year: y + 1, principal: 0, interest: 0, extra: 0, pmi: 0, paid: 0, endBalance: 0 };
     years[y].principal = roundCents(years[y].principal + row.principal);
     years[y].interest = roundCents(years[y].interest + row.interest);
     years[y].extra = roundCents(years[y].extra + row.extra);
+    years[y].pmi = roundCents(years[y].pmi + row.pmi);
+    years[y].paid = roundCents(years[y].paid + row.totalMonthly);
     years[y].endBalance = row.balance;
   });
 
@@ -174,5 +185,52 @@ export function calculateMortgage(input: MortgageInput): MortgageResult | null {
     monthsSaved: base.length - schedule.length,
     pmiEndPayment,
     payoff: { month: last.month, year: last.year },
+  };
+}
+
+export type PaymentPart = { key: "principal" | "interest" | "tax" | "insurance" | "hoa" | "pmi" | "extra"; label: string; value: number };
+
+export type PaymentBreakdown = {
+  paymentNum: number;
+  /** Year of the loan this payment falls in, counted from the first payment. */
+  loanYear: number;
+  month: number;
+  year: number;
+  parts: PaymentPart[];
+  total: number;
+  /** Balance after this payment. */
+  balance: number;
+  /** Principal and interest as shares of the two together, 0 to 1. Extra principal is not counted. */
+  principalShare: number;
+  interestShare: number;
+};
+
+/**
+ * One payment split into its parts, for the slider that walks through the loan. A payment number
+ * outside the schedule is pulled to the nearest end.
+ */
+export function paymentBreakdown(r: MortgageResult, paymentNum: number): PaymentBreakdown | null {
+  if (r.schedule.length === 0) return null;
+  const n = Math.min(r.schedule.length, Math.max(1, Math.round(Number.isFinite(paymentNum) ? paymentNum : 1)));
+  const row = r.schedule[n - 1];
+  const both = row.principal + row.interest;
+  return {
+    paymentNum: n,
+    loanYear: Math.floor((n - 1) / 12) + 1,
+    month: row.month,
+    year: row.year,
+    parts: [
+      { key: "principal", label: "Principal", value: row.principal },
+      { key: "interest", label: "Interest", value: row.interest },
+      { key: "tax", label: "Property tax", value: r.first.tax },
+      { key: "insurance", label: "Homeowners insurance", value: r.first.insurance },
+      { key: "hoa", label: "HOA dues", value: r.first.hoa },
+      { key: "pmi", label: "Mortgage insurance", value: row.pmi },
+      { key: "extra", label: "Extra principal", value: row.extra },
+    ],
+    total: row.totalMonthly,
+    balance: row.balance,
+    principalShare: both > 0 ? row.principal / both : 0,
+    interestShare: both > 0 ? row.interest / both : 0,
   };
 }

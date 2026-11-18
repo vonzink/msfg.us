@@ -12,7 +12,7 @@ export async function Footer() {
   const config = await getTenantConfig();
   const legalStrip = buildLegalStrip(config);
   return (
-    <footer className="bg-paper pb-10 pt-[72px] text-ink">
+    <footer className="bg-paper pb-10 pt-[72px] text-ink print:hidden">
       <div className="wrap">
         <div className="grid grid-cols-1 gap-9 min-[981px]:grid-cols-[1.6fr_1fr_1fr_1.1fr]">
           {/* Brand + family of companies */}

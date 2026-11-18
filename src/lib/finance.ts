@@ -25,3 +25,8 @@ export function formatUSD(n: number, opts?: Intl.NumberFormatOptions): string {
 export function roundCents(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
+
+/** Format a number as USD with cents (e.g. $1,842.07), for tables where every cent is shown. */
+export function formatUSDCents(n: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number.isFinite(n) ? roundCents(n) : 0);
+}

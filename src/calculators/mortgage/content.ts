@@ -3,9 +3,6 @@
  * Rules: plain language, no formulas, results are estimates, and nothing that reads as a loan
  * decision or a rate offer.
  */
-export const INTRO =
-  "Enter the price, your down payment and a rate to see the monthly payment, with property tax and insurance included.";
-
 export const HOW_IT_WORKS: string[] = [
   "The payment has two parts. Principal and interest is what you pay the lender, and it stays the same every month on a fixed-rate loan. Property tax and homeowners insurance are added on top, using the yearly amounts you typed, spread over twelve months.",
   "This calculator assumes a conventional loan. FHA, VA and USDA loans have their own insurance and fees, so their payments will differ from what you see here.",

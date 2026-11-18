@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { monthlyPayment, roundCents } from "./finance";
+import { formatUSDCents, monthlyPayment, roundCents } from "./finance";
 
 describe("roundCents", () => {
   it("rounds half a cent up, including values binary floats store just under the half", () => {
@@ -15,5 +15,13 @@ describe("monthlyPayment", () => {
   });
   it("divides evenly at a zero rate", () => {
     expect(monthlyPayment(120000, 0, 120)).toBe(1000);
+  });
+});
+
+describe("formatUSDCents", () => {
+  it("always shows two decimals and treats junk as zero", () => {
+    expect(formatUSDCents(262.3)).toBe("$262.30");
+    expect(formatUSDCents(1866.666)).toBe("$1,866.67");
+    expect(formatUSDCents(Number.NaN)).toBe("$0.00");
   });
 });

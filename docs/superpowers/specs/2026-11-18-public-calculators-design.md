@@ -188,3 +188,12 @@ Zachary is the compliance sign-off. Compliance review of the disclaimers and all
 - Property tax and insurance input units (yearly dollars or percent), consistent across calculators.
 - Chart types and layout details, following the investment calculator.
 - Whether a dashboard formula that is wrong or undefined at an edge case is reproduced or fixed. If fixed, the difference is recorded beside the golden cases and raised with Zachary.
+
+## Changes after the first staging review (2026-11-18)
+
+Decided by Zachary after testing the Mortgage calculator on staging. Where these differ from the text above, these win.
+
+- **Mortgage has no intro sentence.** The intro under the heading is optional per calculator.
+- **The payment slider is back.** "Where each payment goes" has a slider from the first payment to the last. The ring splits that payment into principal, interest, tax, insurance and the rest, and a line gives principal against interest as percentages, as the dashboard does. This replaces the static donut and reverses "Removed: the month-by-month slider".
+- **The amortization schedule is a full-width section under the calculator**, always visible. Each year row opens to its payments, to the cent, and "Show every payment" opens them all.
+- **Print is a laid-out page:** a company letterhead with the licensing line, a two-column summary of the loan and the estimate, then the schedule as it is on screen, then the disclaimer. The form, charts, site header and footer do not print. Later calculators built on `CalculatorPage` get the letterhead and can supply their own printed summary.

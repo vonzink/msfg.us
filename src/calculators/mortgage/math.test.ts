@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import golden from "./golden.json";
-import { calculateMortgage, type MortgageInput } from "./math";
+import { calculateMortgage, paymentBreakdown, type MortgageInput } from "./math";
 
 const cases = golden.cases.map((c) => ({ ...c, input: c.input as MortgageInput }));
 const reference = cases.find((c) => c.name === "reference")!.input;
@@ -67,8 +67,49 @@ describe("the schedule", () => {
     expect(calculateMortgage(reference)!.extra.amount).toBe(0);
   });
 
+  it("totals what is paid in each year, including tax, insurance and fees", () => {
+    const r = calculateMortgage(reference)!;
+    expect(r.years[0].paid).toBe(21981.12); // 12 payments of $1,831.76
+    const paid = r.years.reduce((t, y) => t + y.paid, 0);
+    expect(Math.abs(paid - r.totalCost)).toBeLessThan(0.005);
+  });
+
   it("gives the payoff month and year from the start date", () => {
     const r = calculateMortgage({ ...reference, startMonth: 0, startYear: 2027 })!;
     expect(r.payoff).toEqual({ month: 11, year: 2056 });
+  });
+});
+
+describe("one payment, broken down (the slider)", () => {
+  const r = calculateMortgage({ ...reference, monthlyPmi: 90, extraAmount: 200 })!;
+
+  it("splits the first payment and gives principal against interest", () => {
+    const b = paymentBreakdown(r, 1)!;
+    // The dashboard's reference row: $148.43 principal and $1,250.00 interest.
+    expect(b.parts).toEqual([
+      { key: "principal", label: "Principal", value: 148.43 },
+      { key: "interest", label: "Interest", value: 1250 },
+      { key: "tax", label: "Property tax", value: 208.33 },
+      { key: "insurance", label: "Homeowners insurance", value: 125 },
+      { key: "hoa", label: "HOA dues", value: 100 },
+      { key: "pmi", label: "Mortgage insurance", value: 0 },
+      { key: "extra", label: "Extra principal", value: 200 },
+    ]);
+    expect(b.total).toBe(2031.76);
+    expect(b.balance).toBe(199651.57);
+    expect(b.principalShare).toBeCloseTo(0.1061, 4);
+    expect(b.interestShare).toBeCloseTo(0.8939, 4);
+    expect(b).toMatchObject({ paymentNum: 1, loanYear: 1 });
+  });
+
+  it("shows interest shrinking and principal growing later in the loan", () => {
+    const late = paymentBreakdown(r, 200)!;
+    expect(late.principalShare).toBeGreaterThan(0.5);
+    expect(late.loanYear).toBe(17);
+  });
+
+  it("clamps a payment number past the end of the loan to the last payment", () => {
+    expect(paymentBreakdown(r, 9999)!.paymentNum).toBe(r.schedule.length);
+    expect(paymentBreakdown(r, 0)!.paymentNum).toBe(1);
   });
 });

@@ -16,7 +16,7 @@ export async function Nav() {
   const config = await getTenantConfig();
   const navigation = navigationForFeatures(config.features, enabledCalculators(config.calculators));
   return (
-    <header className="sticky top-0 z-[60] bg-green-800">
+    <header className="sticky top-0 z-[60] bg-green-800 print:hidden">
       <div className="wrap flex h-[76px] items-center gap-2">
         <Link
           href="/"

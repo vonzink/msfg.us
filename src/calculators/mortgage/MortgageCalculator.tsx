@@ -8,7 +8,10 @@ import { Field } from "../shared/Field";
 import { parseNumber, type FieldDef, type Numbers, type Values } from "../shared/fields";
 import { BLANK, DETAIL_FIELDS, downPaymentField, exampleValues, FRONT_FIELDS, switchDownUnit, toInput } from "./fields";
 import { calculateMortgage } from "./math";
-import { MONTHS, MortgageResults } from "./Results";
+import { MONTHS } from "./dates";
+import { PrintSummary } from "./PrintSummary";
+import { MortgageResults } from "./Results";
+import { Schedule } from "./Schedule";
 
 type Start = { month: number; year: number };
 
@@ -55,7 +58,8 @@ export function MortgageCalculator({ exampleRatePct, exampleRateNote, disclaimer
     () => Object.fromEntries(Object.entries(values).map(([id, v]) => [id, parseNumber(v)])),
     [values],
   );
-  const result = useMemo(() => calculateMortgage(toInput(values, start ?? { month: 0, year: 0 })), [values, start]);
+  const input = useMemo(() => toInput(values, start ?? { month: 0, year: 0 }), [values, start]);
+  const result = useMemo(() => calculateMortgage(input), [input]);
 
   const front: FieldDef[] = FRONT_FIELDS.map((f) =>
     f.id === "downPayment" ? downPaymentField(values.downUnit) : f.id === "rate" ? { ...f, hint: exampleRateNote } : f,
@@ -68,6 +72,7 @@ export function MortgageCalculator({ exampleRatePct, exampleRateNote, disclaimer
     <CalculatorShell
       formLabel="Loan details"
       resultsId="mortgage-results"
+      printBelowOnly
       onExample={() => setValues(exampleValues(exampleRatePct))}
       onClear={() => setValues(BLANK)}
       form={
@@ -111,7 +116,13 @@ export function MortgageCalculator({ exampleRatePct, exampleRateNote, disclaimer
       results={<MortgageResults result={result} start={start} disclaimer={disclaimer} />}
       below={
         result && (
-          // Phone: the payment pinned to the bottom of the screen, linking up to the results.
+          <>
+          {/* The printed page is these three: a summary on top, the schedule, then the disclaimer. */}
+          <PrintSummary input={input} result={result} start={start} />
+          <Schedule result={result} start={start} />
+          <p className="mt-3 hidden text-[10px] text-muted print:block">{disclaimer}</p>
+
+          {/* Phone: the payment pinned to the bottom of the screen, linking up to the results. */}
           <a
             href="#mortgage-results"
             className="fixed inset-x-3 bottom-3 z-10 hidden items-center gap-[18px] rounded-lg bg-green-900 px-3.5 py-2.5 text-white shadow-pop max-[980px]:flex print:hidden"
@@ -122,6 +133,7 @@ export function MortgageCalculator({ exampleRatePct, exampleRateNote, disclaimer
             </span>
             <span className="ml-auto whitespace-nowrap text-[13px] font-bold text-mint">See results</span>
           </a>
+          </>
         )
       }
     />

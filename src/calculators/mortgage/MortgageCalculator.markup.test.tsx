@@ -46,11 +46,18 @@ describe("mortgage calculator page", () => {
     }
   });
 
-  it("keeps the optional inputs and the schedule in closed panels that open for print", () => {
+  it("keeps the optional inputs in a closed panel and shows the schedule in full", () => {
     const html = page();
-    expect(html.split("<details data-calc-panel").length - 1).toBe(2);
-    expect(html).not.toContain("<details data-calc-panel=\"\" open");
-    expect(html).toMatch(/<caption[^>]*>Amortization schedule by year<\/caption>/);
+    expect(html.split("<details data-calc-panel").length - 1).toBe(1);
+    expect(html).toMatch(/<caption[^>]*>Amortization schedule<\/caption>/);
+    expect(html).toContain("mortgage-breakdown-month");
+  });
+
+  it("prints a summary and the schedule, not the form or the charts", () => {
+    const html = page();
+    expect(html).toContain("Mortgage payment estimate");
+    expect(html).toMatch(/<form[^>]*class="[^"]*print:hidden/);
+    expect(html).toMatch(/<section id="mortgage-results"[^>]*class="[^"]*print:hidden/);
   });
 });
 
@@ -61,6 +68,7 @@ describe("mortgage results", () => {
     expect(html).toMatch(/role="status"[^>]*>Enter a home price/);
     expect(html).not.toMatch(BAD_OUTPUT);
     expect(html).not.toContain("<table");
+    expect(html).not.toContain("type=\"range\"");
   });
 
   it("keeps the headline as the regular payment and states the extra principal beside it", () => {
