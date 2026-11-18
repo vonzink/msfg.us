@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [tsconfigPaths()],
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     // `server-only` ships a stub that throws when resolved outside a React
     // Server Component bundler (Vitest resolves its client/react-server export
     // condition). Our server modules legitimately `import "server-only"` as a

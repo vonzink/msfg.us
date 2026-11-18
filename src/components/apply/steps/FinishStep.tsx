@@ -2,8 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { ArrowRight, Phone, MessageSquare, Mail } from "lucide-react";
+import { ArrowRight, Phone, MessageSquare, Mail, Loader2 } from "lucide-react";
 import { APP_URL } from "@/lib/auth/appLink";
+import { useAuth } from "@/lib/auth/useAuth";
+import { AccountPanel } from "./AccountPanel";
 import { isHandoffTokenStale } from "./handoffStale";
 import { telHref, smsHref } from "./offRampLink";
 import { track } from "@/lib/analytics";
@@ -23,11 +25,19 @@ type OffRampOfficer = {
 } | null;
 
 /**
- * Finish screen (Part 2 of the funnel pivot). Re-introduces a rendered screen
- * (partially reversing 90188bb): the hand-off token is minted on mount as a
- * PRE-WARM, but navigation happens on the Continue CLICK (TTL-aware re-mint),
- * not on mount. A quiet reveal-on-demand off-ramp (added in a later slice) lets
- * the borrower reach the chosen loan officer without leaving the screen.
+ * Finish screen. A rendered screen (not the old auto-redirect): the hand-off
+ * token is minted on mount as a PRE-WARM; navigation happens on the Continue
+ * CLICK (TTL-aware re-mint). When Cognito is configured and the borrower is
+ * signed out, Continue is gated behind an inline branded AccountPanel (create
+ * account / sign in) so they're authenticated before the /continue hand-off —
+ * once they authenticate, the hand-off fires automatically. A quiet
+ * reveal-on-demand off-ramp lets them reach the chosen loan officer instead.
+ *
+ * Auth gating only applies when `auth.configured` (Cognito env present): local /
+ * non-Cognito envs keep the passwordless Continue. In PROD `configured` is true,
+ * so the panel renders and REQUIRES the pool's ALLOW_USER_PASSWORD_AUTH +
+ * self-service sign-up to be enabled before it works — turn those on before the
+ * first live deploy (deploy prereq), or gate activation behind a config flag.
  */
 export function FinishStep({
   contact,
@@ -59,6 +69,12 @@ export function FinishStep({
   /** Exact TCPA consent string from buildConsentTcpa(config). Never paraphrase. */
   consentTcpa?: string;
 }) {
+  const auth = useAuth();
+  // True only between an inline AccountPanel sign-in and the auto-continue it
+  // triggers — so a borrower who was ALREADY signed in on mount is NOT
+  // auto-redirected (they still see the rendered screen + Continue button).
+  const justAuthed = useRef(false);
+
   const fired = useRef(false);
   const mintedAtRef = useRef<number | null>(null);
   const reminting = useRef(false);
@@ -78,6 +94,10 @@ export function FinishStep({
   const recaptureValid = recapturePhone.trim().length >= 7 && recaptureConsent;
   const panelHeadingRef = useRef<HTMLHeadingElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // Gate Continue behind inline auth only when Cognito is wired AND the borrower
+  // is signed out (and we have funnel contact for the email pre-fill + lock).
+  const needsAuth = auth.configured && !auth.authenticated && !!contact;
 
   const officerFirst = officer?.name.split(" ")[0] ?? null;
   // Number used for Call/Text: the officer's, else the tenant house line.
@@ -231,16 +251,48 @@ export function FinishStep({
     track("continue_fallback_shown");
   }
 
+  // After an inline AccountPanel sign-in flips auth → authenticated, continue
+  // automatically (the borrower already committed via "… & continue"). Guarded
+  // by justAuthed so an already-signed-in borrower is never auto-redirected.
+  useEffect(() => {
+    if (auth.authenticated && justAuthed.current) {
+      justAuthed.current = false;
+      void onContinue();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.authenticated]);
+
   return (
     <>
       <h1 className="mb-2 text-pretty text-[clamp(26px,3.6vw,38px)] font-extrabold leading-[1.08] tracking-[-0.03em] [text-wrap:balance]">
         You&rsquo;re all set — finish your application
       </h1>
       <p className="mb-6 text-[16px] text-muted">
-        Pick up right where you left off in the {shortName} app.
+        {needsAuth
+          ? `Create your account to finish in the ${shortName} app.`
+          : `Pick up right where you left off in the ${shortName} app.`}
       </p>
 
-      {fallback ? (
+      {auth.loading ? (
+        <div
+          className="flex min-h-[66px] items-center justify-center text-muted"
+          role="status"
+          aria-live="polite"
+        >
+          <Loader2 className="size-6 animate-spin" aria-hidden="true" />
+          <span className="sr-only">Loading…</span>
+        </div>
+      ) : needsAuth ? (
+        <AccountPanel
+          initialEmail={contact?.email ?? ""}
+          initialFirstName={contact?.firstName}
+          initialLastName={contact?.lastName}
+          onAuthed={() => {
+            justAuthed.current = true;
+            auth.refresh();
+          }}
+        />
+      ) : fallback ? (
         <a
           href={APP_URL}
           className="flex h-[66px] w-full items-center justify-center gap-2.5 rounded-lg bg-green-600 text-[18px] font-bold text-white [box-shadow:0_3px_0_#0a3a2a,var(--shadow-3d)] transition-[transform,background,box-shadow] duration-150 hover:-translate-y-0.5 hover:bg-green-700 hover:[box-shadow:0_5px_0_#0a3a2a,var(--shadow-pop)] active:translate-y-px"
@@ -264,7 +316,7 @@ export function FinishStep({
         {pending ? "Setting up your application, one moment." : ""}
       </p>
 
-      {warmFailed && !fallback && (
+      {warmFailed && !fallback && !needsAuth && !auth.loading && (
         <p className="mt-3 text-center text-[13px] text-muted">
           Taking a moment longer than usual — tap Continue to retry.
         </p>
