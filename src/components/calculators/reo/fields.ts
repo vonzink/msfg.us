@@ -14,6 +14,10 @@ export type FieldDef = {
   hint?: string;
   /** Live hint computed from the current values. */
   hintFn?: (n: Numbers) => string;
+  /** A problem with the value as entered, shown under the field; null when it looks fine. */
+  warnFn?: (n: Numbers) => string | null;
+  /** Only used when there is a loan: disabled while "All cash" is picked. */
+  loanOnly?: boolean;
   slider?: { min: number; max: number; step: number };
   options?: { value: string; label: string }[];
   wide?: boolean;
@@ -47,17 +51,17 @@ export const GROUPS: GroupDef[] = [
     fixed: true,
     lead: "Start here. These six numbers drive most of the result.",
     fields: [
-      { id: "purchasePrice", label: "Purchase price", type: "money", example: "250,000" },
-      { id: "grossRents", label: "Monthly rent", type: "money", example: "2,400" },
+      { id: "purchasePrice", label: "Purchase price", type: "money", example: "500,000" },
+      { id: "grossRents", label: "Monthly rent", type: "money", example: "3,780" },
       {
-        id: "downPct", label: "Down payment", type: "pct", example: "25",
+        id: "downPct", label: "Down payment", type: "pct", example: "20", loanOnly: true,
         slider: { min: 0, max: 100, step: 1 },
         hintFn: (n) => `${formatUSD((n.purchasePrice * n.downPct) / 100)} down`,
       },
-      { id: "rate", label: "Interest rate", type: "pct", example: "7" },
-      { id: "termYears", label: "Loan term", type: "num", example: "30", suffix: "yrs" },
+      { id: "rate", label: "Interest rate", type: "pct", example: "7", loanOnly: true },
+      { id: "termYears", label: "Loan term", type: "num", example: "30", suffix: "yrs", loanOnly: true },
       {
-        id: "amortType", label: "Loan type", type: "choice", example: "pi", wide: true,
+        id: "amortType", label: "Loan type", type: "choice", example: "cash", wide: true,
         options: [
           { value: "pi", label: "Principal + interest" },
           { value: "io", label: "Interest only" },
@@ -81,7 +85,14 @@ export const GROUPS: GroupDef[] = [
       { id: "renoFireplace", label: "Fireplace cleaning", type: "money", example: "" },
       { id: "renoOther", label: "Other repairs", type: "money", example: "1,500" },
       { id: "renoMonths", label: "Months to renovate", type: "num", example: "2", suffix: "mo", hint: "No rent during these months." },
-      { id: "renoValue", label: "Value after renovation", type: "money", example: "280,000", hint: "Leave blank to use the purchase price." },
+      {
+        id: "renoValue", label: "Value after renovation", type: "money", example: "",
+        hint: "Leave blank to use the purchase price.",
+        warnFn: (n) =>
+          n.renoValue > 0 && n.renoValue < n.purchasePrice
+            ? `That's ${formatUSD(n.purchasePrice - n.renoValue)} below the purchase price, so the projection starts with that loss. Double-check it.`
+            : null,
+      },
     ],
   },
   {
@@ -127,6 +138,14 @@ export const GROUPS: GroupDef[] = [
       { id: "improvePct", label: "Building share of value", type: "pct", example: "80", hint: "Land cannot be depreciated. 70 to 85 is typical." },
       { id: "deprYears", label: "Depreciation period", type: "num", example: "27.5", suffix: "yrs", hint: "27.5 years for residential rentals." },
       {
+        id: "lossesNow", label: "Can you deduct rental losses from your other income?", type: "choice", example: "no",
+        hint: "Usually only if your income is under $150,000, and in full only under $100,000. If not, a loss waits for later rental profit or the sale. Ask your tax advisor.",
+        options: [
+          { value: "yes", label: "Yes, each year" },
+          { value: "no", label: "No, hold them" },
+        ],
+      },
+      {
         id: "saleTax", label: "Tax when you sell", type: "choice", example: "long",
         hint: "Long-term rates need more than a year of ownership. Either way, the depreciation you took is taxed again when you sell.",
         options: [
@@ -145,13 +164,13 @@ export const GROUPS: GroupDef[] = [
     summary: (n) => (n.compareOn ? `vs ${n.altReturn}% a year` : "Off"),
     fields: [
       {
-        id: "compareAlt", label: "Compare with another investment", type: "choice", example: "off",
+        id: "compareAlt", label: "Compare with another investment", type: "choice", example: "on",
         options: [
           { value: "off", label: "Off" },
           { value: "on", label: "On" },
         ],
       },
-      { id: "altReturn", label: "Return elsewhere", type: "pct", example: "7", hint: "Yearly after-tax return you could expect, such as from an index fund." },
+      { id: "altReturn", label: "Return elsewhere", type: "pct", example: "4", hint: "Yearly after-tax return you could expect, such as from an index fund." },
     ],
   },
 ];
@@ -198,6 +217,7 @@ export function toModel(values: Values, n: Numbers): ReoInput {
     improvePct: n.improvePct / 100,
     taxBracket: n.taxBracket / 100,
     deprYears: n.deprYears,
+    useLossesNow: values.lossesNow === "yes",
     saleTax: (values.saleTax || "none") as SaleTaxMode,
     capGainsRate: n.capGainsRate / 100,
     altReturn: n.compareOn ? n.altReturn / 100 : 0,
@@ -213,12 +233,22 @@ export function verdict(n: Numbers, r: ReoResult): string {
     monthly >= 0
       ? `The rent covers the bills with about ${formatUSD(monthly)} a month left over in year 1.`
       : `You would add about ${formatUSD(-monthly)} a month out of pocket in year 1.`;
-  const ahead = r.cumulativeReturn.findIndex((x) => x >= 0);
-  const second =
-    ahead === 0
-      ? " You would be ahead if you sold after the first year."
-      : ahead > 0
-        ? ` You would be ahead if you sold after year ${ahead + 1}.`
-        : " Selling within five years would not recover the cash you put in.";
-  return first + second;
+  return first + payback(r) + beatsAlt(n, r);
 }
+
+/** When selling would first return more than the cash put in. */
+function payback(r: ReoResult): string {
+  const year = r.cumulativeReturn.findIndex((x) => x >= 0);
+  if (year < 0) return " Selling within five years would not get back the cash you put in.";
+  return ` Selling after ${yearText(year)} would get back more than you put in.`;
+}
+
+/** When the property first beats the same cash invested elsewhere. Empty when the comparison is off. */
+function beatsAlt(n: Numbers, r: ReoResult): string {
+  if (!n.compareOn || n.altReturn <= 0) return "";
+  const year = r.vsAlt.findIndex((x) => x >= 0);
+  if (year < 0) return ` It would not beat ${n.altReturn}% a year within five years.`;
+  return ` It would beat ${n.altReturn}% a year after ${yearText(year)}.`;
+}
+
+const yearText = (i: number) => (i === 0 ? "the first year" : `year ${i + 1}`);

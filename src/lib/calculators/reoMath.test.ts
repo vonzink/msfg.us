@@ -84,15 +84,27 @@ describe('REO projection: identities across all five years', () => {
     near(r.loanAmount - r.loanBalance[4], r.principalPaid.reduce((a, b) => a + b, 0), 0.01);
   });
 
-  it('cap rate is a fully rented year of NOI over that year\'s property value', () => {
+  it('cap rate is a fully rented year of NOI over the purchase price', () => {
     const r = run();
-    near(r.capRate[0], 18000 / 247200, 1e-9);
-    near(r.capRate[1], (22800 * 1.02 - 4800 * 1.02) / (240000 * 1.03 * 1.03), 1e-9);
+    near(r.capRate[0], 18000 / 200000, 1e-9);
+    near(r.capRate[1], (22800 * 1.02 - 4800 * 1.02) / 200000, 1e-9);
     // Renovation months cut year-1 NOI but not the cap rate.
     near(run({ renoMonths: 3 }).capRate[0], r.capRate[0], 1e-9);
-    // Rising value with flat rents lowers the cap rate over time.
+    // The renovated value and appreciation do not move it: it measures the price paid.
+    near(run({ renoValue: 400000, appreciation: 0.1 }).capRate[0], r.capRate[0], 1e-9);
     const flat = run({ rentIncrease: 0, expIncrease: 0 });
-    assert.ok(flat.capRate[4] < flat.capRate[0]);
+    near(flat.capRate[4], flat.capRate[0], 1e-9);
+  });
+
+  it('depreciation starts once the property is ready to rent', () => {
+    const yearly = 184000 / 27.5;
+    const r = run({ renoMonths: 3 });
+    near(r.depreciation[0], (yearly * 9) / 12, 0.01);
+    near(r.depreciation[1], yearly, 0.01);
+    near(r.accumulatedDepreciation[1], (yearly * 21) / 12, 0.01);
+    near(r.taxableIncome[0], r.noi[0] - r.interest[0] - r.depreciation[0], 1e-6);
+    // No renovation: a full year from the start.
+    near(run().depreciation[0], yearly, 0.01);
   });
 
   it('grows rent and expenses from year 2', () => {
@@ -141,6 +153,55 @@ describe('REO projection: tax on sale and opportunity cost', () => {
     near(r.altGain[4], 75000 * (Math.pow(1.07, 5) - 1), 0.01);
     near(r.vsAlt[4], r.cumulativeReturn[4] - r.altGain[4], 1e-6);
     near(run().altGain[4], 0, 1e-9);
+  });
+});
+
+describe('REO projection: losses held until the sale', () => {
+  // $1,200 rent makes a tax loss in every year of the base scenario.
+  const saleOn = { grossRents: 1200, saleTax: 'long', capGainsRate: 0.15 } as const;
+  const now = run(saleOn);
+  const held = run({ ...saleOn, useLossesNow: false });
+
+  it('defaults to using a loss in the year it happens', () => {
+    near(now.heldLosses[4], 0, 1e-9);
+    assert.ok(now.incomeTax[0] < 0);
+  });
+
+  it('saves no tax in a loss year and holds the loss instead', () => {
+    for (let i = 0; i < 5; i++) assert.ok(held.taxableIncome[i] < 0);
+    near(held.incomeTax[0], 0, 1e-9);
+    near(held.afterTaxCashFlow[0], held.cashFlow[0], 1e-9);
+    near(held.heldLosses[0], -held.taxableIncome[0], 1e-6);
+    near(held.heldLosses[4], -held.taxableIncome.reduce((a, b) => a + b, 0), 1e-6);
+  });
+
+  it('uses the held losses when the property is sold', () => {
+    for (let i = 0; i < 5; i++) {
+      near(held.lossSavingAtSale[i], held.heldLosses[i] * 0.24, 1e-6);
+      near(
+        held.cumulativeReturn[i],
+        held.cumAfterTaxCashFlow[i] + held.netEquity[i] - held.saleTax[i] + held.lossSavingAtSale[i] - held.cashInvested,
+        1e-6,
+      );
+    }
+    // Holding a loss changes when the saving arrives, not how much it is, so by the sale the
+    // two returns match.
+    near(held.cumulativeReturn[4], now.cumulativeReturn[4], 0.01);
+  });
+
+  it('offsets later rental profit before anything is left for the sale', () => {
+    // A year-long renovation makes year 1 a loss; year 2 is profitable.
+    const r = run({ renoMonths: 12, useLossesNow: false });
+    assert.ok(r.taxableIncome[0] < 0 && r.taxableIncome[1] > 0);
+    const used = Math.min(-r.taxableIncome[0], r.taxableIncome[1]);
+    near(r.incomeTax[1], (r.taxableIncome[1] - used) * 0.24, 1e-6);
+    near(r.heldLosses[1], -r.taxableIncome[0] - used, 1e-6);
+  });
+
+  it('counts nothing at the sale when tax on the sale is left out', () => {
+    const r = run({ grossRents: 1200, useLossesNow: false });
+    assert.ok(r.heldLosses[4] > 0);
+    near(r.lossSavingAtSale[4], 0, 1e-9);
   });
 });
 

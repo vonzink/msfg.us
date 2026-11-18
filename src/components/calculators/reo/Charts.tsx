@@ -178,7 +178,7 @@ export function SeriesChart({
   );
 }
 
-/** Where a fully rented month's rent goes. Costs first, what is left last. */
+/** Where a normal rented month's rent goes. Costs first, what is left last. */
 export function RentBreakdown({
   rent,
   expenses,
@@ -206,7 +206,7 @@ export function RentBreakdown({
         <strong>Where each month&apos;s rent goes</strong>
         {rent > 0 && (
           <span className={cn("text-[13px]", short ? "font-semibold text-loss" : "text-muted")}>
-            {short ? `Short ${formatUSD(-left)} a month` : `Of ${formatUSD(rent)} rent, once rented`}
+            {short ? `Short ${formatUSD(-left)} in a rented month` : `Of ${formatUSD(rent)} rent, in a rented month`}
           </span>
         )}
       </figcaption>
