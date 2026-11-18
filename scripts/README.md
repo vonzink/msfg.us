@@ -21,6 +21,7 @@ A second deploy script, `deploy.sh`, sits at the repo root. It is marked as a dr
 | `calculators/golden-buydown.mjs [path-to-msfg-calc]` | The same for the Rate buydown calculator: runs scenarios through the dashboard's buydown code and records them in `src/calculators/buydown/golden.json`. |
 | `calculators/golden-blended-rate.mjs [path-to-msfg-calc]` | The same for the Blended rate calculator. The dashboard code reads its inputs from the page, so the script gives it a stand-in page, and records what it would display in `src/calculators/blended-rate/golden.json`. |
 | `calculators/golden-refinance-breakeven.mjs [path-to-msfg-calc]` | The same for the Refinance breakeven calculator: runs scenarios through the dashboard's refinance engine with its cost-of-waiting scenario off, and records them in `src/calculators/refinance-breakeven/golden.json`. |
+| `calculators/golden-rent-vs-buy.mjs [path-to-msfg-calc]` | The same for the Rent vs buy calculator. The dashboard code is private to its file and reads its inputs from the page, so the script loads the dashboard's `utils.js` and `buy-vs-rent.js` into a stand-in page, fires the input listener, and records what it would display in `src/calculators/rent-vs-buy/golden.json`. Each case is run once for every year of the stay, to record the difference year by year. |
 
 ## Operations
 
