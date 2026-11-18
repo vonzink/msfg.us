@@ -17,11 +17,13 @@ export function HeroBloomShell({
   assistantName,
   shortName,
   iconSrc,
+  heroAiMode,
 }: {
   headline: React.ReactNode;
   assistantName: string;
   shortName: string;
   iconSrc: string;
+  heroAiMode: boolean;
 }) {
   const [bloomed, setBloomed] = useState(false);
 
@@ -50,6 +52,7 @@ export function HeroBloomShell({
         assistantName={assistantName}
         shortName={shortName}
         iconSrc={iconSrc}
+        heroAiMode={heroAiMode}
         onBloom={onBloom}
       />
     </>

@@ -279,6 +279,21 @@ export function ConfigEditor({
             checked={cfg.features.aiAssistant}
             onChange={(v) => setFeature("aiAssistant", v)}
           />
+          <SwitchField
+            label="Homepage hero AI mode"
+            checked={cfg.features.heroAiMode}
+            onChange={(v) => setFeature("heroAiMode", v)}
+          />
+          <SwitchField
+            label="Ask AI chat entry points"
+            checked={cfg.features.askAiChat}
+            onChange={(v) => setFeature("askAiChat", v)}
+          />
+          <SwitchField
+            label="Rates in primary navigation"
+            checked={cfg.features.ratesNavigation}
+            onChange={(v) => setFeature("ratesNavigation", v)}
+          />
         </div>
       </section>
 

@@ -19,6 +19,7 @@ export function RestingCard({
   shortName,
   iconSrc,
   aiMode,
+  showAiToggle,
   onAiMode,
   onLaunch,
 }: {
@@ -26,6 +27,7 @@ export function RestingCard({
   shortName: string;
   iconSrc: string;
   aiMode: boolean;
+  showAiToggle: boolean;
   onAiMode: (next: boolean) => void;
   onLaunch: (question: string) => void;
 }) {
@@ -90,10 +92,12 @@ export function RestingCard({
         <IntentTabs />
       )}
 
-      <div className="mt-4 flex items-center justify-end gap-2.5 border-t border-line bg-[#fafbf8] px-[22px] py-4 text-[13.5px] font-semibold">
-        <span className="ai-text font-bold">AI mode</span>
-        <Switch checked={aiMode} onChange={onAiMode} label="Toggle AI mode" />
-      </div>
+      {showAiToggle && (
+        <div className="mt-4 flex items-center justify-end gap-2.5 border-t border-line bg-[#fafbf8] px-[22px] py-4 text-[13.5px] font-semibold">
+          <span className="ai-text font-bold">AI mode</span>
+          <Switch checked={aiMode} onChange={onAiMode} label="Toggle AI mode" />
+        </div>
+      )}
     </div>
   );
 }

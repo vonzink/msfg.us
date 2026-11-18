@@ -16,15 +16,17 @@ export function HeroChat({
   assistantName,
   shortName,
   iconSrc,
+  heroAiMode,
   onBloom,
 }: {
   assistantName: string;
   shortName: string;
   iconSrc: string;
+  heroAiMode: boolean;
   onBloom: (bloomed: boolean) => void;
 }) {
   const T = useThreads();
-  const [aiMode, setAiMode] = useState(true);
+  const [aiMode, setAiMode] = useState(heroAiMode);
 
   useEffect(() => {
     onBloom(T.bloomed);
@@ -36,7 +38,8 @@ export function HeroChat({
         assistantName={assistantName}
         shortName={shortName}
         iconSrc={iconSrc}
-        aiMode={aiMode}
+        aiMode={heroAiMode && aiMode}
+        showAiToggle={heroAiMode}
         onAiMode={setAiMode}
         onLaunch={T.launch}
       />

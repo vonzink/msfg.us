@@ -28,6 +28,7 @@ export default async function VeteransPage() {
       <PageJsonLd path="/veterans" />
       <CategoryPage cat="veterans" />
       <AskAiLauncher
+        enabled={config.features.askAiChat}
         starters={STARTERS}
         assistantName={config.brand.assistantName}
         shortName={config.brand.shortName}

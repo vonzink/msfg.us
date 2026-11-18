@@ -28,6 +28,7 @@ export default async function CommercialPage() {
       <PageJsonLd path="/commercial" />
       <CategoryPage cat="commercial" />
       <AskAiLauncher
+        enabled={config.features.askAiChat}
         starters={STARTERS}
         assistantName={config.brand.assistantName}
         shortName={config.brand.shortName}

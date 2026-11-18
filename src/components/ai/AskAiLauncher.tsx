@@ -8,11 +8,13 @@ import { ApplyChatPanel } from "@/components/apply/ask-ai/ApplyChatPanel";
  *  Reuses ApplyChatPanel (→ /api/v1/ai/chat). `starters` are the page-specific
  *  suggestion chips. */
 export function AskAiLauncher({
+  enabled,
   starters,
   assistantName,
   shortName,
   iconSrc,
 }: {
+  enabled: boolean;
   starters: string[];
   assistantName: string;
   shortName: string;
@@ -20,6 +22,8 @@ export function AskAiLauncher({
 }) {
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
+  if (!enabled) return null;
+
   return (
     <>
       <button

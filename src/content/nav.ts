@@ -1,6 +1,6 @@
 /**
  * Navigation model — header mega-nav and footer columns.
- * Routing rules (from PAGES.md): Buy/Refi/Equity -> category pages,
+ * Routing rules (from PAGES.md): Purchase/Refi/Equity -> category pages,
  * Rates -> /rates, Loan Officers -> /loan-officers, "Apply now"/CTAs ->
  * /apply/{intent}. Secondary links without a page yet (calculators, About,
  * Careers, etc.) point at /coming-soon until those features ship.
@@ -11,26 +11,24 @@ export type NavItem = { label: string; href: string; items: NavLink[] };
 
 export const NAV: NavItem[] = [
   {
-    label: "Buy",
+    label: "Purchase",
     href: "/buy",
-    items: [
-      { label: "Apply now", href: "/apply/buy" },
-      { label: "Purchase rates", href: "/rates" },
-      { label: "Affordability calculator", href: "/coming-soon" },
-      { label: "Mortgage calculator", href: "/coming-soon" },
-      { label: "Rent vs buy calculator", href: "/coming-soon" },
-      { label: "Investment calculator", href: "/calculators/investment" },
-      { label: "Find an agent", href: "/loan-officers" },
-      { label: "VA loans", href: "/buy" },
-    ],
+    items: [],
   },
   {
     label: "Refinance",
     href: "/refinance",
+    items: [],
+  },
+  {
+    label: "Mortgage Calculators",
+    href: "/coming-soon",
     items: [
-      { label: "Apply now", href: "/apply/refi" },
-      { label: "Refinance rates", href: "/rates" },
+      { label: "Affordability calculator", href: "/coming-soon" },
+      { label: "Mortgage calculator", href: "/coming-soon" },
+      { label: "Rent vs buy calculator", href: "/coming-soon" },
       { label: "Cash-out calculator", href: "/coming-soon" },
+      { label: "Investment calculator", href: "/calculators/investment" },
     ],
   },
   {
@@ -66,6 +64,23 @@ export const NAV: NavItem[] = [
     ],
   },
 ];
+
+/**
+ * Resolve the primary navigation for a tenant without removing the dormant
+ * routes. Rates can be restored by publishing the corresponding feature flag.
+ */
+export function navigationForFeatures({
+  ratesNavigation,
+}: {
+  ratesNavigation: boolean;
+}): NavItem[] {
+  if (ratesNavigation) return NAV;
+
+  return NAV.filter((item) => item.href !== "/rates").map((item) => ({
+    ...item,
+    items: item.items.filter((sub) => sub.href !== "/rates"),
+  }));
+}
 
 export type FooterColumn = { heading: string; links: NavLink[] };
 

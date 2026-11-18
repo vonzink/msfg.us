@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { NAV, FOOTER_COLUMNS, FOOTER_LEGAL_LINKS, type NavLink } from "@/content/nav";
+import {
+  NAV,
+  FOOTER_COLUMNS,
+  FOOTER_LEGAL_LINKS,
+  navigationForFeatures,
+  type NavLink,
+} from "@/content/nav";
 
 const KNOWN = new Set([
   "/", "/buy", "/refinance", "/home-equity", "/rates", "/loan-officers", "/developers",
@@ -20,6 +26,51 @@ function allLinks(): NavLink[] {
 }
 
 describe("nav/footer links", () => {
+  it("models Purchase and Refinance as direct primary links", () => {
+    const purchase = NAV.find((item) => item.label === "Purchase");
+    const refinance = NAV.find((item) => item.label === "Refinance");
+
+    expect(purchase).toEqual({ label: "Purchase", href: "/buy", items: [] });
+    expect(refinance).toEqual({
+      label: "Refinance",
+      href: "/refinance",
+      items: [],
+    });
+  });
+
+  it("groups the requested tools under Mortgage Calculators", () => {
+    const calculators = NAV.find(
+      (item) => item.label === "Mortgage Calculators",
+    );
+
+    expect(calculators).toEqual({
+      label: "Mortgage Calculators",
+      href: "/coming-soon",
+      items: [
+        { label: "Affordability calculator", href: "/coming-soon" },
+        { label: "Mortgage calculator", href: "/coming-soon" },
+        { label: "Rent vs buy calculator", href: "/coming-soon" },
+        { label: "Cash-out calculator", href: "/coming-soon" },
+        { label: "Investment calculator", href: "/calculators/investment" },
+      ],
+    });
+  });
+
+  it("hides every rates link when rates navigation is disabled", () => {
+    const navigation = navigationForFeatures({ ratesNavigation: false });
+    const hrefs = navigation.flatMap((item) => [
+      item.href,
+      ...item.items.map((sub) => sub.href),
+    ]);
+
+    expect(hrefs).not.toContain("/rates");
+  });
+
+  it("preserves rates links for tenants that enable them", () => {
+    const navigation = navigationForFeatures({ ratesNavigation: true });
+    expect(navigation).toEqual(NAV);
+  });
+
   it("no internal link is the bare-home placeholder", () => {
     for (const l of allLinks()) {
       if (l.href.startsWith("http")) continue;

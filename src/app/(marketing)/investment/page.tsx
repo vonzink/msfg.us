@@ -28,6 +28,7 @@ export default async function InvestmentPage() {
       <PageJsonLd path="/investment" />
       <CategoryPage cat="investment" />
       <AskAiLauncher
+        enabled={config.features.askAiChat}
         starters={STARTERS}
         assistantName={config.brand.assistantName}
         shortName={config.brand.shortName}

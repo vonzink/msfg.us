@@ -43,6 +43,7 @@ export async function Hero() {
           assistantName={config.brand.assistantName}
           shortName={config.brand.shortName}
           iconSrc={config.brand.logos.horizontal}
+          heroAiMode={config.features.heroAiMode}
           headline={
             <>
               <h1 className="m-0 max-w-[18ch] text-balance text-[clamp(32px,4.4vw,54px)] font-extrabold leading-[1.04] tracking-[-0.035em] text-mint">

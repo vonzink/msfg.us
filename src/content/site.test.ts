@@ -71,6 +71,10 @@ describe("TenantConfigSchema", () => {
     );
     // marketing is optional → undefined when omitted.
     expect(parsed.marketing).toBeUndefined();
+    // New display controls default off for configs published before they existed.
+    expect(parsed.features.heroAiMode).toBe(false);
+    expect(parsed.features.askAiChat).toBe(false);
+    expect(parsed.features.ratesNavigation).toBe(false);
   });
 
   it("derives the licensed-states line for DEFAULT", () => {

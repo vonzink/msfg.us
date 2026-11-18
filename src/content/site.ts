@@ -168,6 +168,12 @@ const FeaturesSchema = z.object({
   showFamily: z.boolean(),
   ghlChat: z.boolean(),
   aiAssistant: z.boolean(),
+  /** Show the AI composer and mode switch in the homepage hero. */
+  heroAiMode: z.boolean().default(false),
+  /** Show floating and contextual Ask AI chat entry points. */
+  askAiChat: z.boolean().default(false),
+  /** Expose rates links in the desktop and mobile primary navigation. */
+  ratesNavigation: z.boolean().default(false),
 });
 
 const AiConfigSchema = z.object({
@@ -330,7 +336,14 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     ],
     testimonials: [{ names: "Drew & Anya", rating: 5 }],
   },
-  features: { showFamily: true, ghlChat: true, aiAssistant: true },
+  features: {
+    showFamily: true,
+    ghlChat: true,
+    aiAssistant: true,
+    heroAiMode: false,
+    askAiChat: false,
+    ratesNavigation: false,
+  },
   applyOffRamp: {
     channels: ["call", "text", "email"],
     slaCopy: "within ~15 minutes",

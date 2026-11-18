@@ -38,6 +38,7 @@ export function Wizard({
   phoneDisplay,
   emailDisplay,
   consentTcpa,
+  askAiChat,
   assistantName,
   shortName,
   iconSrc,
@@ -53,6 +54,7 @@ export function Wizard({
   phoneDisplay: string;
   emailDisplay: string;
   consentTcpa: string;
+  askAiChat: boolean;
   assistantName: string;
   shortName: string;
   iconSrc: string;
@@ -182,7 +184,7 @@ export function Wizard({
                 usatoday={step.usatoday}
                 selected={typeof answers[idx] === "string" ? (answers[idx] as string) : undefined}
                 onPick={pickAuto}
-                onAskAi={step.help ? () => openAskAi(step.askPrompt ?? step.help) : undefined}
+                onAskAi={askAiChat && step.help ? () => openAskAi(step.askPrompt ?? step.help) : undefined}
               />
             )}
             {step.type === "place" && (
@@ -194,7 +196,7 @@ export function Wizard({
                 onChange={setAnswer}
                 onNext={next}
                 help={step.help}
-                onAskAi={step.help ? () => openAskAi(step.askPrompt ?? step.help) : undefined}
+                onAskAi={askAiChat && step.help ? () => openAskAi(step.askPrompt ?? step.help) : undefined}
                 onTbd={() => { setAnswer(TBD_ADDRESS); next(); }}
               />
             )}
@@ -260,29 +262,33 @@ export function Wizard({
         </DeckStage>
       </div>
 
-      <button
-        ref={askBtnRef}
-        type="button"
-        onClick={() => openAskAi()}
-        aria-haspopup="dialog"
-        aria-expanded={chatOpen}
-        aria-label={`Ask ${assistantName}`}
-        className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2.5 rounded-full bg-green-800 py-0 pl-2.5 pr-5 text-[15px] font-bold text-white shadow-pop transition-transform duration-150 hover:-translate-y-0.5"
-      >
-        <Mark size={36} label={shortName} /> Ask AI
-      </button>
+      {askAiChat && (
+        <>
+          <button
+            ref={askBtnRef}
+            type="button"
+            onClick={() => openAskAi()}
+            aria-haspopup="dialog"
+            aria-expanded={chatOpen}
+            aria-label={`Ask ${assistantName}`}
+            className="fixed bottom-6 right-6 z-40 flex h-14 items-center gap-2.5 rounded-full bg-green-800 py-0 pl-2.5 pr-5 text-[15px] font-bold text-white shadow-pop transition-transform duration-150 hover:-translate-y-0.5"
+          >
+            <Mark size={36} label={shortName} /> Ask AI
+          </button>
 
-      <ApplyChatPanel
-        open={chatOpen}
-        onClose={() => { setChatOpen(false); setSeedQuestion(undefined); }}
-        starters={APPLY_CHAT_STARTERS[intent]}
-        assistantName={assistantName}
-        shortName={shortName}
-        iconSrc={iconSrc}
-        stepQuestion={step.q}
-        seedQuestion={seedQuestion}
-        returnFocusRef={askBtnRef}
-      />
+          <ApplyChatPanel
+            open={chatOpen}
+            onClose={() => { setChatOpen(false); setSeedQuestion(undefined); }}
+            starters={APPLY_CHAT_STARTERS[intent]}
+            assistantName={assistantName}
+            shortName={shortName}
+            iconSrc={iconSrc}
+            stepQuestion={step.q}
+            seedQuestion={seedQuestion}
+            returnFocusRef={askBtnRef}
+          />
+        </>
+      )}
     </div>
   );
 }

@@ -78,6 +78,7 @@ export default async function ApplyIntentPage({
       phoneDisplay={config.contact.phoneDisplay}
       emailDisplay={config.contact.email}
       consentTcpa={buildConsentTcpa(config)}
+      askAiChat={config.features.askAiChat}
       assistantName={config.brand.assistantName}
       shortName={config.brand.shortName}
       iconSrc={config.brand.logos.mark}

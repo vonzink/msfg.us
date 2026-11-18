@@ -28,6 +28,7 @@ export default async function ReversePage() {
       <PageJsonLd path="/reverse" />
       <CategoryPage cat="reverse" />
       <AskAiLauncher
+        enabled={config.features.askAiChat}
         starters={STARTERS}
         assistantName={config.brand.assistantName}
         shortName={config.brand.shortName}

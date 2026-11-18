@@ -4,15 +4,17 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X, ChevronDown, Phone } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { NAV } from "@/content/nav";
+import type { NavItem } from "@/content/nav";
 import { cn } from "@/lib/cn";
 
-/** Hamburger + full-screen drawer for < 980px. Each nav item expands to its
- *  sub-links; primary CTAs are pinned to the bottom. */
+/** Hamburger + full-screen drawer for < 980px. Items with sub-links expand;
+ *  direct links navigate immediately. Primary CTAs are pinned to the bottom. */
 export function MobileDrawer({
+  items,
   phoneHref,
   shortName,
 }: {
+  items: NavItem[];
   phoneHref: string;
   shortName: string;
 }) {
@@ -68,7 +70,20 @@ export function MobileDrawer({
             aria-label="Mobile"
             className="wrap flex-1 overflow-y-auto pb-6 pt-2"
           >
-            {NAV.map((item) => {
+            {items.map((item) => {
+              if (item.items.length === 0) {
+                return (
+                  <Link
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => setOpen(false)}
+                    className="block border-b border-hair-dark py-4 text-[22px] font-bold tracking-[-0.02em] text-white"
+                  >
+                    {item.label}
+                  </Link>
+                );
+              }
+
               const isOpen = expanded === item.label;
               return (
                 <div key={item.label} className="border-b border-hair-dark">
