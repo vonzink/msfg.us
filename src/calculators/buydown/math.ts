@@ -60,6 +60,8 @@ export type BuydownResult = {
   totalCost: number;
   /** True when a reduced rate was stopped at 0%. */
   flooredAtZero: boolean;
+  /** Tax, insurance and HOA in every payment. Zero means the payments are principal and interest only. */
+  monthlyExtras: number;
 };
 
 /** Junk or negative optional amounts count as zero. */
@@ -102,5 +104,6 @@ export function calculateBuydown(input: BuydownInput): BuydownResult | null {
     full,
     totalCost: reduced.reduce((total, p) => total + p.yearlySavings, 0),
     flooredAtZero: reductions.some((points) => fullPct - points < 0),
+    monthlyExtras: extras,
   };
 }

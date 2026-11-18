@@ -7,6 +7,13 @@ const percent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 const periodLabel = (p: BuydownPeriod) => (p.reduced ? `Year ${p.year}` : `Year ${p.year} onward`);
 const num = "px-2.5 py-2 text-right tabular-nums";
 
+/** Says plainly whether the payments shown are the whole housing payment or only part of it. */
+export function whatIsIncluded(r: BuydownResult): string {
+  return r.monthlyExtras > 0
+    ? "These payments include the property tax, insurance and HOA dues you entered."
+    : "These payments are principal and interest only. Property tax, insurance and HOA dues are not included.";
+}
+
 /** Each reduced year and then the full rate. Shown in the results, and again on the printed page. */
 export function PaymentTable({ result: r }: { result: BuydownResult }) {
   const { full } = r;
@@ -30,7 +37,7 @@ export function PaymentTable({ result: r }: { result: BuydownResult }) {
                 <th scope="row" className="py-2 pr-2.5 text-left font-semibold">{periodLabel(p)}</th>
                 <td className={num}>{percent(p.rate)}</td>
                 <td className={`${num} font-semibold`}>{formatUSD(p.total)}</td>
-                <td className={num}>{formatUSD(full.total)}</td>
+                <td className={`${num} font-semibold`}>{formatUSD(full.total)}</td>
                 <td className={num}>{p.reduced ? formatUSD(p.monthlySavings) : "–"}</td>
               </tr>
             ))}
@@ -38,7 +45,7 @@ export function PaymentTable({ result: r }: { result: BuydownResult }) {
         </table>
       </div>
       {r.flooredAtZero && (
-        <p className="mt-3 text-[13px] text-muted">A rate cannot go below 0%, so the lowest year is shown at 0%.</p>
+        <p className="mt-3 text-[13px] text-muted">A rate cannot go below 0%, so any year that would is shown at 0%.</p>
       )}
     </div>
   );
@@ -104,6 +111,7 @@ export function BuydownResults({ result: r, disclaimer }: { result: BuydownResul
       <p className="mx-1 text-[15px] font-semibold text-ink">
         When the reduced period ends, the payment returns to {formatUSD(full.total)} a month.
       </p>
+      <p className="mx-1 text-[14px] text-ink">{whatIsIncluded(r)}</p>
       <p className="mx-1 text-[13px] text-muted">{disclaimer}</p>
     </>
   );

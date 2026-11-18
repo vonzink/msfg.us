@@ -67,6 +67,11 @@ describe("inputs that give no result", () => {
     expect(calculateBuydown({ ...base, ...changes })).toBeNull();
   });
 
+  it("reports how much of each payment is tax, insurance and HOA", () => {
+    expect(calculateBuydown(base)!.monthlyExtras).toBe(0);
+    expect(calculateBuydown({ ...base, yearlyTax: 4800, yearlyInsurance: 1800, monthlyHoa: 100 })!.monthlyExtras).toBe(650);
+  });
+
   it("counts junk or negative tax, insurance and HOA as zero", () => {
     const r = calculateBuydown({ ...base, yearlyTax: Number.NaN, yearlyInsurance: -500, monthlyHoa: -1 })!;
     expect(r.full.total).toBe(r.full.principalAndInterest);

@@ -5,16 +5,16 @@
  */
 export const HOW_IT_WORKS: string[] = [
   "A temporary buydown lowers the interest rate, and so the payment, for the first one to three years of the loan. After that the payment returns to the full amount and stays there for the rest of the loan.",
-  "The name tells you the pattern. A 2-1 buydown takes 2 points off the rate in the first year and 1 point off in the second. A 3-2-1 adds a third year, and a 1-0 covers the first year only.",
+  "The name tells you the pattern, in percentage points off the rate for each early year. A 2-1 buydown takes 2 off in the first year and 1 off in the second. A 3-2-1 takes 3, then 2, then 1 over three years. A 1-1 takes 1 off for two years, and a 1-0 takes 1 off for the first year only.",
   "The loan itself is written at the full rate from the start. The buydown cost is paid up front into an account, and each month that account makes up the difference between the reduced payment and the full one. The cost shown here is the total of those differences.",
   "Someone has to fund that account at closing. It is often a seller or a builder as part of the deal, or a lender credit. That is why a buydown usually comes up while a purchase is being negotiated.",
-  "This calculator covers temporary buydowns only. Paying points to lower the rate for the whole life of the loan is a different choice, with a different cost.",
+  "This calculator covers temporary buydowns only. Paying discount points to lower the rate for the whole life of the loan is a different choice, with a different cost.",
 ];
 
 export const QUESTIONS: { q: string; a: string }[] = [
   {
     q: "Who pays for a buydown?",
-    a: "Most often the seller or a home builder, as a concession written into the purchase contract. A lender credit can also cover it. The cost above is the amount to ask for.",
+    a: "Most often the seller or a home builder, as a concession written into the purchase contract. A lender credit can also cover it. The cost above is an estimate of what that credit would need to cover; a loan officer can confirm the exact figure.",
   },
   {
     q: "What happens when the buydown ends?",

@@ -9,7 +9,7 @@ import { parseNumber, type FieldDef, type Numbers, type Values } from "../shared
 import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, toInput } from "./fields";
 import { calculateBuydown } from "./math";
 import { BuydownPrintSummary } from "./PrintSummary";
-import { BuydownResults, PaymentTable } from "./Results";
+import { BuydownResults, PaymentTable, whatIsIncluded } from "./Results";
 
 const grid = "grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-4 gap-y-3.5";
 
@@ -73,6 +73,7 @@ export function BuydownCalculator({ exampleRatePct, exampleRateNote, disclaimer 
             <p className="mt-3 text-[12px] font-semibold">
               When the reduced period ends, the payment returns to {formatUSD(result.full.total)} a month.
             </p>
+            <p className="mt-1 text-[11px]">{whatIsIncluded(result)}</p>
             <p className="mt-2 text-[10px] text-muted">{disclaimer}</p>
           </div>
 

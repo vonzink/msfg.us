@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { BuydownCalculator } from "./BuydownCalculator";
 import { BuydownPrintSummary } from "./PrintSummary";
 import { BuydownResults } from "./Results";
-import { exampleValues, toInput } from "./fields";
+import { HOW_IT_WORKS, QUESTIONS } from "./content";
+import { exampleValues, FRONT_FIELDS, toInput } from "./fields";
 import { calculateBuydown } from "./math";
 
 const NOTE = "Example rate for illustration, not an offer.";
@@ -53,7 +54,7 @@ describe("buydown printed page", () => {
   it("states the loan and the estimate side by side", () => {
     const html = renderToStaticMarkup(<BuydownPrintSummary input={toInput(exampleValues(7))} result={calculateBuydown(toInput(exampleValues(7)))!} />);
     expect(html).toMatch(/^<section[^>]*class="[^"]*hidden[^"]*print:block/);
-    for (const text of ["Loan amount", "$320,000", "Interest rate", "7%", "30 years", "Buydown type", "2-1", "Buydown cost", "$7,459", "Year 1 payment", "$1,718", "Payment from year 3", "$2,129"]) {
+    for (const text of ["Loan amount", "$320,000", "Interest rate", "7%", "30 years", "Buydown type", "2-1", "Buydown cost", "$7,459", "Year 1 payment", "$1,718", "Payment from year 3", "$2,129", "Payments shown", "Principal and interest only"]) {
       expect(html, text).toContain(text);
     }
   });
@@ -64,6 +65,21 @@ describe("buydown results", () => {
     const html = results({});
     expect(html).toContain("A seller, builder or lender credit often covers it.");
     expect(html).toContain("When the reduced period ends, the payment returns to $2,129 a month.");
+  });
+
+  it("says the payments are principal and interest only until tax and insurance are entered", () => {
+    const bare = results({});
+    expect(bare).toContain("These payments are principal and interest only. Property tax, insurance and HOA dues are not included.");
+    expect(bare).toContain("When the reduced period ends, the payment returns to $2,129 a month.");
+    const withCosts = results({ yearlyTax: "4,800", yearlyInsurance: "1,800" });
+    expect(withCosts).not.toContain("principal and interest only");
+    expect(withCosts).toContain("These payments include the property tax, insurance and HOA dues you entered.");
+  });
+
+  it("gives the full payment the same weight as the reduced one in the table", () => {
+    const row = results({}).split("<tbody")[1].split("</tr>")[0];
+    expect(row).toMatch(/font-semibold">\$1,718<\/td>/);
+    expect(row).toMatch(/font-semibold">\$2,129<\/td>/);
   });
 
   it("shows the full payment at least as often as the first-year payment", () => {
@@ -91,7 +107,7 @@ describe("buydown results", () => {
   });
 
   it("explains a rate that was stopped at 0%", () => {
-    expect(results({ rate: "2", buydownType: "3-2-1" })).toContain("A rate cannot go below 0%, so the lowest year is shown at 0%.");
+    expect(results({ rate: "2", buydownType: "3-2-1" })).toContain("A rate cannot go below 0%, so any year that would is shown at 0%.");
     expect(results({})).not.toContain("cannot go below 0%");
   });
 
@@ -102,3 +118,23 @@ describe("buydown results", () => {
     expect(html).not.toMatch(BAD_OUTPUT);
   });
 });
+
+describe("buydown page text", () => {
+  const text = [...HOW_IT_WORKS, ...QUESTIONS.flatMap((x) => [x.q, x.a])].join(" ");
+
+  it("calls the cost an estimate and does not tell the visitor what to ask for", () => {
+    expect(text).not.toMatch(/amount to ask for/i);
+    expect(text).toContain("a loan officer can confirm the exact figure");
+  });
+
+  it("says percentage points for the rate drop and explains every buydown type offered", () => {
+    expect(text).toContain("percentage points");
+    for (const type of ["3-2-1", "2-1", "1-1", "1-0"]) expect(text, type).toContain(type);
+    expect(FRONT_FIELDS.find((f) => f.id === "buydownType")!.hint).toContain("percentage points");
+  });
+
+  it("uses no loan-decision words", () => {
+    expect(text).not.toMatch(BAD_WORDS);
+  });
+});
+

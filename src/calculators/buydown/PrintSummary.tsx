@@ -7,13 +7,13 @@ type Rows = PrintColumn["rows"];
 
 /** The top of the Rate buydown calculator's printed page. The payment table prints under it. */
 export function BuydownPrintSummary({ input, result: r }: { input: BuydownInput; result: BuydownResult }) {
-  const extras = r.full.total - r.full.principalAndInterest;
+  const extras = r.monthlyExtras;
   const loan: Rows = [
     { label: "Loan amount", value: formatUSD(input.loanAmount) },
     { label: "Interest rate", value: percent(input.annualRate) },
     { label: "Loan term", value: `${input.termYears} years` },
     { label: "Buydown type", value: input.type },
-    ...(extras > 0 ? [{ label: "Tax, insurance and HOA", value: `${formatUSD(extras)} a month` }] : []),
+    { label: "Payments shown", value: extras > 0 ? `Include ${formatUSD(extras)} a month of tax, insurance and HOA` : "Principal and interest only" },
   ];
   const estimate: Rows = [
     { label: "Buydown cost", value: formatUSD(r.totalCost) },

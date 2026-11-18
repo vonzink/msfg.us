@@ -17,7 +17,7 @@ export const FRONT_FIELDS: FieldDef[] = [
   {
     id: "buydownType", label: "Buydown type", type: "choice", example: "2-1",
     options: (Object.keys(REDUCTIONS) as BuydownType[]).map((t) => ({ value: t, label: t })),
-    hint: "The numbers are how many points the rate drops in each of the first years.",
+    hint: "The numbers are how many percentage points the rate drops in each of the first years.",
   },
 ];
 
