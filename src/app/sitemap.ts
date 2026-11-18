@@ -35,7 +35,8 @@ const ROUTES = [
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const [origin, config] = await Promise.all([getTenantOrigin(), getTenantConfig()]);
   // Calculators come from the registry, so a switched-off one leaves the sitemap too.
-  const routes = [...ROUTES, ...enabledCalculators(config.calculators).map((c) => c.path)];
+  const calculators = enabledCalculators(config.calculators).map((c) => c.path);
+  const routes = [...ROUTES, ...(calculators.length ? ["/calculators"] : []), ...calculators];
   const entries = await Promise.all(
     routes.map(async (route) => sitemapEntry(origin, route, await getPageSeo(route))),
   );

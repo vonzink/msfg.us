@@ -2,12 +2,20 @@
  * Navigation model — header mega-nav and footer columns.
  * Routing rules (from PAGES.md): Purchase/Refi/Equity -> category pages,
  * Rates -> /rates, Loan Officers -> /loan-officers, "Apply now"/CTAs ->
- * /apply/{intent}. Secondary links without a page yet (calculators, About,
- * Careers, etc.) point at /coming-soon until those features ship.
+ * /apply/{intent}. Secondary links without a page yet (About, Careers, etc.)
+ * point at /coming-soon until those features ship. Calculator links are never
+ * written here: they come from src/calculators/registry.ts, so a calculator is
+ * in the menu and footer only while it is live and switched on.
  */
+import type { CalculatorEntry } from "@/calculators/registry";
 
 export type NavLink = { label: string; href: string; badge?: string };
 export type NavItem = { label: string; href: string; items: NavLink[] };
+
+const CALCULATORS_MENU = "Mortgage Calculators";
+
+const calculatorLinks = (calculators: CalculatorEntry[]): NavLink[] =>
+  calculators.map((c) => ({ label: c.label, href: c.path }));
 
 export const NAV: NavItem[] = [
   {
@@ -21,15 +29,10 @@ export const NAV: NavItem[] = [
     items: [],
   },
   {
-    label: "Mortgage Calculators",
-    href: "/coming-soon",
-    items: [
-      { label: "Affordability calculator", href: "/coming-soon" },
-      { label: "Mortgage calculator", href: "/coming-soon" },
-      { label: "Rent vs buy calculator", href: "/coming-soon" },
-      { label: "Cash-out calculator", href: "/coming-soon" },
-      { label: "Investment calculator", href: "/calculators/investment" },
-    ],
+    // Links are filled from the registry by navigationForFeatures.
+    label: CALCULATORS_MENU,
+    href: "/calculators",
+    items: [],
   },
   {
     label: "Services",
@@ -68,15 +71,20 @@ export const NAV: NavItem[] = [
 /**
  * Resolve the primary navigation for a tenant without removing the dormant
  * routes. Rates can be restored by publishing the corresponding feature flag.
+ * `calculators` is the tenant's enabled calculators (enabledCalculators in the
+ * registry); with none, the calculators menu is left out.
  */
-export function navigationForFeatures({
-  ratesNavigation,
-}: {
-  ratesNavigation: boolean;
-}): NavItem[] {
-  if (ratesNavigation) return NAV;
+export function navigationForFeatures(
+  { ratesNavigation }: { ratesNavigation: boolean },
+  calculators: CalculatorEntry[],
+): NavItem[] {
+  const withCalculators = NAV.flatMap((item) => {
+    if (item.label !== CALCULATORS_MENU) return [item];
+    return calculators.length ? [{ ...item, items: calculatorLinks(calculators) }] : [];
+  });
+  if (ratesNavigation) return withCalculators;
 
-  return NAV.filter((item) => item.href !== "/rates").map((item) => ({
+  return withCalculators.filter((item) => item.href !== "/rates").map((item) => ({
     ...item,
     items: item.items.filter((sub) => sub.href !== "/rates"),
   }));
@@ -88,10 +96,6 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: "Resources",
     links: [
-      { label: "Affordability calculator", href: "/coming-soon" },
-      { label: "Mortgage calculator", href: "/coming-soon" },
-      { label: "Rent vs buy calculator", href: "/coming-soon" },
-      { label: "HELOC calculator", href: "/coming-soon" },
       { label: "Buy a home", href: "/buy" },
       { label: "Mortgage Glossary", href: "/resources/mortgage-glossary" },
     ],
@@ -111,6 +115,13 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
 ];
 
 /** Contact & legal links column (rendered with live contact details). */
+/** Footer columns with the tenant's enabled calculators leading the Resources column. */
+export function footerColumnsFor(calculators: CalculatorEntry[]): FooterColumn[] {
+  return FOOTER_COLUMNS.map((col) =>
+    col.heading === "Resources" ? { ...col, links: [...calculatorLinks(calculators), ...col.links] } : col,
+  );
+}
+
 export const FOOTER_LEGAL_LINKS: NavLink[] = [
   { label: "Licensing & Disclosures", href: "/licensing" },
   { label: "Privacy Notice", href: "/privacy-notice" },

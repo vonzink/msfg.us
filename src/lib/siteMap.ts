@@ -1,4 +1,5 @@
-import { NAV, FOOTER_COLUMNS, type NavLink } from "@/content/nav";
+import { NAV, footerColumnsFor, type NavLink } from "@/content/nav";
+import type { CalculatorEntry } from "@/calculators/registry";
 
 export type SiteMapGroup = { heading: string; links: { label: string; href: string }[] };
 
@@ -38,12 +39,14 @@ function clean(links: NavLink[]): { label: string; href: string }[] {
 /** Human-readable site map, derived from the nav + footer config so it can't go
  *  stale. Home is prepended explicitly (clean() strips "/" from NAV-derived
  *  links so it isn't duplicated); legal + apply are curated lists. */
-export function buildSiteMap(): SiteMapGroup[] {
+export function buildSiteMap(calculators: CalculatorEntry[]): SiteMapGroup[] {
   const explore = [
     { label: "Home", href: "/" },
-    ...clean(NAV.map((n) => ({ label: n.label, href: n.href }))),
+    ...clean(NAV.filter((n) => n.href !== "/calculators" || calculators.length > 0).map((n) => ({ label: n.label, href: n.href }))),
   ];
-  const resources = clean(FOOTER_COLUMNS.flatMap((c) => c.links));
+  // The calculators menu is left out of Explore when nothing is enabled; the calculators
+  // themselves are listed under Resources, from the registry.
+  const resources = clean(footerColumnsFor(calculators).flatMap((c) => c.links));
   return [
     { heading: "Explore", links: explore },
     { heading: "Apply", links: clean(APPLY) },

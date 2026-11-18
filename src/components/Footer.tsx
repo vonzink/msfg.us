@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { buildLegalStrip } from "@/content/site";
 import { getTenantConfig } from "@/server/tenant/config";
+import { enabledCalculators } from "@/calculators/registry";
 import {
-  FOOTER_COLUMNS,
+  footerColumnsFor,
   FOOTER_LEGAL_LINKS,
 } from "@/content/nav";
 import { EqualHousing } from "@/components/legal/EqualHousing";
@@ -36,7 +37,7 @@ export async function Footer() {
           </div>
 
           {/* Link columns */}
-          {FOOTER_COLUMNS.map((col) => (
+          {footerColumnsFor(enabledCalculators(config.calculators)).map((col) => (
             <div key={col.heading}>
               <h2 className="mb-4 text-[16px] font-bold">{col.heading}</h2>
               <ul>

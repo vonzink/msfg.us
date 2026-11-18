@@ -4,7 +4,8 @@ import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
 import { InvestmentCalculator } from "@/calculators/investment/InvestmentCalculator";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
-import { isCalculatorEnabled } from "@/calculators/registry";
+import { CalculatorCta } from "@/calculators/shared/CalculatorPage";
+import { CALCULATORS, isCalculatorEnabled } from "@/calculators/registry";
 import { getTenantConfig } from "@/server/tenant/config";
 
 const PATH = "/calculators/investment";
@@ -31,7 +32,7 @@ export default async function InvestmentCalculatorPage() {
         <div className="wrap">
           <Breadcrumb
             className="print:hidden"
-            items={[{ label: "Home", href: "/" }, { label: "Calculators" }, { label: "Investment property" }]}
+            items={[{ label: "Home", href: "/" }, { label: "Calculators", href: "/calculators" }, { label: "Investment property" }]}
           />
           <h1 className="mt-4 text-[clamp(32px,4.2vw,48px)] font-extrabold tracking-[-0.03em]">
             Will this rental pay off?
@@ -47,6 +48,8 @@ export default async function InvestmentCalculatorPage() {
           <InvestmentCalculator exampleRatePct={config.calculators.exampleRatePct} />
         </div>
       </section>
+
+      <CalculatorCta entry={CALCULATORS.find((c) => c.slug === "investment")!} />
     </>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { MobileDrawer } from "@/components/nav/MobileDrawer";
 import { NavAuthLink } from "@/components/nav/NavAuthLink";
 import { navigationForFeatures } from "@/content/nav";
+import { enabledCalculators } from "@/calculators/registry";
 import { getTenantConfig } from "@/server/tenant/config";
 
 /**
@@ -13,7 +14,7 @@ import { getTenantConfig } from "@/server/tenant/config";
  */
 export async function Nav() {
   const config = await getTenantConfig();
-  const navigation = navigationForFeatures(config.features);
+  const navigation = navigationForFeatures(config.features, enabledCalculators(config.calculators));
   return (
     <header className="sticky top-0 z-[60] bg-green-800">
       <div className="wrap flex h-[76px] items-center gap-2">

@@ -10,6 +10,7 @@ export async function CtaBand({
   primaryLabel,
   secondaryHref = "/buy",
   secondaryLabel = "Talk to a loan officer",
+  secondaryMode = "schedule",
 }: {
   title?: string;
   lead?: string;
@@ -17,6 +18,11 @@ export async function CtaBand({
   primaryLabel?: string;
   secondaryHref?: string;
   secondaryLabel?: string;
+  /**
+   * "schedule" opens the booking calendar in a pop-up when one is configured. "link" is always a
+   * plain link to `secondaryHref`: calculator pages use it so nothing on them collects contact details.
+   */
+  secondaryMode?: "schedule" | "link";
 }) {
   const config = await getTenantConfig();
   // Defaults to the tenant's assistant name; callers may still override.
@@ -34,8 +40,13 @@ export async function CtaBand({
           <Button href={primaryHref} size="lg">
             {primary}
           </Button>
-          {/* Opens the default GHL booking calendar in a modal when configured
-              (NEXT_PUBLIC_GHL_CALENDAR_ID); otherwise links to secondaryHref. */}
+          {secondaryMode === "link" ? (
+            <Button href={secondaryHref} variant="ghostDark" size="lg">
+              {secondaryLabel}
+            </Button>
+          ) : (
+          /* Opens the default GHL booking calendar in a modal when configured
+             (NEXT_PUBLIC_GHL_CALENDAR_ID); otherwise links to secondaryHref. */
           <ScheduleCallButton
             fallbackHref={secondaryHref}
             dialogLabel="Talk to a loan officer"
@@ -45,6 +56,7 @@ export async function CtaBand({
           >
             {secondaryLabel}
           </ScheduleCallButton>
+          )}
         </div>
       </div>
     </section>

@@ -15,6 +15,10 @@ describe("calculator registry", () => {
     }
   });
 
+  it("lists the Mortgage calculator first", () => {
+    expect(CALCULATORS[0]).toMatchObject({ slug: "mortgage", path: "/calculators/mortgage", applyHref: "/apply/buy" });
+  });
+
   it("leaves out switched-off calculators and ignores unknown slugs", () => {
     expect(enabledCalculators({ disabled: CALCULATORS.map((c) => c.slug) })).toEqual([]);
     expect(enabledCalculators({ disabled: ["nope"] })).toEqual(CALCULATORS);

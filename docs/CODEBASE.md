@@ -152,7 +152,7 @@ Code that must never reach the browser. Vendor SDKs are wrapped behind interface
 
 ## Adding a calculator
 
-Calculators live in `src/calculators/`, one folder per calculator. Everything for a calculator goes in its folder except the route file. Copy `src/calculators/investment/` as the starting point.
+Calculators live in `src/calculators/`, one folder per calculator. Everything for a calculator goes in its folder except the route file. Copy `src/calculators/mortgage/` as the starting point: a few inputs up front, the rest behind "Add detail", and its math proven against the dashboard by `golden.json`.
 
 ```
 src/calculators/
@@ -167,20 +167,20 @@ src/calculators/
 Steps for a new one:
 
 1. Create `src/calculators/<name>/` with the same shape. Name the folder after the URL slug.
-2. Add the route at `src/app/(marketing)/calculators/<name>/page.tsx`. Copy the investment one. It holds only metadata, breadcrumb, heading, and the calculator component.
-3. Add one entry to `src/calculators/registry.ts`. The sitemap reads it, and so does the per-company on/off switch at `/admin/config`. The route page must call `notFound()` when its calculator is switched off; copy that from the investment page.
-4. Link it from `src/content/nav.ts`. This step goes away once the calculators menu reads the registry.
+2. Add the route at `src/app/(marketing)/calculators/<name>/page.tsx`. Copy the mortgage one. It holds only metadata and the calculator inside `CalculatorPage`. The page text lives in the calculator's `content.ts`.
+3. Add one entry to `src/calculators/registry.ts`. That one entry puts the calculator in the menu, the footer, the sitemap, the `/calculators` landing page and the on/off switches at `/admin/config`. The route page must call `notFound()` when its calculator is switched off; copy that from the mortgage page.
 
 Build the page from the shared kit, so every calculator looks and behaves the same:
 
 | File in `src/calculators/shared/` | What it is |
 |---|---|
-| `CalculatorShell.tsx` | The page frame: Load example, Clear and Print buttons, inputs left, results right, print handling |
+| `CalculatorPage.tsx` | Everything around the calculator: breadcrumb, heading, intro, "How this works", common questions and the call to action |
+| `CalculatorShell.tsx` | The calculator's own frame: Load example, Clear and Print buttons, inputs left, results right, print handling |
 | `Field.tsx`, `fields.ts` | One input (money, percent, number, text or choice) and the types for defining fields |
 | `AddDetail.tsx` | The closed-by-default panel for optional inputs |
 | `Stat.tsx` | A headline number in a card, with an optional gauge |
 | `Gauge.tsx`, `gaugeScale.ts` | The speedometer and the maths that places the needle. Each calculator keeps its own scales |
-| `Charts.tsx` | Year-by-year bar and line charts |
+| `Charts.tsx`, `Donut.tsx` | Year-by-year bar and line charts, and a ring chart of how a total splits |
 
 When two calculators need the same input, gauge or chart that is not in the kit yet, move that piece to `src/calculators/shared/` rather than importing from one calculator into another.
 

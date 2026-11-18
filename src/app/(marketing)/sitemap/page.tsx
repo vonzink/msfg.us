@@ -4,6 +4,8 @@ import { Section, SectionHead } from "@/components/ui/Section";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
 import { buildSiteMap } from "@/lib/siteMap";
+import { enabledCalculators } from "@/calculators/registry";
+import { getTenantConfig } from "@/server/tenant/config";
 
 export function generateMetadata(): Promise<Metadata> {
   return buildMetadata("/sitemap", {
@@ -14,8 +16,8 @@ export function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function SiteMapPage() {
-  const groups = buildSiteMap();
+export default async function SiteMapPage() {
+  const groups = buildSiteMap(enabledCalculators((await getTenantConfig()).calculators));
   return (
     <>
       <PageJsonLd path="/sitemap" />

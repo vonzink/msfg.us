@@ -22,6 +22,14 @@ export type CalculatorEntry = {
 
 export const CALCULATORS: CalculatorEntry[] = [
   {
+    slug: "mortgage",
+    path: "/calculators/mortgage",
+    label: "Mortgage calculator",
+    question: "What will my mortgage payment be?",
+    description: "Estimate your monthly payment with taxes and insurance, and see how extra payments change the payoff.",
+    applyHref: "/apply/buy",
+  },
+  {
     slug: "investment",
     path: "/calculators/investment",
     label: "Investment calculator",

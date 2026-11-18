@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { buildSiteMap } from "@/lib/siteMap";
+import { CALCULATORS } from "@/calculators/registry";
 
 describe("buildSiteMap", () => {
-  const groups = buildSiteMap();
+  const groups = buildSiteMap(CALCULATORS);
 
   it("returns named groups with links", () => {
     expect(groups.length).toBeGreaterThan(0);
@@ -19,6 +20,7 @@ describe("buildSiteMap", () => {
       "/licensing", "/privacy-notice", "/privacy-policy", "/terms", "/accessibility",
       "/nmls-consumer-access", "/sitemap",
       "/about", "/careers", "/know-your-lender", "/resources/mortgage-glossary",
+      "/calculators", ...CALCULATORS.map((c) => c.path),
     ]);
     for (const g of groups) {
       for (const l of g.links) {

@@ -3,9 +3,11 @@ import {
   NAV,
   FOOTER_COLUMNS,
   FOOTER_LEGAL_LINKS,
+  footerColumnsFor,
   navigationForFeatures,
   type NavLink,
 } from "@/content/nav";
+import { CALCULATORS } from "@/calculators/registry";
 
 const KNOWN = new Set([
   "/", "/buy", "/refinance", "/home-equity", "/rates", "/loan-officers", "/developers",
@@ -14,7 +16,7 @@ const KNOWN = new Set([
   "/texas-required-notice", "/nmls-consumer-access", "/sitemap",
   "/veterans", "/reverse", "/investment", "/commercial",
   "/about", "/careers", "/know-your-lender", "/resources/mortgage-glossary",
-  "/calculators/investment",
+  "/calculators", "/calculators/investment", "/calculators/mortgage",
 ]);
 
 function allLinks(): NavLink[] {
@@ -38,26 +40,39 @@ describe("nav/footer links", () => {
     });
   });
 
-  it("groups the requested tools under Mortgage Calculators", () => {
-    const calculators = NAV.find(
-      (item) => item.label === "Mortgage Calculators",
-    );
-
-    expect(calculators).toEqual({
+  it("lists the enabled calculators under Mortgage Calculators, linking to the landing page", () => {
+    const two = CALCULATORS.slice(0, 2);
+    const item = navigationForFeatures({ ratesNavigation: true }, two).find((i) => i.label === "Mortgage Calculators");
+    expect(item).toEqual({
       label: "Mortgage Calculators",
-      href: "/coming-soon",
-      items: [
-        { label: "Affordability calculator", href: "/coming-soon" },
-        { label: "Mortgage calculator", href: "/coming-soon" },
-        { label: "Rent vs buy calculator", href: "/coming-soon" },
-        { label: "Cash-out calculator", href: "/coming-soon" },
-        { label: "Investment calculator", href: "/calculators/investment" },
-      ],
+      href: "/calculators",
+      items: two.map((c) => ({ label: c.label, href: c.path })),
     });
   });
 
+  it("drops the Mortgage Calculators menu when no calculator is enabled", () => {
+    const labels = navigationForFeatures({ ratesNavigation: true }, []).map((i) => i.label);
+    expect(labels).not.toContain("Mortgage Calculators");
+    expect(labels).toContain("Purchase");
+  });
+
+  it("never links a calculator to the coming-soon page, in the menu or the footer", () => {
+    const menu = navigationForFeatures({ ratesNavigation: true }, CALCULATORS).flatMap((i) => [i, ...i.items]);
+    const footer = footerColumnsFor(CALCULATORS).flatMap((c) => c.links);
+    const promised = [...menu, ...footer, ...FOOTER_COLUMNS.flatMap((c) => c.links)].filter(
+      (l) => /calculator/i.test(l.label) && l.href === "/coming-soon",
+    );
+    expect(promised).toEqual([]);
+  });
+
+  it("puts the enabled calculators first in the footer's Resources column", () => {
+    const resources = footerColumnsFor(CALCULATORS).find((c) => c.heading === "Resources")!;
+    expect(resources.links.slice(0, CALCULATORS.length)).toEqual(CALCULATORS.map((c) => ({ label: c.label, href: c.path })));
+    expect(resources.links.map((l) => l.href)).toContain("/buy");
+  });
+
   it("hides every rates link when rates navigation is disabled", () => {
-    const navigation = navigationForFeatures({ ratesNavigation: false });
+    const navigation = navigationForFeatures({ ratesNavigation: false }, CALCULATORS);
     const hrefs = navigation.flatMap((item) => [
       item.href,
       ...item.items.map((sub) => sub.href),
@@ -67,8 +82,9 @@ describe("nav/footer links", () => {
   });
 
   it("preserves rates links for tenants that enable them", () => {
-    const navigation = navigationForFeatures({ ratesNavigation: true });
-    expect(navigation).toEqual(NAV);
+    const navigation = navigationForFeatures({ ratesNavigation: true }, CALCULATORS);
+    expect(navigation.map((i) => i.label)).toEqual(NAV.map((i) => i.label));
+    expect(navigation.find((i) => i.href === "/rates")).toEqual(NAV.find((i) => i.href === "/rates"));
   });
 
   it("no internal link is the bare-home placeholder", () => {
