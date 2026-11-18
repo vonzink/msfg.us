@@ -23,7 +23,9 @@
         "newPayment": 1995.91,
         "monthlySavings": 266.93,
         "breakevenMonths": 23,
-        "netSavings": null
+        "netSavings": null,
+        "balanceNowLoan": null,
+        "balanceNewLoan": null
       }
     },
     {
@@ -47,7 +49,9 @@
         "newPayment": 2613.32,
         "monthlySavings": -350.48,
         "breakevenMonths": null,
-        "netSavings": -48057.6
+        "netSavings": -48057.6,
+        "balanceNowLoan": 251914.54,
+        "balanceNewLoan": 133563.44
       }
     },
     {
@@ -71,7 +75,9 @@
         "newPayment": 1995.91,
         "monthlySavings": -123.95,
         "breakevenMonths": null,
-        "netSavings": null
+        "netSavings": null,
+        "balanceNowLoan": null,
+        "balanceNewLoan": null
       }
     },
     {
@@ -95,7 +101,9 @@
         "newPayment": 1621.5,
         "monthlySavings": 275.73,
         "breakevenMonths": 19,
-        "netSavings": 18161.32
+        "netSavings": 18161.32,
+        "balanceNowLoan": 207833.33,
+        "balanceNewLoan": 226968.68
       }
     },
     {
@@ -119,7 +127,9 @@
         "newPayment": 2262.03,
         "monthlySavings": 900.81,
         "breakevenMonths": 8,
-        "netSavings": 47048.6
+        "netSavings": 47048.6,
+        "balanceNowLoan": 280687.37,
+        "balanceNewLoan": 320047.41
       }
     },
     {
@@ -143,7 +153,9 @@
         "newPayment": 2090.91,
         "monthlySavings": 311.93,
         "breakevenMonths": 20,
-        "netSavings": null
+        "netSavings": null,
+        "balanceNowLoan": null,
+        "balanceNewLoan": null
       }
     },
     {
@@ -167,7 +179,9 @@
         "newPayment": 1995.91,
         "monthlySavings": 266.93,
         "breakevenMonths": 0,
-        "netSavings": null
+        "netSavings": null,
+        "balanceNowLoan": null,
+        "balanceNewLoan": null
       }
     }
   ]

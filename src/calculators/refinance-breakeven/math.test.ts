@@ -22,6 +22,8 @@ describe("matches the dashboard (golden cases from msfg-calc)", () => {
     expect(r.monthlySavings).toBe(expected.monthlySavings);
     expect(r.breakevenMonths).toBe(expected.breakevenMonths);
     expect(r.keep?.netSavings ?? null).toBe(expected.netSavings);
+    expect(r.keep?.balanceNowLoan ?? null).toBe(expected.balanceNowLoan);
+    expect(r.keep?.balanceNewLoan ?? null).toBe(expected.balanceNewLoan);
   });
 
   it("has the hand-checked example: $2,262.84 now, $1,995.91 new, $266.93 saved, 23 months", () => {
@@ -81,7 +83,7 @@ describe("how long the loan is kept", () => {
   it("gives net savings only when a period is given", () => {
     expect(calculateBreakeven(example)!.keep).toBeNull();
     expect(calculateBreakeven({ ...example, keepMonths: 0 })!.keep).toBeNull();
-    expect(calculateBreakeven({ ...example, keepMonths: 60 })!.keep).toEqual({ months: 60, netSavings: 10015.8 });
+    expect(calculateBreakeven({ ...example, keepMonths: 60 })!.keep).toMatchObject({ months: 60, netSavings: 10015.8 });
   });
 });
 
@@ -160,6 +162,37 @@ describe("net savings past the end of a loan (differs from the dashboard on purp
 
   it("matches the dashboard while both loans are still running", () => {
     expect(calculateBreakeven({ ...example, keepMonths: 60 })!.keep!.netSavings).toBe(10015.8);
+  });
+});
+
+describe("what is owed after the keep period", () => {
+  it("shows a shorter, lower-rate loan ahead on balance even though its payment is higher", () => {
+    const k = calculateBreakeven(named("shorter-term"))!.keep!;
+    expect(k.netSavings).toBe(-48057.6);
+    expect(k.balanceNowLoan).toBe(251914.54);
+    expect(k.balanceNewLoan).toBe(133563.44);
+    expect(k.balanceDifference).toBe(118351.1);
+    // Payments and closing costs put you $48,057.60 behind; owing $118,351.10 less puts you ahead overall.
+    expect(k.netPosition).toBe(70293.5);
+  });
+
+  it("shows a longer loan behind overall once the higher balance is counted", () => {
+    const k = calculateBreakeven(named("longer-term-more-interest"))!.keep!;
+    expect(k.netSavings).toBe(18161.32);
+    expect(k.balanceDifference).toBe(-19135.35);
+    expect(k.netPosition).toBe(-974.03);
+  });
+
+  it("counts money borrowed on top of the balance as received at the start", () => {
+    const k = calculateBreakeven(named("cash-out-with-debts"))!.keep!;
+    // $47,048.60 net savings, $39,360.04 more owed, $40,000 received up front.
+    expect(k.netPosition).toBe(47688.56);
+  });
+
+  it("is zero on a loan that has ended", () => {
+    const k = calculateBreakeven({ ...example, currentBalance: 100000, monthsLeft: 120, keepMonths: 180 })!.keep!;
+    expect(k.balanceNowLoan).toBe(0);
+    expect(k.balanceNewLoan).toBeGreaterThan(0);
   });
 });
 

@@ -24,6 +24,10 @@ export const QUESTIONS: { q: string; a: string }[] = [
     a: "Because it runs longer. Interest is paid for every year a balance is owed, so adding years can outweigh a lower rate. Choosing a shorter new term, or paying extra each month, reduces it.",
   },
   {
+    q: "What if the new loan has a shorter term and a higher payment?",
+    a: "Then there is no breakeven on the payment, because you pay more each month. The gain is in how fast the balance falls. Enter how long you plan to keep the loan under Add detail to see what you would still owe on each loan at that point, and where you stand once that is counted.",
+  },
+  {
     q: "Is a short breakeven enough to decide?",
     a: "It is one part of the picture. How long you will keep the loan, the interest over its life and whether you are taking cash out all matter. A loan officer can go through them with your actual figures.",
   },

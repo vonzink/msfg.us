@@ -25,7 +25,14 @@ export function BreakevenPrintSummary({ input, result: r }: { input: BreakevenIn
     { label: "Monthly savings", value: formatUSD(r.monthlySavings) },
     { label: "Interest left on the loan now", value: formatUSD(r.current.interestRemaining) },
     { label: "Interest on the new loan", value: formatUSD(r.next.interestTotal) },
-    ...(r.keep ? [{ label: `Net savings over ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.netSavings) }] : []),
+    ...(r.keep
+      ? [
+          { label: `Net savings over ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.netSavings) },
+          { label: `Owed on the loan now after ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.balanceNowLoan) },
+          { label: `Owed on the new loan after ${yearsText(r.keep.months)}`, value: formatUSD(r.keep.balanceNewLoan) },
+          { label: `Overall position after ${yearsText(r.keep.months)}`, value: `${formatUSD(Math.abs(r.keep.netPosition))} ${r.keep.netPosition >= 0 ? "ahead" : "behind"}` },
+        ]
+      : []),
   ];
   return <PrintSummary title="Refinance breakeven estimate" columns={[{ heading: "The loans", rows: loans }, { heading: "The estimate", rows: estimate }]} />;
 }

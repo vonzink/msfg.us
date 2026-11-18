@@ -74,6 +74,9 @@ const cases = CASES.map(([name, i]) => {
       monthlySavings: r.analysis.monthlySavingsNow,
       breakevenMonths: Number.isFinite(r.analysis.breakevenNow) ? r.analysis.breakevenNow : null,
       netSavings: i.keepMonths === null ? null : r.analysis.refiNowNetSavings,
+      // What is still owed on each loan after the keep period, from the engine's own balance function.
+      balanceNowLoan: i.keepMonths === null ? null : cents(engine.calcRemainingBalance(i.currentBalance, percent(i.currentRate), i.monthsLeft, Math.min(i.keepMonths, i.monthsLeft))),
+      balanceNewLoan: i.keepMonths === null ? null : cents(engine.calcRemainingBalance(loan, percent(i.newRate), i.newTermMonths, Math.min(i.keepMonths, i.newTermMonths))),
     },
   };
 });

@@ -107,6 +107,25 @@ describe("optional detail", () => {
     expect(html).toContain("$10,016");
   });
 
+  it("shows what would still be owed on each loan after the years entered", () => {
+    expect(results()).not.toContain("still owed");
+    const html = results({ newRate: "6.5", newTermYears: "15", keepYears: "10" });
+    expect(html).toContain("After 10 years");
+    expect(html).toContain("Still owed on the loan now");
+    expect(html).toContain("$251,915");
+    expect(html).toContain("Still owed on the new loan");
+    expect(html).toContain("$133,563");
+    expect(html).toContain("You would owe $118,351 less with the new loan.");
+    expect(html).toContain("-$48,058");
+    expect(html).toContain("Counting the payments, the closing costs and what would still be owed, the refinance leaves you $70,294 ahead after 10 years.");
+  });
+
+  it("says when the refinance leaves you behind once the balance is counted", () => {
+    const html = results({ ...STRETCHED, keepYears: "7" });
+    expect(html).toContain("You would owe $19,135 more with the new loan.");
+    expect(html).toContain("the refinance leaves you $974 behind after 7 years.");
+  });
+
   it("mentions cash out only when there is some", () => {
     expect(results()).not.toContain("of cash out");
     expect(results({ cashOut: "40,000" })).toContain("Includes $40,000 of cash out, which is added to the new loan.");
@@ -173,7 +192,7 @@ describe("print summary", () => {
     const i = input({ keepYears: "5" });
     const html = renderToStaticMarkup(<BreakevenPrintSummary input={i} result={calculateBreakeven(i)!} />);
     expect(html).toMatch(/^<section[^>]*class="[^"]*hidden[^"]*print:block/);
-    for (const text of ["Loan balance", "$300,000", "Current rate", "8%", "27 years", "New rate", "7%", "30 years", "Closing costs", "$6,000", "Breakeven", "23 months", "Monthly savings", "$267", "Interest left on the loan now", "$433,160", "Interest on the new loan", "$418,528", "Net savings over 5 years", "$10,016"]) {
+    for (const text of ["Loan balance", "$300,000", "Current rate", "8%", "27 years", "New rate", "7%", "30 years", "Closing costs", "$6,000", "Breakeven", "23 months", "Monthly savings", "$267", "Interest left on the loan now", "$433,160", "Interest on the new loan", "$418,528", "Net savings over 5 years", "$10,016", "Owed on the loan now after 5 years", "Owed on the new loan after 5 years", "Overall position after 5 years"]) {
       expect(html, text).toContain(text);
     }
   });

@@ -30,10 +30,14 @@
  *   - Not on the dashboard, so hand-checked in the tests: interest over the life of each loan,
  *     which is the payments still to be made minus the amount owed, on principal and interest
  *     only. It assumes each loan is kept to its last payment.
+ *   - With a keep period, the model also gives what is still owed on each loan at its end, from
+ *     the dashboard's remaining-balance formula, and an overall position that counts it. A
+ *     shorter loan at a lower rate can cost more each month and still come out ahead, because
+ *     far less is owed at the end; payments alone would hide that.
  *   - Left out on purpose: the dashboard's itemized fees, cost-of-waiting scenario, "refinance
  *     twice" analysis, loan-type insurance rules and manual payment overrides.
  */
-import { monthlyPayment, roundCents } from "@/lib/finance";
+import { monthlyPayment, remainingBalance, roundCents } from "@/lib/finance";
 
 export type BreakevenInput = {
   currentBalance: number;
@@ -51,6 +55,25 @@ export type BreakevenInput = {
   newMi: number;
   /** How long the visitor plans to keep the loan. NaN or not above zero means "not given". */
   keepMonths: number;
+};
+
+/** Where each loan stands after the time the visitor plans to keep it. */
+export type KeepPeriod = {
+  months: number;
+  /** Payments avoided minus payments made over the period, minus closing costs. */
+  netSavings: number;
+  /** Still owed on the current loan at the end of the period. Zero if it would be paid off. */
+  balanceNowLoan: number;
+  /** Still owed on the new loan at the end of the period. */
+  balanceNewLoan: number;
+  /** Current loan's balance minus the new loan's. Positive means less is owed with the new loan. */
+  balanceDifference: number;
+  /**
+   * Net savings, plus the balance difference, plus anything borrowed on top of the current balance
+   * (received at the start as cash or as costs not paid out of pocket), minus anything paid in.
+   * Positive means the refinance leaves the visitor ahead at the end of the period.
+   */
+  netPosition: number;
 };
 
 export type BreakevenResult = {
@@ -72,7 +95,7 @@ export type BreakevenResult = {
   closingCosts: number;
   /** New loan's total interest minus the current loan's remaining interest. Positive means the refinance costs more interest. */
   interestDifference: number;
-  keep: { months: number; netSavings: number } | null;
+  keep: KeepPeriod | null;
   /** Cash out and the debt payments it pays off, as counted. Zero when none. */
   cashOut: number;
   debtPaymentsPaidOff: number;
@@ -120,6 +143,20 @@ export function calculateBreakeven(input: BreakevenInput): BreakevenResult | nul
     roundCents(currentPayment * Math.min(keepMonths, monthsLeft) - newPayment * Math.min(keepMonths, newTermMonths) + debtPaymentsPaidOff * keepMonths) - closingCosts,
   );
 
+  const keepPeriod = (): KeepPeriod => {
+    const balanceNowLoan = roundCents(remainingBalance(currentBalance, percent(currentRate), monthsLeft, Math.min(keepMonths, monthsLeft)));
+    const balanceNewLoan = roundCents(remainingBalance(newLoanAmount, percent(newRate), newTermMonths, Math.min(keepMonths, newTermMonths)));
+    const balanceDifference = roundCents(balanceNowLoan - balanceNewLoan);
+    return {
+      months: keepMonths,
+      netSavings,
+      balanceNowLoan,
+      balanceNewLoan,
+      balanceDifference,
+      netPosition: roundCents(netSavings + balanceDifference + (newLoanAmount - currentBalance)),
+    };
+  };
+
   return {
     newLoanAmount,
     current: { principalAndInterest: currentPI, mi: currentMi, payment: currentPayment, interestRemaining },
@@ -134,6 +171,6 @@ export function calculateBreakeven(input: BreakevenInput): BreakevenResult | nul
     interestDifference: roundCents(interestTotal - interestRemaining),
     cashOut,
     debtPaymentsPaidOff,
-    keep: keepMonths ? { months: keepMonths, netSavings } : null,
+    keep: keepMonths ? keepPeriod() : null,
   };
 }

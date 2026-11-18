@@ -131,3 +131,28 @@ Pinned values:
 - [ ] **Step 5: Verify on a local production build:** the page returns 200 with "23 months"; the Blended rate page now links to it; the landing page has five cards; capture a desktop screenshot and a print PDF with headless Chrome and read both.
 - [ ] **Step 6: Commit:** `feat(calculators): refinance breakeven page and registry entry`.
 - [ ] **Step 7:** Final review by a fresh reviewer, one fix pass, then deploy to staging with `scripts/deploy-ec2.sh` (no arguments) for Zachary's test.
+
+---
+
+## Amendment 1: review fixes and the balance after the keep period (2026-11-18)
+
+**From the final review** (ledgered, each fixed test-first): a typed loan too small for the balance plus cash out gives a warning and no figures (`loanShortfall`); "even with the lower payment" depends on the payment, not the savings; debt payments count only when the new loan is larger than the balance (`debtPaymentsIgnored`); a breakeven longer than the new loan is "No breakeven" (`breakevenBeyondTerm`); the interest block says when the new loan is a different size (`loanDifference`); net savings stop counting each payment when its loan ends.
+
+**Asked for by Zachary after testing:** with the keep period, show the expected balance on each loan, because a refinance into a shorter term at a lower rate raises the payment and its benefit is in the balance.
+
+```ts
+export type KeepPeriod = {
+  months: number; netSavings: number;
+  balanceNowLoan: number; balanceNewLoan: number;
+  balanceDifference: number;   // now-loan balance minus new-loan balance; positive = less owed with the new loan
+  netPosition: number;         // netSavings + balanceDifference + (newLoanAmount - currentBalance)
+};
+// src/lib/finance.ts
+export function remainingBalance(principal: number, annualRatePct: number, termMonths: number, paymentsMade: number): number;
+```
+
+**Pinned values**, all recorded from the dashboard engine in `golden.json`:
+- $300,000 at 8% with 27 years left into 6.5% for 15 years, kept 10 years: net savings -$48,057.60; owed $251,914.54 on the loan now and $133,563.44 on the new one; $118,351.10 less owed; overall $70,293.50 ahead.
+- $250,000 at 7.25% with 22 years left into 6.75% for 30 years, kept 7 years: net savings $18,161.32; $19,135.35 more owed; overall $974.03 behind.
+- Sentences: "You would owe {X} less|more with the new loan." and "Counting the payments, the closing costs and what would still be owed, the refinance leaves you {Y} ahead|behind after {N} years."
+

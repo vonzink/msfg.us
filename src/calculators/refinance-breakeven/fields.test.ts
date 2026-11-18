@@ -31,7 +31,7 @@ describe("refinance breakeven fields", () => {
     expect(Number.isNaN(input.newLoanAmount)).toBe(true);
     expect(Number.isNaN(input.keepMonths)).toBe(true);
     expect(calculateBreakeven(input)!.keep).toBeNull();
-    expect(result({ keepYears: "5" })!.keep).toEqual({ months: 60, netSavings: 10015.8 });
+    expect(result({ keepYears: "5" })!.keep).toMatchObject({ months: 60, netSavings: 10015.8 });
   });
 
   it("clears to empty fields but keeps the term choice", () => {

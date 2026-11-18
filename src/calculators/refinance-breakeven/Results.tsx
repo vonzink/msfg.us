@@ -1,7 +1,8 @@
 import { formatUSD } from "@/lib/finance";
 import { SeriesChart } from "../shared/Charts";
 import { Stat } from "../shared/Stat";
-import type { BreakevenResult } from "./math";
+import { cn } from "@/lib/cn";
+import type { BreakevenResult, KeepPeriod } from "./math";
 
 export const CAUTION =
   "A lower payment is not the whole decision. A new loan restarts the clock, so check the interest over the life of each loan as well as the breakeven.";
@@ -28,6 +29,18 @@ export function interestSentence(r: BreakevenResult): string {
   return r.next.payment < r.current.payment
     ? `The new loan costs ${gap} more in interest, even with the lower payment.`
     : `The new loan costs ${gap} more in interest.`;
+}
+
+/** Which loan leaves less owed at the end of the keep period. */
+export function balanceSentence(k: KeepPeriod): string {
+  if (Math.round(k.balanceDifference) === 0) return "You would owe about the same on either loan.";
+  return `You would owe ${formatUSD(Math.abs(k.balanceDifference))} ${k.balanceDifference > 0 ? "less" : "more"} with the new loan.`;
+}
+
+/** The overall result once payments, closing costs and the balance are all counted. */
+export function positionSentence(k: KeepPeriod): string {
+  const side = k.netPosition >= 0 ? "ahead" : "behind";
+  return `Counting the payments, the closing costs and what would still be owed, the refinance leaves you ${formatUSD(Math.abs(k.netPosition))} ${side} after ${yearsText(k.months)}.`;
 }
 
 const included = (mi: number) => (mi > 0 ? `principal, interest and ${formatUSD(mi)} mortgage insurance` : "principal and interest");
@@ -128,13 +141,31 @@ export function BreakevenResults({ result: r, disclaimer }: { result: BreakevenR
       </div>
 
       {r.keep && (
-        <Stat
-          label={`Net savings over ${yearsText(r.keep.months)}`}
-          value={formatUSD(r.keep.netSavings)}
-          loss={r.keep.netSavings < 0}
-          sub="monthly savings over that time, minus closing costs"
-          tip="What the refinance leaves you ahead, or behind, if you keep the loan for the time you entered."
-        />
+        <div className="rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4">
+          <h2 className="text-[17px] font-bold">After {yearsText(r.keep.months)}</h2>
+          <dl className="m-0 mt-3 grid grid-cols-3 gap-3 max-[600px]:grid-cols-1">
+            <div>
+              <dt className="text-[13px] font-semibold text-muted">Net savings over {yearsText(r.keep.months)}</dt>
+              <dd className={cn("m-0 text-[22px] font-extrabold tabular-nums", r.keep.netSavings < 0 && "text-loss")}>{formatUSD(r.keep.netSavings)}</dd>
+              <dd className="m-0 text-[12px] text-muted">payments saved, minus closing costs</dd>
+            </div>
+            <div>
+              <dt className="text-[13px] font-semibold text-muted">Still owed on the loan now</dt>
+              <dd className="m-0 text-[22px] font-extrabold tabular-nums">{formatUSD(r.keep.balanceNowLoan)}</dd>
+            </div>
+            <div>
+              <dt className="text-[13px] font-semibold text-muted">Still owed on the new loan</dt>
+              <dd className="m-0 text-[22px] font-extrabold tabular-nums">{formatUSD(r.keep.balanceNewLoan)}</dd>
+            </div>
+          </dl>
+          <p className="mt-3 text-[15px]">{balanceSentence(r.keep)}</p>
+          <p className="mt-1 text-[15px] font-semibold">{positionSentence(r.keep)}</p>
+          {r.loanDifference > 0 && (
+            <p className="mt-1 text-[13px] text-muted">
+              This counts the {formatUSD(r.loanDifference)} borrowed on top of the balance as money received at the start.
+            </p>
+          )}
+        </div>
       )}
 
       {chartYears > 0 && (

@@ -30,3 +30,18 @@ export function roundCents(n: number): number {
 export function formatUSDCents(n: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(Number.isFinite(n) ? roundCents(n) : 0);
 }
+
+/**
+ * What is still owed on a fixed-rate loan after a number of payments.
+ * `annualRatePct` is a percent, `termMonths` the full term the payment was set on.
+ * Zero once the term has run.
+ */
+export function remainingBalance(principal: number, annualRatePct: number, termMonths: number, paymentsMade: number): number {
+  if (!Number.isFinite(principal) || principal <= 0 || paymentsMade >= termMonths) return 0;
+  const r = annualRatePct / 1200;
+  if (r === 0) return Math.max(0, principal - (principal / termMonths) * paymentsMade);
+  const whole = Math.pow(1 + r, termMonths);
+  const soFar = Math.pow(1 + r, paymentsMade);
+  return Math.max(0, (principal * (whole - soFar)) / (whole - 1));
+}
+
