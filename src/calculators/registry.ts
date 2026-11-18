@@ -38,6 +38,14 @@ export const CALCULATORS: CalculatorEntry[] = [
     applyHref: "/apply/buy",
   },
   {
+    slug: "blended-rate",
+    path: "/calculators/blended-rate",
+    label: "Blended rate calculator",
+    question: "What rate am I really paying across my debts?",
+    description: "Combine a mortgage with a second loan, a credit line or other debts and see the single rate they add up to.",
+    applyHref: "/apply/refi",
+  },
+  {
     slug: "investment",
     path: "/calculators/investment",
     label: "Investment calculator",

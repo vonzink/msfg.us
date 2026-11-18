@@ -11,6 +11,7 @@ vi.mock("@/server/tenant/config", () => ({
   }),
 }));
 
+import BlendedRatePage from "./blended-rate/page";
 import BuydownPage from "./buydown/page";
 import MortgagePage from "./mortgage/page";
 import InvestmentPage from "./investment/page";
@@ -30,6 +31,13 @@ describe("switched-off calculators", () => {
     expect(await outcome(LandingPage)).toBe("renders");
   });
 
+  it("makes a switched-off blended rate calculator not found", async () => {
+    expect(await outcome(BlendedRatePage)).toBe("renders");
+    settings.disabled = ["blended-rate"];
+    expect(await outcome(BlendedRatePage)).toBe("not found");
+    expect(await outcome(BuydownPage)).toBe("renders");
+  });
+
   it("makes a switched-off buydown calculator not found", async () => {
     settings.disabled = ["buydown"];
     expect(await outcome(BuydownPage)).toBe("not found");
@@ -44,7 +52,7 @@ describe("switched-off calculators", () => {
   });
 
   it("makes the landing page not found when every calculator is off", async () => {
-    settings.disabled = ["mortgage", "buydown", "investment"];
+    settings.disabled = ["mortgage", "buydown", "blended-rate", "investment"];
     expect(await outcome(LandingPage)).toBe("not found");
   });
 });
