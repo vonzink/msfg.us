@@ -18,6 +18,7 @@ A second deploy script, `deploy.sh`, sits at the repo root. It is marked as a dr
 | `generate-glossary.ts` | Rebuilds `src/content/glossary.ts` from `glossary-source/glossary-terms.md`. Run with `npm run glossary:generate`. |
 | `sync-where-the-money-goes.mjs [path-to-msfg-calc]` | Copies the "Where the Money Goes" training page from the msfg-calc repo into `src/calculators/mbs/`. |
 | `calculators/golden-mortgage.mjs [path-to-msfg-calc]` | Runs test scenarios through the dashboard's amortization code in the msfg-calc repo and records the results in `src/calculators/mortgage/golden.json`. The Mortgage calculator's tests must reproduce them. Rerun it when the dashboard math changes. |
+| `calculators/golden-buydown.mjs [path-to-msfg-calc]` | The same for the Rate buydown calculator: runs scenarios through the dashboard's buydown code and records them in `src/calculators/buydown/golden.json`. |
 
 ## Operations
 

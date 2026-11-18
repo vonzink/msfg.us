@@ -1,0 +1,332 @@
+{
+  "source": "msfg-calc a1f25e4",
+  "generatedBy": "scripts/calculators/golden-buydown.mjs",
+  "cases": [
+    {
+      "name": "2-1",
+      "input": {
+        "loanAmount": 320000,
+        "annualRate": 0.07,
+        "termYears": 30,
+        "type": "2-1",
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0
+      },
+      "expected": {
+        "totalCost": 7458.54,
+        "periods": [
+          {
+            "year": 1,
+            "reduced": true,
+            "ratePct": 5,
+            "principalAndInterest": 1717.83,
+            "total": 1717.83,
+            "monthlySavings": 411.14,
+            "yearlySavings": 4933.67
+          },
+          {
+            "year": 2,
+            "reduced": true,
+            "ratePct": 6,
+            "principalAndInterest": 1918.56,
+            "total": 1918.56,
+            "monthlySavings": 210.41,
+            "yearlySavings": 2524.88
+          },
+          {
+            "year": 3,
+            "reduced": false,
+            "ratePct": 7,
+            "principalAndInterest": 2128.97,
+            "total": 2128.97,
+            "monthlySavings": 0,
+            "yearlySavings": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "3-2-1",
+      "input": {
+        "loanAmount": 320000,
+        "annualRate": 0.07,
+        "termYears": 30,
+        "type": "3-2-1",
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0
+      },
+      "expected": {
+        "totalCost": 14673.41,
+        "periods": [
+          {
+            "year": 1,
+            "reduced": true,
+            "ratePct": 4,
+            "principalAndInterest": 1527.73,
+            "total": 1527.73,
+            "monthlySavings": 601.24,
+            "yearlySavings": 7214.87
+          },
+          {
+            "year": 2,
+            "reduced": true,
+            "ratePct": 5,
+            "principalAndInterest": 1717.83,
+            "total": 1717.83,
+            "monthlySavings": 411.14,
+            "yearlySavings": 4933.67
+          },
+          {
+            "year": 3,
+            "reduced": true,
+            "ratePct": 6,
+            "principalAndInterest": 1918.56,
+            "total": 1918.56,
+            "monthlySavings": 210.41,
+            "yearlySavings": 2524.88
+          },
+          {
+            "year": 4,
+            "reduced": false,
+            "ratePct": 7,
+            "principalAndInterest": 2128.97,
+            "total": 2128.97,
+            "monthlySavings": 0,
+            "yearlySavings": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "1-1",
+      "input": {
+        "loanAmount": 320000,
+        "annualRate": 0.07,
+        "termYears": 30,
+        "type": "1-1",
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0
+      },
+      "expected": {
+        "totalCost": 5049.75,
+        "periods": [
+          {
+            "year": 1,
+            "reduced": true,
+            "ratePct": 6,
+            "principalAndInterest": 1918.56,
+            "total": 1918.56,
+            "monthlySavings": 210.41,
+            "yearlySavings": 2524.88
+          },
+          {
+            "year": 2,
+            "reduced": true,
+            "ratePct": 6,
+            "principalAndInterest": 1918.56,
+            "total": 1918.56,
+            "monthlySavings": 210.41,
+            "yearlySavings": 2524.88
+          },
+          {
+            "year": 3,
+            "reduced": false,
+            "ratePct": 7,
+            "principalAndInterest": 2128.97,
+            "total": 2128.97,
+            "monthlySavings": 0,
+            "yearlySavings": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "1-0",
+      "input": {
+        "loanAmount": 320000,
+        "annualRate": 0.07,
+        "termYears": 30,
+        "type": "1-0",
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0
+      },
+      "expected": {
+        "totalCost": 2524.88,
+        "periods": [
+          {
+            "year": 1,
+            "reduced": true,
+            "ratePct": 6,
+            "principalAndInterest": 1918.56,
+            "total": 1918.56,
+            "monthlySavings": 210.41,
+            "yearlySavings": 2524.88
+          },
+          {
+            "year": 2,
+            "reduced": false,
+            "ratePct": 7,
+            "principalAndInterest": 2128.97,
+            "total": 2128.97,
+            "monthlySavings": 0,
+            "yearlySavings": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "2-1-with-costs",
+      "input": {
+        "loanAmount": 320000,
+        "annualRate": 0.07,
+        "termYears": 30,
+        "type": "2-1",
+        "yearlyTax": 4800,
+        "yearlyInsurance": 1800,
+        "monthlyHoa": 100
+      },
+      "expected": {
+        "totalCost": 7458.54,
+        "periods": [
+          {
+            "year": 1,
+            "reduced": true,
+            "ratePct": 5,
+            "principalAndInterest": 1717.83,
+            "total": 2367.83,
+            "monthlySavings": 411.14,
+            "yearlySavings": 4933.67
+          },
+          {
+            "year": 2,
+            "reduced": true,
+            "ratePct": 6,
+            "principalAndInterest": 1918.56,
+            "total": 2568.56,
+            "monthlySavings": 210.41,
+            "yearlySavings": 2524.88
+          },
+          {
+            "year": 3,
+            "reduced": false,
+            "ratePct": 7,
+            "principalAndInterest": 2128.97,
+            "total": 2778.97,
+            "monthlySavings": 0,
+            "yearlySavings": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "3-2-1-fifteen-year",
+      "input": {
+        "loanAmount": 250000,
+        "annualRate": 0.0625,
+        "termYears": 15,
+        "type": "3-2-1",
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0
+      },
+      "expected": {
+        "totalCost": 9403.31,
+        "periods": [
+          {
+            "year": 1,
+            "reduced": true,
+            "ratePct": 3.25,
+            "principalAndInterest": 1756.67,
+            "total": 1756.67,
+            "monthlySavings": 386.89,
+            "yearlySavings": 4642.62
+          },
+          {
+            "year": 2,
+            "reduced": true,
+            "ratePct": 4.25,
+            "principalAndInterest": 1880.7,
+            "total": 1880.7,
+            "monthlySavings": 262.86,
+            "yearlySavings": 3154.33
+          },
+          {
+            "year": 3,
+            "reduced": true,
+            "ratePct": 5.25,
+            "principalAndInterest": 2009.69,
+            "total": 2009.69,
+            "monthlySavings": 133.86,
+            "yearlySavings": 1606.35
+          },
+          {
+            "year": 4,
+            "reduced": false,
+            "ratePct": 6.25,
+            "principalAndInterest": 2143.56,
+            "total": 2143.56,
+            "monthlySavings": 0,
+            "yearlySavings": 0
+          }
+        ]
+      }
+    },
+    {
+      "name": "3-2-1-floored",
+      "input": {
+        "loanAmount": 200000,
+        "annualRate": 0.02,
+        "termYears": 30,
+        "type": "3-2-1",
+        "yearlyTax": 0,
+        "yearlyInsurance": 0,
+        "monthlyHoa": 0
+      },
+      "expected": {
+        "totalCost": 5559.92,
+        "periods": [
+          {
+            "year": 1,
+            "reduced": true,
+            "ratePct": 0,
+            "principalAndInterest": 555.56,
+            "total": 555.56,
+            "monthlySavings": 183.68,
+            "yearlySavings": 2204.2
+          },
+          {
+            "year": 2,
+            "reduced": true,
+            "ratePct": 0,
+            "principalAndInterest": 555.56,
+            "total": 555.56,
+            "monthlySavings": 183.68,
+            "yearlySavings": 2204.2
+          },
+          {
+            "year": 3,
+            "reduced": true,
+            "ratePct": 1,
+            "principalAndInterest": 643.28,
+            "total": 643.28,
+            "monthlySavings": 95.96,
+            "yearlySavings": 1151.52
+          },
+          {
+            "year": 4,
+            "reduced": false,
+            "ratePct": 2,
+            "principalAndInterest": 739.24,
+            "total": 739.24,
+            "monthlySavings": 0,
+            "yearlySavings": 0
+          }
+        ]
+      }
+    }
+  ]
+}
