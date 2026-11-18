@@ -30,6 +30,14 @@ export const CALCULATORS: CalculatorEntry[] = [
     applyHref: "/apply/buy",
   },
   {
+    slug: "buydown",
+    path: "/calculators/buydown",
+    label: "Rate buydown calculator",
+    question: "What does a rate buydown cost?",
+    description: "See the lower payments a temporary buydown gives in the first years, what it costs up front, and the payment after it ends.",
+    applyHref: "/apply/buy",
+  },
+  {
     slug: "investment",
     path: "/calculators/investment",
     label: "Investment calculator",

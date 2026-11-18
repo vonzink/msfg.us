@@ -1,6 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BuydownCalculator } from "./BuydownCalculator";
+import { BuydownPrintSummary } from "./PrintSummary";
 import { BuydownResults } from "./Results";
 import { exampleValues, toInput } from "./fields";
 import { calculateBuydown } from "./math";
@@ -37,6 +38,24 @@ describe("buydown calculator page", () => {
     }
     for (const legend of ["Loan term", "Buydown type"]) expect(html).toMatch(new RegExp(`<legend[^>]*>${legend}</legend>`));
     expect(count(html, "<details data-calc-panel")).toBe(1);
+  });
+});
+
+describe("buydown printed page", () => {
+  it("prints a summary and the payment table, not the form or the chart", () => {
+    const html = page();
+    expect(html).toMatch(/<form[^>]*class="[^"]*print:hidden/);
+    expect(html).toMatch(/<section id="buydown-results"[^>]*class="[^"]*print:hidden/);
+    expect(html).toContain("Rate buydown estimate");
+    expect(count(html, ">Payment by year</caption>")).toBe(2); // on screen, and again for print
+  });
+
+  it("states the loan and the estimate side by side", () => {
+    const html = renderToStaticMarkup(<BuydownPrintSummary input={toInput(exampleValues(7))} result={calculateBuydown(toInput(exampleValues(7)))!} />);
+    expect(html).toMatch(/^<section[^>]*class="[^"]*hidden[^"]*print:block/);
+    for (const text of ["Loan amount", "$320,000", "Interest rate", "7%", "30 years", "Buydown type", "2-1", "Buydown cost", "$7,459", "Year 1 payment", "$1,718", "Payment from year 3", "$2,129"]) {
+      expect(html, text).toContain(text);
+    }
   });
 });
 

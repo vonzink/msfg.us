@@ -8,7 +8,8 @@ import { Field } from "../shared/Field";
 import { parseNumber, type FieldDef, type Numbers, type Values } from "../shared/fields";
 import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, toInput } from "./fields";
 import { calculateBuydown } from "./math";
-import { BuydownResults } from "./Results";
+import { BuydownPrintSummary } from "./PrintSummary";
+import { BuydownResults, PaymentTable } from "./Results";
 
 const grid = "grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-4 gap-y-3.5";
 
@@ -28,7 +29,8 @@ export function BuydownCalculator({ exampleRatePct, exampleRateNote, disclaimer 
     () => Object.fromEntries(Object.entries(values).map(([id, v]) => [id, parseNumber(v)])),
     [values],
   );
-  const result = useMemo(() => calculateBuydown(toInput(values)), [values]);
+  const input = useMemo(() => toInput(values), [values]);
+  const result = useMemo(() => calculateBuydown(input), [input]);
 
   const field = (def: FieldDef) => (
     <Field key={def.id} def={def} idPrefix="buydown" values={values} numbers={numbers} onChange={onChange} />
@@ -38,6 +40,7 @@ export function BuydownCalculator({ exampleRatePct, exampleRateNote, disclaimer 
     <CalculatorShell
       formLabel="Loan details"
       resultsId="buydown-results"
+      printBelowOnly
       onExample={() => setValues(exampleValues(exampleRatePct))}
       onClear={() => setValues(BLANK)}
       form={
@@ -62,7 +65,18 @@ export function BuydownCalculator({ exampleRatePct, exampleRateNote, disclaimer 
       results={<BuydownResults result={result} disclaimer={disclaimer} />}
       below={
         result && (
-          // Phone: the cost and the full payment pinned to the bottom, linking up to the results.
+          <>
+          {/* The printed page: a summary on top, the payment table, the reminder and the disclaimer. */}
+          <BuydownPrintSummary input={input} result={result} />
+          <div className="mt-5 hidden print:block">
+            <PaymentTable result={result} />
+            <p className="mt-3 text-[12px] font-semibold">
+              When the reduced period ends, the payment returns to {formatUSD(result.full.total)} a month.
+            </p>
+            <p className="mt-2 text-[10px] text-muted">{disclaimer}</p>
+          </div>
+
+          {/* Phone: the cost and the full payment pinned to the bottom, linking up to the results. */}
           <a
             href="#buydown-results"
             className="fixed inset-x-3 bottom-3 z-10 hidden items-center gap-[18px] rounded-lg bg-green-900 px-3.5 py-2.5 text-white shadow-pop max-[980px]:flex print:hidden"
@@ -77,6 +91,7 @@ export function BuydownCalculator({ exampleRatePct, exampleRateNote, disclaimer 
             </span>
             <span className="ml-auto whitespace-nowrap text-[13px] font-bold text-mint">See results</span>
           </a>
+          </>
         )
       }
     />

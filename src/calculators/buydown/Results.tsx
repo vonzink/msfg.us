@@ -7,6 +7,43 @@ const percent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 const periodLabel = (p: BuydownPeriod) => (p.reduced ? `Year ${p.year}` : `Year ${p.year} onward`);
 const num = "px-2.5 py-2 text-right tabular-nums";
 
+/** Each reduced year and then the full rate. Shown in the results, and again on the printed page. */
+export function PaymentTable({ result: r }: { result: BuydownResult }) {
+  const { full } = r;
+  return (
+    <div className="rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4 print:border-0 print:p-0 print:shadow-none">
+      <div className="overflow-x-auto">
+        <table className="w-full border-collapse text-[14px]">
+          <caption className="mb-2 text-left text-[17px] font-bold">Payment by year</caption>
+          <thead>
+            <tr className="border-b-2 border-line text-[12px] text-muted">
+              <th scope="col" className="py-2 pr-2.5 text-left font-semibold">Period</th>
+              <th scope="col" className="px-2.5 py-2 text-right font-semibold">Rate</th>
+              <th scope="col" className="px-2.5 py-2 text-right font-semibold">Monthly payment</th>
+              <th scope="col" className="px-2.5 py-2 text-right font-semibold">Full payment</th>
+              <th scope="col" className="px-2.5 py-2 text-right font-semibold">Monthly savings</th>
+            </tr>
+          </thead>
+          <tbody>
+            {r.periods.map((p) => (
+              <tr key={p.year} className="border-b border-line last:border-0">
+                <th scope="row" className="py-2 pr-2.5 text-left font-semibold">{periodLabel(p)}</th>
+                <td className={num}>{percent(p.rate)}</td>
+                <td className={`${num} font-semibold`}>{formatUSD(p.total)}</td>
+                <td className={num}>{formatUSD(full.total)}</td>
+                <td className={num}>{p.reduced ? formatUSD(p.monthlySavings) : "–"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {r.flooredAtZero && (
+        <p className="mt-3 text-[13px] text-muted">A rate cannot go below 0%, so the lowest year is shown at 0%.</p>
+      )}
+    </div>
+  );
+}
+
 /**
  * The results column of the Rate buydown calculator. `result` is null when there is no loan amount
  * or rate yet. Wherever a reduced payment is shown, the full payment is shown as prominently: a
@@ -53,36 +90,7 @@ export function BuydownResults({ result: r, disclaimer }: { result: BuydownResul
         />
       </div>
 
-      <div className="rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4 print:shadow-none">
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse text-[14px]">
-            <caption className="mb-2 text-left text-[17px] font-bold">Payment by year</caption>
-            <thead>
-              <tr className="border-b-2 border-line text-[12px] text-muted">
-                <th scope="col" className="py-2 pr-2.5 text-left font-semibold">Period</th>
-                <th scope="col" className="px-2.5 py-2 text-right font-semibold">Rate</th>
-                <th scope="col" className="px-2.5 py-2 text-right font-semibold">Monthly payment</th>
-                <th scope="col" className="px-2.5 py-2 text-right font-semibold">Full payment</th>
-                <th scope="col" className="px-2.5 py-2 text-right font-semibold">Monthly savings</th>
-              </tr>
-            </thead>
-            <tbody>
-              {r.periods.map((p) => (
-                <tr key={p.year} className="border-b border-line last:border-0">
-                  <th scope="row" className="py-2 pr-2.5 text-left font-semibold">{periodLabel(p)}</th>
-                  <td className={num}>{percent(p.rate)}</td>
-                  <td className={`${num} font-semibold`}>{formatUSD(p.total)}</td>
-                  <td className={num}>{formatUSD(full.total)}</td>
-                  <td className={num}>{p.reduced ? formatUSD(p.monthlySavings) : "–"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {r.flooredAtZero && (
-          <p className="mt-3 text-[13px] text-muted">A rate cannot go below 0%, so the lowest year is shown at 0%.</p>
-        )}
-      </div>
+      <PaymentTable result={r} />
 
       <SeriesChart
         kind="bars"

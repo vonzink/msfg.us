@@ -19,6 +19,10 @@ describe("calculator registry", () => {
     expect(CALCULATORS[0]).toMatchObject({ slug: "mortgage", path: "/calculators/mortgage", applyHref: "/apply/buy" });
   });
 
+  it("lists the calculators in menu order", () => {
+    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "investment"]);
+  });
+
   it("leaves out switched-off calculators and ignores unknown slugs", () => {
     expect(enabledCalculators({ disabled: CALCULATORS.map((c) => c.slug) })).toEqual([]);
     expect(enabledCalculators({ disabled: ["nope"] })).toEqual(CALCULATORS);

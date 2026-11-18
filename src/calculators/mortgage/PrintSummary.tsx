@@ -1,66 +1,43 @@
-import type { ReactNode } from "react";
 import { formatUSD } from "@/lib/finance";
+import { PrintSummary as Summary, type PrintColumn } from "../shared/PrintSummary";
 import type { MortgageInput, MortgageResult } from "./math";
 import { duration, MONTHS } from "./dates";
 
 const trim = (x: number, places: number) => String(Number(x.toFixed(places)));
 const EXTRA = { monthly: "every month", annually: "once a year", "one-time": "with the first payment" } as const;
+type Rows = PrintColumn["rows"];
 
-function Row({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-line py-1">
-      <dt className="text-muted">{label}</dt>
-      <dd className="m-0 font-semibold tabular-nums">{children}</dd>
-    </div>
-  );
-}
-
-/**
- * The top of the printed page: what was entered and what it comes to, side by side. Hidden on
- * screen. The amortization schedule prints underneath it.
- */
+/** The top of the Mortgage calculator's printed page. The amortization schedule prints under it. */
 export function PrintSummary({ input, result: r, start }: {
   input: MortgageInput;
   result: MortgageResult;
   start: { month: number; year: number } | null;
 }) {
   const downPct = (input.downPayment / input.homePrice) * 100;
-  return (
-    <section aria-label="Estimate summary" className="hidden text-[12px] print:block">
-      <h2 className="text-[18px] font-extrabold tracking-[-0.01em]">Mortgage payment estimate</h2>
-      <div className="mt-3 grid grid-cols-2 gap-x-10">
-        <div>
-          <h3 className="mb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">The loan</h3>
-          <dl className="m-0">
-            <Row label="Home price">{formatUSD(input.homePrice)}</Row>
-            <Row label="Down payment">{formatUSD(input.downPayment)} ({trim(downPct, 2)}%)</Row>
-            <Row label="Loan amount">{formatUSD(r.loanAmount)}</Row>
-            <Row label="Interest rate">{trim(input.annualRate * 100, 3)}%</Row>
-            <Row label="Loan term">{duration(input.termYears * 12)}</Row>
-            {start && <Row label="First payment">{MONTHS[start.month]} {start.year}</Row>}
-            <Row label="Property tax">{formatUSD(r.first.tax * 12)} a year</Row>
-            <Row label="Homeowners insurance">{formatUSD(r.first.insurance * 12)} a year</Row>
-            {r.first.hoa > 0 && <Row label="HOA dues">{formatUSD(r.first.hoa)} a month</Row>}
-            {r.first.pmi > 0 && <Row label="Mortgage insurance">{formatUSD(r.first.pmi)} a month, until payment {r.pmiEndPayment}</Row>}
-            {r.extra.amount > 0 && <Row label="Extra principal">{formatUSD(r.extra.amount)} {EXTRA[r.extra.frequency]}</Row>}
-          </dl>
-        </div>
-        <div>
-          <h3 className="mb-1 text-[11px] font-bold uppercase tracking-[0.08em] text-muted">The estimate</h3>
-          <dl className="m-0">
-            <Row label="Monthly payment">{formatUSD(r.first.total)}</Row>
-            <Row label="Principal and interest">{formatUSD(r.first.principalAndInterest)}</Row>
-            <Row label="Property tax">{formatUSD(r.first.tax)}</Row>
-            <Row label="Homeowners insurance">{formatUSD(r.first.insurance)}</Row>
-            {r.first.hoa > 0 && <Row label="HOA dues">{formatUSD(r.first.hoa)}</Row>}
-            {r.first.pmi > 0 && <Row label="Mortgage insurance">{formatUSD(r.first.pmi)}</Row>}
-            <Row label="Total interest">{formatUSD(r.totalInterest)}</Row>
-            <Row label="Total of all payments">{formatUSD(r.totalCost)}</Row>
-            <Row label="Paid off">{start ? `${MONTHS[r.payoff.month]} ${r.payoff.year}` : `after ${duration(r.schedule.length)}`}</Row>
-            {r.extra.amount > 0 && <Row label="Saved by the extra principal">{formatUSD(r.interestSaved)} and {duration(r.monthsSaved)}</Row>}
-          </dl>
-        </div>
-      </div>
-    </section>
-  );
+  const loan: Rows = [
+    { label: "Home price", value: formatUSD(input.homePrice) },
+    { label: "Down payment", value: `${formatUSD(input.downPayment)} (${trim(downPct, 2)}%)` },
+    { label: "Loan amount", value: formatUSD(r.loanAmount) },
+    { label: "Interest rate", value: `${trim(input.annualRate * 100, 3)}%` },
+    { label: "Loan term", value: duration(input.termYears * 12) },
+    ...(start ? [{ label: "First payment", value: `${MONTHS[start.month]} ${start.year}` }] : []),
+    { label: "Property tax", value: `${formatUSD(r.first.tax * 12)} a year` },
+    { label: "Homeowners insurance", value: `${formatUSD(r.first.insurance * 12)} a year` },
+    ...(r.first.hoa > 0 ? [{ label: "HOA dues", value: `${formatUSD(r.first.hoa)} a month` }] : []),
+    ...(r.first.pmi > 0 ? [{ label: "Mortgage insurance", value: `${formatUSD(r.first.pmi)} a month, until payment ${r.pmiEndPayment}` }] : []),
+    ...(r.extra.amount > 0 ? [{ label: "Extra principal", value: `${formatUSD(r.extra.amount)} ${EXTRA[r.extra.frequency]}` }] : []),
+  ];
+  const estimate: Rows = [
+    { label: "Monthly payment", value: formatUSD(r.first.total) },
+    { label: "Principal and interest", value: formatUSD(r.first.principalAndInterest) },
+    { label: "Property tax (monthly)", value: formatUSD(r.first.tax) },
+    { label: "Homeowners insurance (monthly)", value: formatUSD(r.first.insurance) },
+    ...(r.first.hoa > 0 ? [{ label: "HOA dues (monthly)", value: formatUSD(r.first.hoa) }] : []),
+    ...(r.first.pmi > 0 ? [{ label: "Mortgage insurance (monthly)", value: formatUSD(r.first.pmi) }] : []),
+    { label: "Total interest", value: formatUSD(r.totalInterest) },
+    { label: "Total of all payments", value: formatUSD(r.totalCost) },
+    { label: "Paid off", value: start ? `${MONTHS[r.payoff.month]} ${r.payoff.year}` : `after ${duration(r.schedule.length)}` },
+    ...(r.extra.amount > 0 ? [{ label: "Saved by the extra principal", value: `${formatUSD(r.interestSaved)} and ${duration(r.monthsSaved)}` }] : []),
+  ];
+  return <Summary title="Mortgage payment estimate" columns={[{ heading: "The loan", rows: loan }, { heading: "The estimate", rows: estimate }]} />;
 }
