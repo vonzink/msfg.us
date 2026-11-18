@@ -149,7 +149,8 @@ export function SeriesChart({
             <rect
               key={i}
               x={PAD.left + band * i} y={PAD.top} width={band} height={H - PAD.top - PAD.bottom}
-              tabIndex={0}
+              // A long chart would add a tab stop per year; its figures are in a table beside it.
+              tabIndex={a.length > 12 ? undefined : 0}
               aria-label={`Year ${i + 1}: ${series.map((arr, s) => `${labels[s]} ${formatUSD(arr[i])}`).join(", ")}`}
               className="fill-transparent outline-none hover:fill-ink/5 focus:fill-ink/5"
               onMouseEnter={() => setHover(i)}

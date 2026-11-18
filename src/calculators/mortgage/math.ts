@@ -64,8 +64,14 @@ export type MortgageResult = {
   ltv: number;
   /** Scheduled principal and interest. */
   monthlyPI: number;
-  /** The regular first payment, without any extra principal. */
+  /**
+   * The regular first payment, without any extra principal. The dashboard's headline adds the
+   * first month's extra to this figure; the public page keeps the regular payment as the headline
+   * and states the extra beside it, so a one-time lump sum never reads as a monthly payment.
+   */
   first: { principalAndInterest: number; tax: number; insurance: number; hoa: number; pmi: number; total: number };
+  /** The extra principal as entered. `amount` is 0 when there is none. */
+  extra: { amount: number; frequency: ExtraFrequency };
   schedule: ScheduleRow[];
   years: YearRow[];
   totalInterest: number;
@@ -90,7 +96,7 @@ export function calculateMortgage(input: MortgageInput): MortgageResult | null {
   const { homePrice, annualRate, termYears } = input;
   const loanAmount = roundCents(homePrice - input.downPayment);
   if (
-    !Number.isFinite(loanAmount) || loanAmount <= 0 || !(homePrice > 0) ||
+    !Number.isFinite(loanAmount) || loanAmount <= 0 || !(homePrice > 0) || input.downPayment < 0 ||
     !Number.isFinite(annualRate) || annualRate < 0 || annualRate > 0.25 ||
     !Number.isInteger(termYears) || termYears < 1 || termYears > 40
   ) return null;
@@ -160,6 +166,7 @@ export function calculateMortgage(input: MortgageInput): MortgageResult | null {
       principalAndInterest: monthlyPI, tax, insurance, hoa, pmi: firstPmi,
       total: roundCents(monthlyPI + tax + insurance + hoa + firstPmi),
     },
+    extra: { amount: extraAmount, frequency: input.extraFrequency },
     schedule, years,
     totalInterest: sum(schedule, "interest"),
     totalCost: sum(schedule, "totalMonthly"),

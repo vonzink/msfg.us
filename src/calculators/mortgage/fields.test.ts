@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, toInput } from "./fields";
+import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, switchDownUnit, toInput } from "./fields";
 import { calculateMortgage } from "./math";
 
 const start = { month: 0, year: 2027 };
@@ -33,6 +33,28 @@ describe("mortgage fields", () => {
   });
 });
 
+describe("switching the down payment between percent and dollars", () => {
+  it("keeps the same down payment, converted to the new unit", () => {
+    const dollars = switchDownUnit(example, "usd");
+    expect(dollars).toMatchObject({ downUnit: "usd", downPayment: "80,000" });
+    expect(toInput(dollars, start).downPayment).toBe(80000);
+    expect(switchDownUnit(dollars, "pct")).toMatchObject({ downUnit: "pct", downPayment: "20" });
+  });
+
+  it("rounds a converted percent to two places", () => {
+    expect(switchDownUnit({ ...example, downUnit: "usd", downPayment: "33,333" }, "pct").downPayment).toBe("8.33");
+  });
+
+  it("clears the box when there is no price to convert against", () => {
+    expect(switchDownUnit({ ...example, homePrice: "" }, "usd").downPayment).toBe("");
+    expect(switchDownUnit({ ...example, homePrice: "", downUnit: "usd", downPayment: "50,000" }, "pct").downPayment).toBe("");
+  });
+
+  it("changes nothing when the unit is already selected", () => {
+    expect(switchDownUnit(example, "pct")).toEqual(example);
+  });
+});
+
 describe("junk in a field gives no result, never a crash", () => {
   it.each([
     ["letters for the price", { homePrice: "abc" }],
@@ -42,6 +64,9 @@ describe("junk in a field gives no result, never a crash", () => {
     ["a 99% rate", { rate: "99" }],
     ["a negative rate", { rate: "-5" }],
     ["an empty rate", { rate: "" }],
+    ["letters for the rate", { rate: "abc" }],
+    ["a rate that is only a decimal point so far", { rate: "." }],
+    ["a negative down payment", { downPayment: "-5" }],
     ["a cleared form", BLANK],
   ])("%s", (_name, changes) => {
     expect(result(changes)).toBeNull();

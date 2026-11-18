@@ -55,6 +55,24 @@ export function exampleValues(exampleRatePct: number): Values {
 /** Cleared form. Choices keep their setting. */
 export const BLANK: Values = Object.fromEntries(ALL.map((f) => [f.id, f.type === "choice" ? f.example : ""]));
 
+/**
+ * Changes the down payment unit and converts what is in the box, so 20% of a $400,000 home
+ * becomes $80,000 and back. Without a price there is nothing to convert against, so the box clears.
+ */
+export function switchDownUnit(values: Values, unit: string): Values {
+  if (unit === values.downUnit) return values;
+  const price = parseNumber(values.homePrice);
+  const typed = parseNumber(values.downPayment);
+  let downPayment = "";
+  if (price > 0 && typed > 0) {
+    downPayment =
+      unit === "usd"
+        ? Math.round((price * typed) / 100).toLocaleString("en-US")
+        : String(Math.round((typed / price) * 10000) / 100);
+  }
+  return { ...values, downUnit: unit, downPayment };
+}
+
 const FREQUENCIES: ExtraFrequency[] = ["monthly", "annually", "one-time"];
 
 /** Turns what was typed into the model's input. `start` is the month of the first payment. */
@@ -65,8 +83,9 @@ export function toInput(values: Values, start: { month: number; year: number }):
   return {
     homePrice,
     downPayment: values.downUnit === "usd" ? n("downPayment") : (homePrice * n("downPayment")) / 100,
-    // An empty rate is "not entered yet", which the model rejects. A typed 0 is a real 0% loan.
-    annualRate: (values.rate ?? "").trim() === "" ? Number.NaN : n("rate") / 100,
+    // A rate with no digit in it (empty, "." mid-typing, letters) is "not entered yet", which the
+    // model rejects. A typed 0 is a real 0% loan.
+    annualRate: /\d/.test(values.rate ?? "") ? n("rate") / 100 : Number.NaN,
     termYears: n("termYears"),
     yearlyTax: n("yearlyTax"),
     yearlyInsurance: n("yearlyInsurance"),

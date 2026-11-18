@@ -58,8 +58,18 @@ describe("mortgage results", () => {
   it("asks for the missing numbers when there is no result", () => {
     const html = results({ homePrice: "abc" });
     expect(html).toContain("Enter a home price, a down payment smaller than the price, a rate and a term to see your payment.");
+    expect(html).toMatch(/role="status"[^>]*>Enter a home price/);
     expect(html).not.toMatch(BAD_OUTPUT);
     expect(html).not.toContain("<table");
+  });
+
+  it("keeps the headline as the regular payment and states the extra principal beside it", () => {
+    expect(results({})).not.toContain("extra principal");
+    const monthly = results({ extraAmount: "200" });
+    expect(monthly).toContain("$2,679");
+    expect(monthly).toContain("Plus $200 extra principal every month, $2,879 in all.");
+    expect(results({ extraAmount: "1,000", extraFrequency: "annually" })).toContain("Plus $1,000 extra principal once a year.");
+    expect(results({ extraAmount: "5,000", extraFrequency: "one-time" })).toContain("Plus $5,000 extra principal with the first payment.");
   });
 
   it("shows interest and time saved only with extra principal", () => {

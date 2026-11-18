@@ -32,6 +32,7 @@ describe("inputs the dashboard rejects", () => {
   it.each([
     ["down payment equal to the price", { downPayment: 250000 }],
     ["a negative price", { homePrice: -1 }],
+    ["a negative down payment", { downPayment: -20000 }],
     ["a rate above 25%", { annualRate: 0.26 }],
     ["a negative rate", { annualRate: -0.01 }],
     ["a term of zero", { termYears: 0 }],
@@ -57,6 +58,13 @@ describe("the schedule", () => {
     expect(Math.abs(repaid - r.loanAmount)).toBeLessThan(0.005);
     expect(r.years.at(-1)!.endBalance).toBe(0);
     expect(r.years[0].year).toBe(1);
+  });
+
+  it("reports the extra principal apart from the regular first payment", () => {
+    const r = calculateMortgage({ ...reference, extraAmount: 200, extraFrequency: "annually" })!;
+    expect(r.extra).toEqual({ amount: 200, frequency: "annually" });
+    expect(r.first.total).toBe(1831.76);
+    expect(calculateMortgage(reference)!.extra.amount).toBe(0);
   });
 
   it("gives the payoff month and year from the start date", () => {

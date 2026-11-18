@@ -27,14 +27,14 @@ export function MortgageResults({ result: r, start, disclaimer }: {
 }) {
   if (!r) {
     return (
-      <div className="rounded-xl border border-line bg-white p-6 text-[16px] text-muted shadow-card">
+      <div role="status" className="rounded-xl border border-line bg-white p-6 text-[16px] text-muted shadow-card">
         Enter a home price, a down payment smaller than the price, a rate and a term to see your payment.
       </div>
     );
   }
 
   const { first } = r;
-  const hasExtra = r.schedule.some((row) => row.extra > 0);
+  const hasExtra = r.extra.amount > 0;
   const hasPmi = first.pmi > 0;
   const needsPmiPrompt = r.ltv > 80 && !hasPmi;
   const payoff = start ? `${MONTHS[r.payoff.month]} ${r.payoff.year}` : duration(r.schedule.length);
@@ -52,6 +52,16 @@ export function MortgageResults({ result: r, start, disclaimer }: {
           <strong className="text-white print:text-ink">{formatUSD(first.principalAndInterest)}</strong> principal and
           interest on a {formatUSD(r.loanAmount)} loan.
         </p>
+        {r.extra.amount > 0 && (
+          <p className="mt-1.5 text-[14px] text-on-dark-2 print:text-ink">
+            Plus {formatUSD(r.extra.amount)} extra principal{" "}
+            {r.extra.frequency === "monthly"
+              ? `every month, ${formatUSD(first.total + r.extra.amount)} in all.`
+              : r.extra.frequency === "annually"
+                ? "once a year."
+                : "with the first payment."}
+          </p>
+        )}
         {hasPmi && (
           <p className="mt-1.5 text-[14px] text-on-dark-2 print:text-ink">
             Includes mortgage insurance until payment {r.pmiEndPayment}.

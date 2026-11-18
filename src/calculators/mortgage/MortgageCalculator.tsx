@@ -6,7 +6,7 @@ import { AddDetail } from "../shared/AddDetail";
 import { CalculatorShell } from "../shared/CalculatorShell";
 import { Field } from "../shared/Field";
 import { parseNumber, type FieldDef, type Numbers, type Values } from "../shared/fields";
-import { BLANK, DETAIL_FIELDS, downPaymentField, exampleValues, FRONT_FIELDS, toInput } from "./fields";
+import { BLANK, DETAIL_FIELDS, downPaymentField, exampleValues, FRONT_FIELDS, switchDownUnit, toInput } from "./fields";
 import { calculateMortgage } from "./math";
 import { MONTHS, MortgageResults } from "./Results";
 
@@ -40,7 +40,8 @@ export function MortgageCalculator({ exampleRatePct, exampleRateNote, disclaimer
 }) {
   const [values, setValues] = useState<Values>(() => exampleValues(exampleRatePct));
   const [chosenStart, setChosenStart] = useState<Start | null>(null);
-  const onChange = (id: string, value: string) => setValues((v) => ({ ...v, [id]: value }));
+  const onChange = (id: string, value: string) =>
+    setValues((v) => (id === "downUnit" ? switchDownUnit(v, value) : { ...v, [id]: value }));
 
   const todayKey = useSyncExternalStore(subscribe, readNextMonth, () => null);
   const defaultStart = useMemo<Start | null>(() => {
