@@ -14,6 +14,7 @@ vi.mock("@/server/tenant/config", () => ({
 import BlendedRatePage from "./blended-rate/page";
 import BuydownPage from "./buydown/page";
 import MortgagePage from "./mortgage/page";
+import BreakevenPage from "./refinance-breakeven/page";
 import InvestmentPage from "./investment/page";
 import LandingPage from "./page";
 
@@ -29,6 +30,13 @@ describe("switched-off calculators", () => {
     expect(await outcome(BuydownPage)).toBe("renders");
     expect(await outcome(InvestmentPage)).toBe("renders");
     expect(await outcome(LandingPage)).toBe("renders");
+  });
+
+  it("makes a switched-off refinance breakeven calculator not found", async () => {
+    expect(await outcome(BreakevenPage)).toBe("renders");
+    settings.disabled = ["refinance-breakeven"];
+    expect(await outcome(BreakevenPage)).toBe("not found");
+    expect(await outcome(BlendedRatePage)).toBe("renders");
   });
 
   it("makes a switched-off blended rate calculator not found", async () => {
@@ -52,7 +60,7 @@ describe("switched-off calculators", () => {
   });
 
   it("makes the landing page not found when every calculator is off", async () => {
-    settings.disabled = ["mortgage", "buydown", "blended-rate", "investment"];
+    settings.disabled = ["mortgage", "buydown", "blended-rate", "refinance-breakeven", "investment"];
     expect(await outcome(LandingPage)).toBe("not found");
   });
 });

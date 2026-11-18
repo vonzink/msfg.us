@@ -46,6 +46,14 @@ export const CALCULATORS: CalculatorEntry[] = [
     applyHref: "/apply/refi",
   },
   {
+    slug: "refinance-breakeven",
+    path: "/calculators/refinance-breakeven",
+    label: "Refinance breakeven calculator",
+    question: "How long until a refinance pays for itself?",
+    description: "See the new payment, how many months it takes to recover the closing costs, and the interest over the life of each loan.",
+    applyHref: "/apply/refi",
+  },
+  {
     slug: "investment",
     path: "/calculators/investment",
     label: "Investment calculator",

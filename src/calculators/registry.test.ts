@@ -20,7 +20,7 @@ describe("calculator registry", () => {
   });
 
   it("lists the calculators in menu order", () => {
-    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "blended-rate", "investment"]);
+    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "blended-rate", "refinance-breakeven", "investment"]);
   });
 
   it("leaves out switched-off calculators and ignores unknown slugs", () => {
