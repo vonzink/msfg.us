@@ -6,9 +6,14 @@
  *   - All rates are decimals (0.06 = 6%).
  *   - Renovation is paid in cash at purchase, so it is part of cash invested.
  *   - Property value, loan balance and equity are as of the end of each year.
- *   - Income tax = (NOI − mortgage interest − depreciation) × bracket. A negative result is a
- *     tax saving, which assumes the loss can be used against other income.
- *   - Cap rate = a fully rented year's NOI ÷ that year's property value (not the purchase-time value).
+ *   - Depreciation starts once the property is ready to rent, so year 1 only counts the months after
+ *     renovation.
+ *   - Income tax = (NOI − mortgage interest − depreciation) × bracket.
+ *     With `useLossesNow` (the default) a negative result is a tax saving that year, which assumes
+ *     the loss can be used against other income. Without it, a loss is held (a suspended passive
+ *     loss), first offsets later rental profit, and whatever is still held is used when the property
+ *     is sold (`lossSavingAtSale`, counted only when tax on the sale is counted).
+ *   - Cap rate = a fully rented year's NOI ÷ the purchase price.
  *   - Tax on a sale (optional, `saleTax`): gain = sale price − selling costs − adjusted basis, where
  *     adjusted basis = price + closing costs + renovation − depreciation taken. "long" taxes the
  *     depreciation part of the gain at the bracket capped at 25% (unrecaptured §1250) and the rest at
@@ -55,6 +60,11 @@ export type ReoInput = {
   improvePct: number;
   taxBracket: number;
   deprYears: number;
+  /**
+   * Whether a rental loss can be deducted against other income in the year it happens.
+   * Default true. When false, losses are held until later rental profit or the sale.
+   */
+  useLossesNow?: boolean;
   /** Default "none". */
   saleTax?: SaleTaxMode;
   /** Long-term capital gains rate, used when saleTax is "long". */
@@ -88,8 +98,12 @@ export type ReoResult = {
   /** NaN when there is no debt service. */
   dcr: number[];
   cashFlow: number[];
+  /** Depreciation deducted that year (year 1 counts only the months after renovation). */
+  depreciation: number[];
   taxableIncome: number[];
   incomeTax: number[];
+  /** Rental losses held at year end, waiting for later profit or the sale. Zeros with useLossesNow. */
+  heldLosses: number[];
   afterTaxCashFlow: number[];
   cashOnCash: number[];
   netEquity: number[];
@@ -98,8 +112,13 @@ export type ReoResult = {
   gainOnSale: number[];
   /** Tax due on the sale; all zeros when saleTax is "none". */
   saleTax: number[];
+  /** Tax saved when held losses are used at the sale; zeros when saleTax is "none". */
+  lossSavingAtSale: number[];
   cumAfterTaxCashFlow: number[];
-  /** After-tax cash flow to date + net equity − tax on the sale − cash invested. */
+  /**
+   * After-tax cash flow to date + net equity − tax on the sale + tax saved by held losses
+   * − cash invested.
+   */
   cumulativeReturn: number[];
   roi: number[];
   /** Gain from investing the cash invested at altReturn instead. */
@@ -161,6 +180,7 @@ export function projectReo(input: Partial<ReoInput>): ReoResult {
   const saleTaxMode: SaleTaxMode = input.saleTax ?? "none";
   const capGainsRate = num(input.capGainsRate);
   const altReturn = num(input.altReturn);
+  const useLossesNow = input.useLossesNow ?? true;
 
   const carryMonthly = num(input.carryMonthly) + (price * num(input.propTaxRate)) / 12;
   const operatingMonthly = num(input.operatingMonthly);
@@ -197,13 +217,16 @@ export function projectReo(input: Partial<ReoInput>): ReoResult {
     annualDepreciation,
     propValue: [], grossIncome: [], expenses: [], noi: [], capRate: [],
     debtService: [], interest: [], principalPaid: [], loanBalance: [], dcr: [],
-    cashFlow: [], taxableIncome: [], incomeTax: [], afterTaxCashFlow: [], cashOnCash: [],
-    netEquity: [], accumulatedDepreciation: [], gainOnSale: [], saleTax: [],
+    cashFlow: [], depreciation: [], taxableIncome: [], incomeTax: [], heldLosses: [],
+    afterTaxCashFlow: [], cashOnCash: [],
+    netEquity: [], accumulatedDepreciation: [], gainOnSale: [], saleTax: [], lossSavingAtSale: [],
     cumAfterTaxCashFlow: [], cumulativeReturn: [], roi: [], altGain: [], vsAlt: [],
   };
 
   let value = renValue;
   let cumAT = 0;
+  let accDep = 0;
+  let held = 0;
 
   for (let i = 0; i < REO_YEARS; i++) {
     const year = i + 1;
@@ -235,10 +258,26 @@ export function projectReo(input: Partial<ReoInput>): ReoResult {
     }
     const ds = interest + principalPaid;
 
+    // Depreciation starts when the property is ready to rent, and never exceeds the basis.
+    const dep = Math.min(annualDepreciation * (monthsRented / 12), depreciableBasis - accDep);
+    accDep += dep;
+
     // Cash flow before and after income tax
     const cf = noi - ds;
-    const taxable = noi - interest - annualDepreciation;
-    const tax = taxable * taxBracket;
+    const taxable = noi - interest - dep;
+    let tax: number;
+    if (useLossesNow) {
+      tax = taxable * taxBracket;
+    } else if (taxable < 0) {
+      // Can't be deducted this year: hold it.
+      held += -taxable;
+      tax = 0;
+    } else {
+      // Held losses offset this year's rental profit first.
+      const used = Math.min(held, taxable);
+      held -= used;
+      tax = (taxable - used) * taxBracket;
+    }
     const at = cf - tax;
     cumAT += at;
 
@@ -248,7 +287,6 @@ export function projectReo(input: Partial<ReoInput>): ReoResult {
     const equity = realized - balance;
 
     // Tax on that sale
-    const accDep = Math.min(depreciableBasis, annualDepreciation * year);
     const gain = realized - (price + acqCosts + reno - accDep);
     let saleTax = 0;
     if (gain > 0 && saleTaxMode === "short") {
@@ -257,29 +295,34 @@ export function projectReo(input: Partial<ReoInput>): ReoResult {
       const recapture = Math.min(accDep, gain);
       saleTax = recapture * Math.min(taxBracket, RECAPTURE_RATE_CAP) + (gain - recapture) * capGainsRate;
     }
+    // Selling the whole property frees any losses still held, against ordinary income.
+    const lossSaving = saleTaxMode === "none" ? 0 : held * taxBracket;
 
-    const totalReturn = cumAT + equity - saleTax - cashInvested;
+    const totalReturn = cumAT + equity - saleTax + lossSaving - cashInvested;
     const altGain = cashInvested * (Math.pow(1 + altReturn, year) - 1);
 
     out.propValue.push(value);
     out.grossIncome.push(gi);
     out.expenses.push(ex);
     out.noi.push(noi);
-    out.capRate.push(value > 0 ? stabilizedNoi / value : 0);
+    out.capRate.push(price > 0 ? stabilizedNoi / price : 0);
     out.debtService.push(ds);
     out.interest.push(interest);
     out.principalPaid.push(principalPaid);
     out.loanBalance.push(balance);
     out.dcr.push(ds > 0 ? noi / ds : NaN);
     out.cashFlow.push(cf);
+    out.depreciation.push(dep);
     out.taxableIncome.push(taxable);
     out.incomeTax.push(tax);
+    out.heldLosses.push(held);
     out.afterTaxCashFlow.push(at);
     out.cashOnCash.push(cashInvested > 0 ? cf / cashInvested : 0);
     out.netEquity.push(equity);
     out.accumulatedDepreciation.push(accDep);
     out.gainOnSale.push(gain);
     out.saleTax.push(saleTax);
+    out.lossSavingAtSale.push(lossSaving);
     out.altGain.push(altGain);
     out.vsAlt.push(totalReturn - altGain);
     out.cumAfterTaxCashFlow.push(cumAT);

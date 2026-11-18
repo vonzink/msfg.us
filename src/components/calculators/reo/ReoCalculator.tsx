@@ -5,6 +5,8 @@ import { projectReo, type ReoResult } from "@/lib/calculators/reoMath";
 import { formatUSD } from "@/lib/finance";
 import { cn } from "@/lib/cn";
 import { RentBreakdown, SeriesChart } from "./Charts";
+import { GaugeDial, GaugeRating } from "./Gauge";
+import { SCALES, type Scale } from "./gauges";
 import {
   BLANK, EXAMPLE, GROUPS, parseNumber, toModel, toNumbers, verdict,
   type FieldDef, type GroupDef, type Numbers, type Values,
@@ -51,13 +53,23 @@ function Field({ def, values, numbers, onChange }: {
     );
   }
 
-  const hint = def.hintFn ? def.hintFn(numbers) : def.hint;
   const suffix = def.type === "pct" ? "%" : def.suffix;
+  // Loan fields stay filled in but do nothing for an all-cash purchase.
+  const disabled = def.loanOnly === true && values.amortType === "cash";
+  const hint = disabled ? "Not used when paying all cash." : def.hintFn ? def.hintFn(numbers) : def.hint;
+  const warning = disabled ? null : (def.warnFn?.(numbers) ?? null);
+  const describedBy = [hint && `${id}-hint`, warning && `${id}-warn`].filter(Boolean).join(" ") || undefined;
 
   return (
-    <div className="flex min-w-0 flex-col gap-1.5">
+    <div className={cn("flex min-w-0 flex-col gap-1.5", disabled && "opacity-60")}>
       <label htmlFor={id} className="text-[13px] font-semibold">{def.label}</label>
-      <div className="flex items-center rounded-md border border-line bg-white transition-shadow focus-within:border-spring-2 focus-within:shadow-[0_0_0_3px_var(--color-spring-soft)]">
+      <div
+        className={cn(
+          "flex items-center rounded-md border bg-white transition-shadow focus-within:border-spring-2 focus-within:shadow-[0_0_0_3px_var(--color-spring-soft)]",
+          warning ? "border-loss" : "border-line",
+          disabled && "bg-paper-2",
+        )}
+      >
         {def.type === "money" && <span aria-hidden="true" className="pl-2.5 text-[15px] font-semibold text-muted">$</span>}
         <input
           id={id}
@@ -66,14 +78,15 @@ function Field({ def, values, numbers, onChange }: {
           autoComplete="off"
           placeholder="0"
           value={value}
-          aria-describedby={hint ? `${id}-hint` : undefined}
+          disabled={disabled}
+          aria-describedby={describedBy}
           onChange={(e) => onChange(def.id, e.target.value)}
           onBlur={() => {
             if (def.type !== "money") return;
             const n = parseNumber(value);
             onChange(def.id, n ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "");
           }}
-          className="w-full min-w-0 flex-1 border-0 bg-transparent px-2.5 py-2.5 text-[16px] font-semibold tabular-nums text-ink outline-none placeholder:font-normal placeholder:text-muted/60"
+          className="w-full min-w-0 flex-1 border-0 bg-transparent px-2.5 py-2.5 text-[16px] font-semibold tabular-nums text-ink outline-none placeholder:font-normal placeholder:text-muted/60 disabled:cursor-not-allowed"
         />
         {suffix && <span aria-hidden="true" className="pr-2.5 text-[15px] font-semibold text-muted">{suffix}</span>}
       </div>
@@ -83,11 +96,13 @@ function Field({ def, values, numbers, onChange }: {
           aria-label={def.label}
           min={def.slider.min} max={def.slider.max} step={def.slider.step}
           value={parseNumber(value)}
+          disabled={disabled}
           onChange={(e) => onChange(def.id, e.target.value)}
-          className="mt-0.5 w-full accent-spring-2 print:hidden"
+          className="mt-0.5 w-full accent-spring-2 disabled:cursor-not-allowed print:hidden"
         />
       )}
       {hint && <span id={`${id}-hint`} className="text-[12px] text-muted print:hidden">{hint}</span>}
+      {warning && <span id={`${id}-warn`} className="text-[12px] font-semibold text-loss">{warning}</span>}
     </div>
   );
 }
@@ -136,15 +151,17 @@ function Group({ def, values, numbers, result, onChange }: {
 
 // ---------- Results ----------
 
-function Stat({ label, value, sub, tip, loss }: {
+function Stat({ label, value, sub, tip, loss, gauge }: {
   label: string;
   value: string;
   sub: string;
   tip: string;
   loss?: boolean;
+  /** Position on the speedometer, in the scale's units. NaN draws an empty dial. */
+  gauge: { value: number; scale: Scale };
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-line bg-white p-3.5">
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-lg border border-line bg-white p-3.5 print:break-inside-avoid">
       <span className="flex items-center gap-1.5 text-[12px] font-semibold text-muted">
         {label}
         <button
@@ -161,8 +178,20 @@ function Stat({ label, value, sub, tip, loss }: {
           </span>
         </button>
       </span>
-      <span className={cn("text-[22px] font-extrabold tabular-nums tracking-[-0.01em]", loss && "text-loss")}>{value}</span>
-      <span className="text-[12px] text-muted">{sub}</span>
+      <div className="mt-2 flex flex-col items-center gap-0.5 text-center">
+        <GaugeDial value={gauge.value} scale={gauge.scale} />
+        <span
+          className={cn(
+            "mt-1 text-[22px] font-extrabold tabular-nums tracking-[-0.01em]",
+            loss && "text-loss",
+            !Number.isFinite(gauge.value) && "text-[18px] text-muted",
+          )}
+        >
+          {value}
+        </span>
+        <GaugeRating value={gauge.value} scale={gauge.scale} />
+        <span className="text-[12px] text-muted">{sub}</span>
+      </div>
     </div>
   );
 }
@@ -172,28 +201,37 @@ type Row =
   | { label: string; key: keyof ReoResult; fmt: (x: number) => string; total?: boolean; plain?: boolean };
 
 const pct2 = (x: number) => pct(x, 2);
-const tableRows = (withSaleTax: boolean, withAlt: boolean): Row[] => [
+
+/** Which optional rows the table shows. */
+type Show = { saleTax: boolean; alt: boolean; heldLosses: boolean };
+
+const tableRows = (show: Show): Row[] => [
   { group: "Running the property" },
   { label: "Rent collected", key: "grossIncome", fmt: formatUSD },
   { label: "Operating expenses", key: "expenses", fmt: formatUSD },
   { label: "Net operating income", key: "noi", fmt: formatUSD, total: true },
-  { label: "Cap rate", key: "capRate", fmt: pct2 },
+  { label: "Cap rate (on purchase price)", key: "capRate", fmt: pct2 },
   { group: "Cash flow" },
   { label: "Mortgage payments", key: "debtService", fmt: formatUSD },
   { label: "Debt coverage ratio", key: "dcr", fmt: ratio, plain: true },
   { label: "Cash flow before taxes", key: "cashFlow", fmt: formatUSD, total: true },
   { label: "Cash-on-cash return", key: "cashOnCash", fmt: pct2 },
+  { label: "Depreciation", key: "depreciation", fmt: formatUSD },
   // A negative tax is a saving, so it is not flagged as a loss.
   { label: "Income tax (negative = saving)", key: "incomeTax", fmt: formatUSD, plain: true },
+  ...(show.heldLosses ? [{ label: "Losses held for later", key: "heldLosses", fmt: formatUSD } as Row] : []),
   { label: "Cash flow after taxes", key: "afterTaxCashFlow", fmt: formatUSD, total: true },
   { group: "If you sold at the end of the year" },
   { label: "Property value", key: "propValue", fmt: formatUSD },
   { label: "Loan balance", key: "loanBalance", fmt: formatUSD },
   { label: "Net equity after selling costs", key: "netEquity", fmt: formatUSD, total: true },
-  ...(withSaleTax ? [{ label: "Tax on the sale", key: "saleTax", fmt: formatUSD } as Row] : []),
+  ...(show.saleTax ? [{ label: "Tax on the sale", key: "saleTax", fmt: formatUSD } as Row] : []),
+  ...(show.saleTax && show.heldLosses
+    ? [{ label: "Tax saved by held losses", key: "lossSavingAtSale", fmt: formatUSD } as Row]
+    : []),
   { label: "Total after-tax return", key: "cumulativeReturn", fmt: formatUSD, total: true },
   { label: "Return on cash invested", key: "roi", fmt: pct2 },
-  ...(withAlt
+  ...(show.alt
     ? [
         { label: "Same cash invested elsewhere", key: "altGain", fmt: formatUSD } as Row,
         { label: "Property ahead (behind)", key: "vsAlt", fmt: formatUSD, total: true } as Row,
@@ -201,7 +239,7 @@ const tableRows = (withSaleTax: boolean, withAlt: boolean): Row[] => [
     : []),
 ];
 
-function Projection({ r, withSaleTax, withAlt }: { r: ReoResult; withSaleTax: boolean; withAlt: boolean }) {
+function Projection({ r, show }: { r: ReoResult; show: Show }) {
   const cell = "border-b border-line px-2.5 py-2 text-right whitespace-nowrap";
   return (
     <div className="overflow-x-auto px-5 max-[600px]:px-4">
@@ -217,7 +255,7 @@ function Projection({ r, withSaleTax, withAlt }: { r: ReoResult; withSaleTax: bo
           </tr>
         </thead>
         <tbody>
-          {tableRows(withSaleTax, withAlt).map((row) =>
+          {tableRows(show).map((row) =>
             "group" in row ? (
               <tr key={row.group}>
                 <th colSpan={6} scope="colgroup" className="border-b border-ink px-2.5 pb-2 pt-4 text-left text-[12px] font-semibold uppercase tracking-[0.06em] text-green-600">
@@ -260,7 +298,11 @@ export function ReoCalculator() {
   const saleTaxMode = values.saleTax || "none";
   const withSaleTax = saleTaxMode !== "none";
   const withAlt = numbers.compareOn === 1 && numbers.altReturn > 0;
+  const holdLosses = values.lossesNow !== "yes";
+  const show: Show = { saleTax: withSaleTax, alt: withAlt, heldLosses: holdLosses };
   const vsAlt = r.vsAlt[4];
+  const hasLoan = r.debtService[1] > 0;
+  const heldSaving = r.lossSavingAtSale[4];
 
   // Closed <details> do not print, so open every panel for the printout and restore after.
   useEffect(() => {
@@ -300,7 +342,9 @@ export function ReoCalculator() {
 
         <section id="reo-results" aria-label="Results" className="grid scroll-mt-24 gap-4 print:mt-4 [@media(min-width:981px)_and_(min-height:1000px)]:sticky [@media(min-width:981px)_and_(min-height:1000px)]:top-24">
           <div className="rounded-xl bg-green-800 p-6 text-on-dark shadow-card print:border print:border-ink print:bg-transparent print:text-ink print:shadow-none">
-            <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-mint print:text-muted">Five-year after-tax return</p>
+            <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-mint print:text-muted">
+              {withSaleTax ? "Five-year after-tax return" : "Five-year return, before tax on the sale"}
+            </p>
             <p aria-live="polite" className={cn("mt-1 text-[clamp(40px,5vw,58px)] font-extrabold leading-[1.05] tracking-[-0.02em] tabular-nums print:text-ink", fiveYear < -0.5 ? "text-loss-on-dark" : "text-white")}>
               {formatUSD(fiveYear)}
             </p>
@@ -310,7 +354,8 @@ export function ReoCalculator() {
             </p>
             <p className="mt-1 text-[14px] text-on-dark-2 print:text-ink">
               {withSaleTax
-                ? `After ${formatUSD(r.saleTax[4])} tax on the sale at ${saleTaxMode === "long" ? "long-term" : "short-term"} rates.`
+                ? `After ${formatUSD(r.saleTax[4])} tax on the sale at ${saleTaxMode === "long" ? "long-term" : "short-term"} rates` +
+                  (heldSaving > 0.5 ? `, less ${formatUSD(heldSaving)} saved by using held losses.` : ".")
                 : "Tax on the sale is left out."}
             </p>
             {withAlt && (
@@ -327,19 +372,24 @@ export function ReoCalculator() {
           <div className="grid grid-cols-4 gap-3 max-[600px]:grid-cols-2">
             <Stat
               label="Monthly cash flow" value={formatUSD(monthlyCf)} sub="Year 1 average, before taxes" loss={monthlyCf < -0.5}
-              tip="Rent collected minus expenses and the mortgage payment, averaged over year 1, before income tax."
+              gauge={{ value: numbers.grossRents > 0 ? monthlyCf / numbers.grossRents : NaN, scale: SCALES.cashFlowShare }}
+              tip="Rent collected minus expenses and the mortgage payment, averaged over year 1, before income tax. Dial: Good keeps 10% or more of the rent, Fair keeps less than that, Poor loses money."
             />
             <Stat
               label="Cash-on-cash" value={pct(r.cashOnCash[0])} sub="Year 1" loss={r.cashOnCash[0] < 0}
-              tip="Year-1 cash flow divided by the cash you put in. It ignores appreciation and loan paydown."
+              gauge={{ value: r.cashInvested > 0 ? r.cashOnCash[0] : NaN, scale: SCALES.cashOnCash }}
+              tip="Year-1 cash flow divided by the cash you put in. It ignores appreciation and loan paydown. Dial: Good is 8% or more, Fair 4% to 8%, Poor under 4%, less than a savings account might pay."
             />
             <Stat
-              label="Cap rate" value={pct(r.capRate[0])} sub="Year 1, if rented all year" loss={r.capRate[0] < 0}
-              tip="A full year of net operating income divided by the property's value at the end of that year. It measures the property itself, ignoring the loan."
+              label="Cap rate" value={pct(r.capRate[0])} sub="Year 1, on purchase price" loss={r.capRate[0] < 0}
+              gauge={{ value: numbers.purchasePrice > 0 ? r.capRate[0] : NaN, scale: SCALES.capRate }}
+              tip="A full rented year of net operating income divided by the purchase price. It measures the property itself, ignoring the loan. Dial: Good is 7% or more, Fair 5% to 7%, Poor under 5%. What's normal varies by market."
             />
             <Stat
-              label="Debt coverage" value={ratio(r.dcr[1])} sub="Year 2, fully rented" loss={r.dcr[1] < 1}
-              tip="Net operating income divided by the yearly mortgage payments. Above 1.00 means the rent covers the loan; many lenders look for 1.20 or more."
+              label="Debt coverage" value={hasLoan ? ratio(r.dcr[1]) : "No loan"}
+              sub={hasLoan ? "Year 2, first full year" : "Paying all cash"} loss={hasLoan && r.dcr[1] < 1}
+              gauge={{ value: hasLoan ? r.dcr[1] : NaN, scale: SCALES.dcr }}
+              tip="Net operating income divided by the yearly mortgage payments. Dial: Good is 1.25 or more, what most lenders want; Fair is 1.00 to 1.25; Poor is under 1.00, where the rent doesn't cover the loan."
             />
           </div>
 
@@ -377,11 +427,14 @@ export function ReoCalculator() {
               <span className="ml-auto text-[14px] text-muted">All five years, line by line</span>
               <span aria-hidden="true" className="ml-1 size-2.5 flex-none -translate-y-0.5 rotate-45 self-center border-b-2 border-r-2 border-muted transition-transform group-open:translate-y-0.5 group-open:-rotate-135 print:hidden" />
             </summary>
-            <Projection r={r} withSaleTax={withSaleTax} withAlt={withAlt} />
+            <Projection r={r} show={show} />
             <ul className="mx-5 mb-5 mt-4 list-disc pl-[18px] text-[13px] text-muted max-[600px]:mx-4">
+              <Note term="Cap rate">= a full rented year of net operating income ÷ purchase price.</Note>
               <Note term="Net equity">= property value − selling costs − loan balance.</Note>
               <Note term="Total return">
-                = after-tax cash flow to date + net equity − {withSaleTax ? "tax on the sale − " : ""}cash invested.
+                = after-tax cash flow to date + net equity −{" "}
+                {withSaleTax ? (holdLosses ? "tax on the sale + tax saved by held losses − " : "tax on the sale − ") : ""}
+                cash invested.
                 {!withSaleTax && " Tax on the sale itself (capital gains and depreciation recapture) is left out."}
               </Note>
               {withSaleTax && (
@@ -402,8 +455,13 @@ export function ReoCalculator() {
                 </Note>
               )}
               <Note term="Income tax">
-                = (net operating income − mortgage interest − depreciation) × your tax bracket. A negative figure is a
-                tax saving, which assumes the loss can offset your other income.
+                = (net operating income − mortgage interest − depreciation) × your tax bracket.{" "}
+                {holdLosses
+                  ? `A loss saves no tax that year. It is held, offsets later rental profit first, and whatever is left is used when you sell${withSaleTax ? "" : " (not counted here, because tax on the sale is left out)"}.`
+                  : "A negative figure is a tax saving, which assumes the loss can offset your other income."}
+              </Note>
+              <Note term="Depreciation">
+                starts once the property is ready to rent, so year 1 counts only the months after renovation.
               </Note>
               <li>While the property is being renovated there is no rent, but property tax, insurance and HOA dues still count.</li>
             </ul>
