@@ -16,7 +16,7 @@ A second deploy script, `deploy.sh`, sits at the repo root. It is marked as a dr
 | Script | Use |
 |---|---|
 | `generate-glossary.ts` | Rebuilds `src/content/glossary.ts` from `glossary-source/glossary-terms.md`. Run with `npm run glossary:generate`. |
-| `sync-where-the-money-goes.mjs [path-to-msfg-calc]` | Copies the "Where the Money Goes" training page from the msfg-calc repo into `public/calculators/mbs/`. |
+| `sync-where-the-money-goes.mjs [path-to-msfg-calc]` | Copies the "Where the Money Goes" training page from the msfg-calc repo into `src/calculators/mbs/`. |
 
 ## Operations
 

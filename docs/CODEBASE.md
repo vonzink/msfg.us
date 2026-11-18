@@ -35,7 +35,7 @@ Route files stay thin: metadata plus a component from `src/components/`.
 | `api/internal/` | Cron targets. `retry-ghl` retries failed CRM syncs. |
 | `sitemap.ts`, `robots.ts` | XML sitemap and robots rules |
 
-`/calculators/mbs` is not a route in `src/app`. It is a static page in `public/calculators/mbs/`, generated from the msfg-calc repo by `scripts/sync-where-the-money-goes.mjs` and wired up by a rewrite in `next.config.ts`.
+`/calculators/mbs` is not a React page. It is plain HTML, CSS and JS in `src/calculators/mbs/`, generated from the msfg-calc repo by `scripts/sync-where-the-money-goes.mjs`. The route handler at `src/app/(marketing)/calculators/mbs/[[...path]]/route.ts` reads those files during the build and serves them as static responses.
 
 ### `src/components/` (UI)
 
@@ -118,7 +118,7 @@ Code that must never reach the browser. Vendor SDKs are wrapped behind interface
 | `scripts/` | Deploy and maintenance scripts. See `scripts/README.md`. |
 | `public/brand/`, `public/officers/` | Logos and officer headshots |
 | `test/stubs/` | Stub that lets Vitest import `server-only` modules |
-| `next.config.ts` | Standalone output, image hosts, the `/calculators/mbs` rewrite |
+| `next.config.ts` | Standalone output, image hosts |
 
 ## I want to change...
 
@@ -174,7 +174,9 @@ When two calculators need the same input, gauge or chart, move that piece to `sr
 
 Shared money helpers such as `formatUSD` and the amortization formula are in `src/lib/finance.ts`. Reuse them so every calculator rounds and formats the same way.
 
-**Do not put calculator source in `public/calculators/`.** Next.js serves everything under `public/` to visitors exactly as it is on disk and never compiles it. That folder is only for finished static pages, such as `mbs/`, which is generated from the msfg-calc repo and must not be edited by hand.
+**Do not put calculators in `public/`.** Next.js serves everything under `public/` to visitors exactly as it is on disk and never compiles it. Every calculator lives in `src/calculators/`.
+
+**`src/calculators/mbs/` is the exception to the layout above.** It is a generated copy of a page from the msfg-calc repo, not React. Do not edit it by hand. Change the page in msfg-calc and rerun `scripts/sync-where-the-money-goes.mjs`. New calculators should follow `investment/`, not `mbs/`.
 
 ## Tests
 

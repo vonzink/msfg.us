@@ -5,10 +5,10 @@
  *
  *   node scripts/sync-where-the-money-goes.mjs [path-to-msfg-calc]
  *
- * Output: public/calculators/mbs/ with index.html, css/ and js/ (unminified, no inline scripts). Asset URLs are
- * absolute under /calculators/mbs/ so the page works at /calculators/mbs with or without a trailing slash;
- * next.config.ts rewrites /calculators/mbs to the index.html. public/ is copied into the standalone bundle by
- * scripts/pack-standalone.sh, so a normal deploy ships it.
+ * Output: src/calculators/mbs/ with index.html, css/ and js/ (unminified, no inline scripts). Asset URLs are
+ * absolute under /calculators/mbs/ so the page works at /calculators/mbs with or without a trailing slash.
+ * The route handler at src/app/(marketing)/calculators/mbs/[[...path]]/route.ts reads these files during
+ * `next build` and emits them as static responses, so a normal deploy ships them.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -18,7 +18,7 @@ import { execSync } from "node:child_process";
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SRC = path.resolve(process.argv[2] || process.env.MSFG_CALC || path.join(ROOT, "..", "msfg-calc"));
 const BASE = "/calculators/mbs/";
-const OUT = path.join(ROOT, "public", "calculators", "mbs");
+const OUT = path.join(ROOT, "src", "calculators", "mbs");
 
 const need = (p) => { if (!fs.existsSync(p)) throw new Error("missing source file: " + p); return p; };
 const read = (p) => fs.readFileSync(need(p), "utf8");
