@@ -57,6 +57,7 @@ File names start with the date the document was written.
 | 2026-06-27 | [Funnel Pivot (Officer Picker + Finish-Step LO Off-Ramp) Implementation Plan](plans/2026-06-27-funnel-pivot-officer-offramp.md) |
 | 2026-11-18 | [Calculators: Shared Kit and Mortgage Calculator](plans/2026-11-18-calculators-shared-kit-and-mortgage.md) |
 | 2026-11-18 | [Rate Buydown Calculator](plans/2026-11-18-calculator-buydown.md) |
+| 2026-11-18 | [Blended Rate Calculator](plans/2026-11-18-calculator-blended-rate.md) |
 
 ## Handoffs
 
