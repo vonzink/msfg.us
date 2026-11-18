@@ -44,12 +44,18 @@ export function ConfigEditor({
     v: boolean,
   ) => setCfg((c) => ({ ...c, features: { ...c.features, [k]: v } }));
 
+  const setCalculators = <K extends keyof TenantConfig["calculators"]>(
+    k: K,
+    v: TenantConfig["calculators"][K],
+  ) => setCfg((c) => ({ ...c, calculators: { ...c.calculators, [k]: v } }));
+
   const patch = () => ({
     brand: cfg.brand,
     contact: cfg.contact,
     legal: cfg.legal,
     seo: cfg.seo,
     features: cfg.features,
+    calculators: cfg.calculators,
   });
 
   async function onSave() {
@@ -293,6 +299,37 @@ export function ConfigEditor({
             label="Rates in primary navigation"
             checked={cfg.features.ratesNavigation}
             onChange={(v) => setFeature("ratesNavigation", v)}
+          />
+        </div>
+      </section>
+
+      {/* Calculators */}
+      <section className="mb-8">
+        <h2 className="mb-3 text-[13px] font-bold uppercase tracking-wide text-muted">
+          Calculators
+        </h2>
+        <div className="grid gap-3">
+          <TextField
+            label="Example interest rate (%)"
+            name="calculators.exampleRatePct"
+            type="number"
+            value={String(cfg.calculators.exampleRatePct)}
+            onChange={(v) => {
+              const n = Number(v);
+              if (v.trim() !== "" && Number.isFinite(n)) setCalculators("exampleRatePct", n);
+            }}
+          />
+          <TextAreaField
+            label="Example rate note (shown on the rate field)"
+            name="legal.exampleRateNote"
+            value={cfg.legal.exampleRateNote}
+            onChange={(v) => setLegal("exampleRateNote", v)}
+          />
+          <TextAreaField
+            label="Calculator disclaimer (shown under results)"
+            name="legal.calculatorDisclaimer"
+            value={cfg.legal.calculatorDisclaimer}
+            onChange={(v) => setLegal("calculatorDisclaimer", v)}
           />
         </div>
       </section>

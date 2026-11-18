@@ -111,6 +111,10 @@ const ContactSchema = z.object({
   nmlsConsumerAccessUrl: z.string(),
 });
 
+const DEFAULT_CALCULATOR_DISCLAIMER =
+  "This is an estimate based on the numbers you entered. It is not a loan offer, a rate quote or a commitment to lend. Talk with a loan officer for figures specific to you.";
+const DEFAULT_EXAMPLE_RATE_NOTE = "Example rate for illustration, not an offer.";
+
 const LegalSchema = z.object({
   states: z.array(StateSchema),
   texasNotice: z.string(),
@@ -121,6 +125,22 @@ const LegalSchema = z.object({
   privacyEmail: z.string().optional(),
   /** Per-doc "last updated" strings, keyed by route slug (e.g. "terms"). */
   effectiveDates: z.record(z.string(), z.string()).optional(),
+  /** Shown under the results of every calculator. */
+  calculatorDisclaimer: z.string().default(DEFAULT_CALCULATOR_DISCLAIMER),
+  /** Shown on the interest rate field of every calculator. */
+  exampleRateNote: z.string().default(DEFAULT_EXAMPLE_RATE_NOTE),
+});
+
+/** Public calculators (src/calculators/). Every key has a default so configs saved earlier still load. */
+const CalculatorsSchema = z.object({
+  /**
+   * Slugs from src/calculators/registry.ts that this tenant has switched off. A switched-off
+   * calculator leaves the menu, sitemap and landing page and its URL returns not found.
+   * Stored as the off list so a calculator added later is on without re-saving the config.
+   */
+  disabled: z.array(z.string()).default([]),
+  /** Interest rate each calculator opens with, as a percent. An illustration, never an offer. */
+  exampleRatePct: z.number().min(0).max(25).default(7),
 });
 
 const SeoSchema = z.object({
@@ -207,6 +227,7 @@ export const TenantConfigSchema = z.object({
   features: FeaturesSchema,
   ai: AiConfigSchema,
   applyOffRamp: ApplyOffRampSchema.default(() => ApplyOffRampSchema.parse({})),
+  calculators: CalculatorsSchema.default(() => CalculatorsSchema.parse({})),
 });
 
 export type TenantConfig = z.infer<typeof TenantConfigSchema>;
@@ -254,6 +275,8 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     ratesDisclaimer:
       "Rates shown are indicative, assume a 740+ FICO score, a $300,000 loan on a single-family primary residence, and are not a commitment to lend. Your actual rate depends on your credit, property, loan amount, and a complete application. Rates and points are subject to change without notice.",
     address: "9035 Wadsworth Parkway, Suite 3400, Westminster, CO 80021",
+    calculatorDisclaimer: DEFAULT_CALCULATOR_DISCLAIMER,
+    exampleRateNote: DEFAULT_EXAMPLE_RATE_NOTE,
   },
   seo: {
     titleDefault: "MSFG — Expert Mortgage Guidance from Seasoned Professionals",
@@ -349,6 +372,7 @@ export const DEFAULT_TENANT_CONFIG: TenantConfig = {
     slaCopy: "within ~15 minutes",
     finishScreen: "rendered",
   },
+  calculators: { disabled: [], exampleRatePct: 7 },
   ai: {
     provider: "openai-compatible",
     model: "deepseek-chat",
