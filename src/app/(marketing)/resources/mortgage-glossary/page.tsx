@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { GlossaryExplorer } from "@/components/glossary/GlossaryExplorer";
-import { JsonLd } from "@/components/JsonLd";
+import { JsonLd } from "@/components/seo/JsonLd";
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
 import { getTenantOrigin } from "@/server/tenant/config";

@@ -1,70 +1,79 @@
-# MSFG.us — marketing website
+# MSFG.us
 
-The new public marketing site for **Mountain State Financial Group, LLC** (MSFG) — an AI-first, conversion-focused mortgage funnel. Licensed in CO · ND · SD · MN · TX · MI · IN.
+The new public website for **Mountain State Financial Group, LLC** (MSFG): marketing pages, an AI mortgage assistant, the apply funnel, and a small admin CMS. Licensed in CO · ND · SD · MN · TX · MI · IN.
 
-> Built from the design handoff in `MSFG.us.zip` (extracted to `design-reference/`, gitignored). The prototype there is the visual source of truth; this app recreates it in production Next.js. Full project plan: see the GSD plan referenced by the team.
+| | |
+|---|---|
+| Staging | <https://staging.msfg.us> (noindex) |
+| Production | Not cut over yet. `msfg.us` still serves the previous site. |
+| Hosting | Self-hosted on EC2: Next.js standalone bundle under pm2, behind nginx. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) |
+| Repo | <https://github.com/vonzink/msfg.us> |
 
 ## Stack
 
-- **Next.js 16** (App Router) · **React 19** · **TypeScript**
-- **Tailwind CSS v4** (CSS-first `@theme` tokens in `src/app/globals.css`)
-- **Prisma 7** → **PostgreSQL** (AWS RDS) via the `@prisma/adapter-pg` driver adapter
-- **Go High Level** (GHL) lead sync · **AWS Cognito** SSO (Phase 4) · **Anthropic Claude** assistant (Phase 2)
-- Hosted on **Vercel** (staging-first)
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · Prisma 7 on PostgreSQL · Vitest.
+
+Integrations: Go High Level (CRM), AWS Cognito (sign-in), the Mortgage Brain and DeepSeek/Claude (AI assistant), Google Places (address lookup), the MSFG loan application at app.msfgco.com (funnel hand-off).
 
 ## Getting started
 
 ```bash
 npm install                 # also runs `prisma generate`
-cp .env.example .env.local  # fill in DATABASE_URL etc. (see below)
+cp .env.example .env.local  # every variable is documented in .env.example
+npm run db:up               # local Postgres in Docker (port 5434)
+npx prisma migrate deploy   # apply migrations
+npm run db:seed             # load officers, rates, programs
 npm run dev                 # http://localhost:3000
 ```
 
-### Environment
+Local database details and the schema-change workflow are in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-Copy `.env.example` and set, at minimum, `DATABASE_URL`. GHL lead sync stays in `SKIPPED` state until `GHL_API_TOKEN` + `GHL_LOCATION_ID` are set. See `.env.example` for the full list (`DIRECT_URL`, `GHL_*`, `CRON_SECRET`, `NEXT_PUBLIC_SITE_URL`, `NEXT_PUBLIC_SITE_ENV`).
+## Everyday commands
 
-### Database
-
-```bash
-npm run db:migrate   # create/apply migrations against your dev DB
-npm run db:seed      # load placeholder officers / rates / programs / testimonials
-npm run db:studio    # browse + edit data
-```
-
-## Scripts
-
-| Script | Purpose |
+| Command | What it does |
 |---|---|
-| `npm run dev` | Dev server (Turbopack) |
-| `npm run build` / `start` | Production build / serve |
-| `npm run lint` | ESLint |
-| `npm run db:migrate` / `db:deploy` | Prisma migrations (dev / prod) |
-| `npm run db:seed` | Seed placeholder content |
-| `npm run db:studio` | Prisma Studio |
+| `npm run dev` | Dev server |
+| `npm run check` | Lint, typecheck and tests. Run this before you push. |
+| `npm run lint` / `typecheck` / `test` | The three checks individually |
+| `npm run test:watch` | Vitest in watch mode |
+| `npm run build` | Production build (standalone bundle) |
+| `npm run db:up` / `db:down` | Start / stop the local Postgres container |
+| `npm run db:migrate` | Create and apply a migration against the local database |
+| `npm run db:seed` | Seed content from `src/content/` |
+| `npm run db:studio` | Browse the database in Prisma Studio |
+| `npm run glossary:generate` | Rebuild `src/content/glossary.ts` from the markdown source |
 
-## Structure
+## Where things live
 
 ```
 src/
-  app/
-    (marketing)/        # public pages (Nav + Footer layout): home, buy, refinance,
-                        #   home-equity, rates, loan-officers
-    apply/[intent]/     # the page-by-page application wizard (own chrome)
-    api/v1/             # leads, health, webhooks/[provider]  (+ api/internal/retry-ghl)
-    layout.tsx globals.css robots.ts sitemap.ts
-  components/           # ui/ (primitives), nav/, home/, category/, rates/, officers/, apply/
-  content/              # typed content + config (site, nav, categories, rates, officers, flows, ai-script)
-  lib/                  # cn, finance, db, env, schema, leads
-  server/               # leads/ (service), integrations/ghl/ (CRM client), webhooks/
-  validation/           # zod schemas
-prisma/                 # schema.prisma + seed.ts
+  app/            Routes only. Pages stay thin and hand off to components.
+    (marketing)/  Public pages that share the nav and footer
+    apply/        The apply funnel (own layout, no site chrome)
+    admin/        CMS: site config, per-page SEO, officer sync
+    auth/         Cognito login, callback, logout
+    api/          v1/ = app and partner API, internal/ = cron endpoints
+  components/     React components, grouped by the feature they belong to
+  content/        Typed copy and configuration: nav, pages, funnel steps, legal text
+  lib/            Shared helpers that are safe on client and server
+  server/         Server-only code: AI, CMS, leads, integrations, tenant, webhooks
+  validation/     Zod schemas for the lead and application API contracts
+prisma/           Database schema, migrations, seed
+scripts/          Deploy and maintenance scripts (see scripts/README.md)
+public/           Static assets: brand logos, officer photos, the MBS training page
+docs/             Guides, runbooks and design history (see docs/README.md)
+test/             Shared test stubs. Tests themselves sit next to the code as *.test.ts
 ```
 
-## Status (Phase 1)
+**[docs/CODEBASE.md](docs/CODEBASE.md) is the full map.** It has a folder-by-folder guide and a "I want to change X, where do I go?" table.
 
-Pixel-faithful marketing site + lead capture pipeline (Postgres + GHL, idempotent, best-effort sync). AI widget is scripted; the apply account step is a UI mock. Next phases: Claude assistant + chat recording (P2), full GHL suite (P3), Cognito SSO into app.msfgco.com (P4), public API/webhook platform (P5).
+## Conventions
 
-**Before apex launch:** real NMLS #, loan-officer roster, rate feed, logo SVGs, GHL credentials, AWS Postgres connection, and DNS for `msfg.us`. Search the codebase for `[PLACEHOLDER]`.
+Code conventions, design tokens and the multi-tenant rules are in [AGENTS.md](AGENTS.md). It is written for AI coding agents and is just as useful for people.
 
-See `AGENTS.md` for code conventions.
+## Local-only folders
+
+These are gitignored and will not exist on a fresh clone.
+
+- `design-reference/` holds the original design handoff (prototype HTML/JSX and the source zip). It is the visual reference for the site.
+- `output/` holds Playwright screenshots from local QA runs.

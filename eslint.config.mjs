@@ -26,6 +26,11 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // Ops scripts that run with plain `node` on the server are CommonJS by design.
+  {
+    files: ["scripts/**/*.cjs"],
+    rules: { "@typescript-eslint/no-require-imports": "off" },
+  },
   // Test files: mock casts legitimately use `any`.
   {
     files: ["**/*.test.ts", "**/*.test.tsx"],

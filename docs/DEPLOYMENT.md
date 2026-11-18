@@ -4,6 +4,8 @@
 
 ## Self-hosted (EC2 + pm2 + nginx) — the live setup
 
+> **Two deploy scripts exist.** `scripts/deploy-ec2.sh` is the one this runbook describes. `deploy.sh` at the repo root is a later draft of the same job that adds a dirty-tree guard, `--migrate`, and a post-deploy health check, and reads build env from `.env.production.local`. They have not been reconciled. Pick one before the production cutover and delete the other.
+
 The site runs as a **standalone Next.js bundle** under **pm2** (`msfg-web`, `127.0.0.1:3007`), reverse-proxied by **nginx** (`/etc/nginx/sites-available/msfg.us` → `server_name staging.msfg.us msfg.us www.msfg.us`), connected to the dedicated **`msfg_web`** database on the shared RDS. pm2 resurrects it on reboot.
 
 **Build happens locally, never on the box** (a Next build needs ~1.5–2 GB and would risk OOM-killing the live apps). The standalone bundle is shipped and just *run*.

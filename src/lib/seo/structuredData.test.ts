@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { localBusinessSchema } from "./schema";
+import { localBusinessSchema } from "./structuredData";
 import { DEFAULT_TENANT_CONFIG, type TenantConfig } from "@/content/site";
 
 describe("localBusinessSchema", () => {

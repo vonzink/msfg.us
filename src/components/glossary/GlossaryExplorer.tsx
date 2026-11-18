@@ -48,7 +48,6 @@ export function GlossaryExplorer({ sections }: { sections: GlossaryLetter[] }) {
   useEffect(() => {
     const slug = new URLSearchParams(window.location.search).get("term");
     if (slug) requestAnimationFrame(() => scrollToTerm(slug));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Track which section is active for nav highlighting.
@@ -141,7 +140,7 @@ export function GlossaryExplorer({ sections }: { sections: GlossaryLetter[] }) {
       {/* Body */}
       {totalVisible === 0 ? (
         <p className="py-16 text-center text-[17px] text-muted">
-          No terms match "{query.trim()}".
+          No terms match &quot;{query.trim()}&quot;.
         </p>
       ) : (
         <div className="space-y-14">

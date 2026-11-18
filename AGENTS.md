@@ -21,7 +21,7 @@ The MSFG-specific conventions below remain the **defaults for tenant #1** and th
 
 # MSFG.us — conventions
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Prisma 7 / Postgres. Path alias `@/*` → `src/*`. **Visual source of truth:** `design-reference/design_handoff_msfg_site/` (read `PAGES.md` + the relevant `prototype/*` files; match high fidelity).
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Prisma 7 / Postgres. Path alias `@/*` → `src/*`. **Where things live:** `docs/CODEBASE.md`. **Before you finish:** `npm run check` (lint + typecheck + tests) must pass. **Visual source of truth:** `design-reference/design_handoff_msfg_site/` (read `PAGES.md` + the relevant `prototype/*` files; match high fidelity).
 
 ## Design tokens (Tailwind v4)
 
@@ -35,7 +35,7 @@ All tokens live in `src/app/globals.css` `@theme` and generate utilities. **Neve
 
 ## Primitives (reuse — don't recreate)
 
-`@/components/ui/Button` (variant green|ghostDark|white|dark|ghost, size sm|md|lg, polymorphic via `href`) · `ui/Mark` · `ui/Section` (+ `SectionHead`, `Eyebrow`) · `ui/Switch` · `@/components/CtaBand` · `@/components/nav/Nav` + `Footer` (global chrome, in the `(marketing)` layout) · `@/lib/cn`, `@/lib/finance`.
+`@/components/ui/Button` (variant green|ghostDark|white|dark|ghost, size sm|md|lg, polymorphic via `href`) · `ui/Mark` · `ui/Section` (+ `SectionHead`, `Eyebrow`) · `ui/Switch` · `@/components/CtaBand` · `@/components/nav/Nav` + `@/components/Footer` (global chrome, in the `(marketing)` layout) · `@/lib/cn`, `@/lib/finance`.
 
 ## Patterns
 
