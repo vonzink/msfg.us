@@ -129,3 +129,34 @@ Pinned values:
 - [ ] **Step 5: Verify on a local production build:** the page returns 200 with `4.565%`; the landing page has four cards; capture a desktop screenshot and a print PDF with headless Chrome and read both.
 - [ ] **Step 6: Commit:** `feat(calculators): blended rate page and registry entry`.
 - [ ] **Step 7:** Final review by a fresh reviewer, one fix pass, then deploy to staging with `scripts/deploy-ec2.sh` (no arguments) for Zachary's test.
+
+---
+
+## Amendment 1: monthly savings (2026-11-18)
+
+Asked for by Zachary after testing the first version on staging. The spec's "Blended rate" section is updated to match.
+
+**Change:** "Add detail" gains a **New loan term** choice (10, 15, 20, 25, 30 years, default 30). With a comparison rate and a payment on every counted debt, the results show **Monthly savings**.
+
+**Interfaces:**
+
+```ts
+export type Comparison = {
+  rate: number; difference: number;
+  termYears: number;            // anything but a whole number from 1 to 40 is read as 30
+  newPayment: number;           // one new loan for the whole balance at the comparison rate
+  missingPayments: number;      // counted debts with no payment entered
+  monthlySavings: number | null; // today's payments minus newPayment; null while any payment is missing
+};
+export function calculateBlended(debts: Debt[], compareRate: number, newTermYears = 30): BlendedResult | null;
+```
+
+**Pinned values:**
+- $250,000 at 3.5% paying $1,123 and $60,000 at 9% paying $450, compared with 7% over 30 years: new payment $2,062, monthly savings -$489.
+- Stat label "Monthly savings"; sub line "{new} new payment against {current} now"; a negative figure is shown in the loss colour.
+- Sentence: "The new payment would be higher." or "The new payment would be lower.", followed by "Assumes one new {N}-year loan for the full {balance} at {rate}, with no closing costs or cash out added."
+- With some payments missing: "Enter the current payment for every debt to see the monthly savings." and no figure.
+- The existing caution about term length stays on screen and in print whenever a result is shown. A new common question explains why large monthly savings are not the whole story.
+
+**Review focus for this amendment:** a missing payment must never make the figure look better or worse than it is; the figure must never appear without its assumptions and the term-length caution.
+

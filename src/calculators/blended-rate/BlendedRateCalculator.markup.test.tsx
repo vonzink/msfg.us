@@ -9,7 +9,7 @@ import { EXAMPLE_ROWS, parseCompareRate, toDebts, updateRow, type Row } from "./
 
 const DISCLAIMER = "This is an estimate based on the numbers you entered.";
 const page = () => renderToStaticMarkup(<BlendedRateCalculator disclaimer={DISCLAIMER} breakevenHref={null} />);
-const calc = (rows: Row[] = EXAMPLE_ROWS, compare = "") => calculateBlended(toDebts(rows), parseCompareRate(compare));
+const calc = (rows: Row[] = EXAMPLE_ROWS, compare = "", term = 30) => calculateBlended(toDebts(rows), parseCompareRate(compare), term);
 const results = (rows: Row[] = EXAMPLE_ROWS, compare = "", breakevenHref: string | null = null) =>
   renderToStaticMarkup(<BlendedResults result={calc(rows, compare)} disclaimer={DISCLAIMER} breakevenHref={breakevenHref} />);
 const count = (html: string, needle: string) => html.split(needle).length - 1;
@@ -45,6 +45,7 @@ describe("blended rate calculator page", () => {
     expect(html).toContain("Add another debt");
     expect(count(html, ">Remove<")).toBe(2);
     expect(count(html, "<details data-calc-panel")).toBe(1);
+    expect(html).toMatch(/<legend[^>]*>New loan term<\/legend>/);
   });
 
   it("prints a summary, not the form", () => {
@@ -96,6 +97,44 @@ describe("blended rate results", () => {
     const html = results(set(1, "payment", "450", set(0, "payment", "1,123")));
     expect(html).toContain("Total monthly payment");
     expect(html).toContain("$1,573");
+  });
+
+  describe("monthly savings", () => {
+    const paying = set(1, "payment", "450", set(0, "payment", "1,123"));
+
+    it("shows a higher new payment as negative savings, with both payments", () => {
+      const html = results(paying, "7");
+      expect(html).toContain("Monthly savings");
+      expect(html).toContain("-$489");
+      expect(html).toContain("$2,062 new payment against $1,573 now");
+      expect(html).toContain("The new payment would be higher.");
+      expect(html).toContain("Assumes one new 30-year loan for the full $310,000 at 7%, with no closing costs or cash out added.");
+    });
+
+    it("shows a lower new payment as positive savings", () => {
+      const cards = set(1, "payment", "520", set(1, "rate", "9", set(1, "balance", "15,000", set(0, "payment", "800", set(0, "rate", "24", set(0, "balance", "20,000"))))));
+      const html = results(cards, "7");
+      expect(html).toContain("$1,087");
+      expect(html).not.toContain("-$");
+      expect(html).toContain("The new payment would be lower.");
+    });
+
+    it("asks for the missing payments instead of guessing", () => {
+      const html = results(set(0, "payment", "1,123"), "7");
+      expect(html).not.toContain("Monthly savings");
+      expect(html).toContain("Enter the current payment for every debt to see the monthly savings.");
+    });
+
+    it("stays out of the way until a comparison rate and a payment are entered", () => {
+      expect(results(paying)).not.toContain("Monthly savings");
+      expect(results(EXAMPLE_ROWS, "7")).not.toContain("Monthly savings");
+      expect(results(EXAMPLE_ROWS, "7")).not.toContain("Enter the current payment");
+    });
+
+    it("prints the new payment and the savings", () => {
+      const html = renderToStaticMarkup(<BlendedPrintSummary result={calc(paying, "7")!} />);
+      for (const text of ["New loan payment", "$2,062", "Monthly savings", "-$489", "30-year"]) expect(html, text).toContain(text);
+    });
   });
 
   it("says when a debt has no rate and was counted at 0%", () => {

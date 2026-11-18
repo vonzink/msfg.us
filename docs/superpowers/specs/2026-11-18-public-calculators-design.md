@@ -93,9 +93,10 @@ The goal is to bring seven of those calculators to the public site, restyled to 
 ### Blended rate
 
 - **Up front:** debt rows of name, balance and rate. Starts with two rows; "Add another debt" up to six.
-- **Add detail:** monthly payment for each debt; one new rate to compare against.
+- **Add detail:** the current monthly payment on each debt; one new rate to compare against; the term of the new loan (10 to 30 years, default 30).
 - **Removed:** the "Detailed calculations" walkthrough.
 - **Results:** blended rate headline with total balance; a bar showing each debt's share of the total; total monthly payment when payments are entered; with a comparison rate, one line saying whether it is above or below the blended rate and by how much.
+- **Monthly savings** (added by Zachary on 2026-11-18 after testing on staging). When the visitor has entered a payment for every debt and a comparison rate, the page prices one new loan for the whole balance at that rate over the chosen term and shows "Monthly savings": today's payments minus the new payment, positive or negative. It shows both payments beside the figure, states its assumptions (one new loan for the full balance, no closing costs or cash out), and says in words whether the new payment would be higher or lower. If any debt has no payment entered, it asks for the missing payments and shows no figure. The dashboard has no version of this; it uses the shared payment formula.
 - **Required wording:** a lower blended rate is not the whole decision, because moving short-term debt into a 30-year loan can lower the rate and raise total interest. Links to Refinance breakeven.
 
 ### Refinance breakeven

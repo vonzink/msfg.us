@@ -17,6 +17,11 @@ const COMPARE: FieldDef = {
   id: "compare", label: "A new rate to compare", type: "pct", example: "",
   hint: "A rate you have been quoted or are considering.",
 };
+const TERM: FieldDef = {
+  id: "term", label: "New loan term", type: "choice", example: "30",
+  options: [10, 15, 20, 25, 30].map((y) => ({ value: String(y), label: `${y} yr` })),
+  hint: "Used with the new rate to work out the new payment and the monthly savings.",
+};
 const ghost = "rounded-md border border-line bg-white px-3.5 py-2 text-[14px] font-bold text-ink hover:bg-paper-2";
 
 /**
@@ -30,7 +35,8 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
 }) {
   const [rows, setRows] = useState<Row[]>(EXAMPLE_ROWS);
   const [compare, setCompare] = useState("");
-  const result = useMemo(() => calculateBlended(toDebts(rows), parseCompareRate(compare)), [rows, compare]);
+  const [term, setTerm] = useState("30");
+  const result = useMemo(() => calculateBlended(toDebts(rows), parseCompareRate(compare), Number(term)), [rows, compare, term]);
 
   // Adding or removing a row unmounts the button that was just pressed. Without this, keyboard
   // focus would drop to the top of the page. Send it to the new row, or to the Add button.
@@ -65,8 +71,8 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
       formLabel="Debts"
       resultsId="blended-results"
       printBelowOnly
-      onExample={() => { setRows(EXAMPLE_ROWS); setCompare(""); }}
-      onClear={() => { setRows(blankRows()); setCompare(""); }}
+      onExample={() => { setRows(EXAMPLE_ROWS); setCompare(""); setTerm("30"); }}
+      onClear={() => { setRows(blankRows()); setCompare(""); setTerm("30"); }}
       form={
         <>
           <section className="rounded-xl border border-line bg-white shadow-card">
@@ -102,7 +108,8 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
 
           <AddDetail>
             <p className="mb-3.5 text-[14px] text-muted">
-              Optional. Payments are added up for you and do not change the blended rate.
+              Optional. Enter what you pay on each debt now and a new rate to see the monthly savings from one new
+              loan. Payments do not change the blended rate.
             </p>
             <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-4 gap-y-3.5">
               {rows.map((row, i) => (
@@ -117,6 +124,7 @@ export function BlendedRateCalculator({ disclaimer, breakevenHref }: {
                 numbers={{}}
                 onChange={(_id, value) => setCompare(value)}
               />
+              <Field def={TERM} idPrefix="blended" values={{ term }} numbers={{}} onChange={(_id, value) => setTerm(value)} />
             </div>
           </AddDetail>
         </>

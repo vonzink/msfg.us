@@ -78,3 +78,48 @@ describe("comparing against one new rate", () => {
     expect(calculateBlended(two, -0.02)!.comparison).toBeNull();
   });
 });
+
+describe("monthly savings against one new loan", () => {
+  const paying = [{ ...two[0], payment: 1123 }, { ...two[1], payment: 450 }];
+
+  it("is today's payments minus the payment on one new loan for the whole balance", () => {
+    const c = calculateBlended(paying, 0.07, 30)!.comparison!;
+    // $310,000 at 7% over 30 years is $2,062.44 a month, against $1,573 now.
+    expect(c.newPayment).toBeCloseTo(2062.44, 2);
+    expect(c.termYears).toBe(30);
+    expect(c.monthlySavings).toBeCloseTo(1573 - 2062.44, 2);
+  });
+
+  it("is positive when the new payment is lower", () => {
+    const high = [{ name: "Card", balance: 20000, rate: 0.24, payment: 800 }, { name: "Car", balance: 15000, rate: 0.09, payment: 520 }];
+    const c = calculateBlended(high, 0.07, 30)!.comparison!;
+    expect(c.newPayment).toBeCloseTo(232.86, 2);
+    expect(c.monthlySavings).toBeCloseTo(1320 - 232.86, 2);
+  });
+
+  it("changes with the new loan's term", () => {
+    const thirty = calculateBlended(paying, 0.07, 30)!.comparison!.newPayment;
+    const fifteen = calculateBlended(paying, 0.07, 15)!.comparison!.newPayment;
+    expect(fifteen).toBeGreaterThan(thirty);
+    expect(fifteen).toBeCloseTo(2786.37, 2);
+  });
+
+  it("is not given until every counted debt has a payment, so a missing one cannot flatter it", () => {
+    const c = calculateBlended([paying[0], { ...paying[1], payment: 0 }], 0.07, 30)!.comparison!;
+    expect(c.monthlySavings).toBeNull();
+    expect(c.missingPayments).toBe(1);
+    expect(c.newPayment).toBeCloseTo(2062.44, 2);
+    expect(calculateBlended(paying, 0.07, 30)!.comparison!.missingPayments).toBe(0);
+  });
+
+  it("ignores the payment of a row that has no balance", () => {
+    const c = calculateBlended([...paying, { name: "Paid off", balance: 0, rate: 0.05, payment: 300 }], 0.07, 30)!.comparison!;
+    expect(c.monthlySavings).toBeCloseTo(1573 - 2062.44, 2);
+  });
+
+  it("falls back to 30 years for a term that is not a whole number of years from 1 to 40", () => {
+    for (const term of [0, -5, 12.5, 99, Number.NaN]) {
+      expect(calculateBlended(paying, 0.07, term)!.comparison!.termYears, String(term)).toBe(30);
+    }
+  });
+});

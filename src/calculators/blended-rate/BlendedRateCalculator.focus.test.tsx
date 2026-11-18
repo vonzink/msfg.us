@@ -31,3 +31,24 @@ describe("keyboard focus when rows change", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Add another debt" }));
   });
 });
+
+describe("monthly savings, typed in", () => {
+  it("appears once every payment and a new rate are entered, and follows the new loan term", () => {
+    open();
+    const type = (label: string, value: string) => fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    type("First mortgage payment", "1123");
+    type("A new rate to compare", "7");
+    expect(screen.queryByText("Monthly savings")).toBeNull();
+    expect(screen.getByText("Enter the current payment for every debt to see the monthly savings.")).toBeTruthy();
+
+    type("Home equity line payment", "450");
+    // On screen and again in the print summary.
+    expect(screen.getAllByText("Monthly savings").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("-$489").length).toBeGreaterThan(0);
+    expect(screen.getByText("The new payment would be higher.")).toBeTruthy();
+
+    fireEvent.click(screen.getByLabelText("15 yr"));
+    expect(screen.getAllByText("-$1,213").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Assumes one new 15-year loan for the full \$310,000 at 7%/).length).toBeGreaterThan(0);
+  });
+});

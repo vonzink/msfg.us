@@ -23,6 +23,13 @@ export function comparisonSentence(comparison: NonNullable<BlendedResult["compar
   return `A new rate of ${percent(comparison.rate)} is ${Number(points.toFixed(3))} percentage points ${direction} this blended rate.`;
 }
 
+/** What the monthly savings figure assumes about the new loan. Shown wherever the figure is. */
+export function newLoanAssumption(r: BlendedResult): string {
+  const c = r.comparison;
+  if (!c) return "";
+  return `Assumes one new ${c.termYears}-year loan for the full ${formatUSD(r.totalBalance)} at ${percent(c.rate)}, with no closing costs or cash out added.`;
+}
+
 // Tailwind needs literal class names. Six rows at most.
 const SWATCH = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-green-700", "bg-muted"];
 
@@ -42,6 +49,8 @@ export function BlendedResults({ result: r, disclaimer, breakevenHref }: {
       </div>
     );
   }
+
+  const savings = r.comparison?.monthlySavings ?? null;
 
   return (
     <>
@@ -82,12 +91,34 @@ export function BlendedResults({ result: r, disclaimer, breakevenHref }: {
       </div>
 
       {r.totalPayment > 0 && (
-        <Stat
-          label="Total monthly payment"
-          value={formatUSD(r.totalPayment)}
-          sub="the payments you entered, added up"
-          tip="The sum of the monthly payments typed in under Add detail. It does not change the blended rate."
-        />
+        <div className={cn("grid gap-3", savings !== null && "grid-cols-2 max-[600px]:grid-cols-1")}>
+          <Stat
+            label="Total monthly payment"
+            value={formatUSD(r.totalPayment)}
+            sub="the payments you entered, added up"
+            tip="The sum of the monthly payments typed in under Add detail. It does not change the blended rate."
+          />
+          {r.comparison && savings !== null && (
+            <Stat
+              label="Monthly savings"
+              value={formatUSD(savings)}
+              loss={savings < 0}
+              sub={`${formatUSD(r.comparison.newPayment)} new payment against ${formatUSD(r.totalPayment)} now`}
+              tip="Today's payments minus the payment on one new loan for the whole balance. A negative figure means the new payment is higher."
+            />
+          )}
+        </div>
+      )}
+      {r.comparison && savings !== null && (
+        <p className="mx-1 text-[14px] text-ink">
+          <strong>{savings < 0 ? "The new payment would be higher." : "The new payment would be lower."}</strong>{" "}
+          {newLoanAssumption(r)}
+        </p>
+      )}
+      {r.comparison && r.totalPayment > 0 && savings === null && (
+        <p className="mx-1 text-[14px] font-semibold text-ink">
+          Enter the current payment for every debt to see the monthly savings.
+        </p>
       )}
 
       <p className="mx-1 text-[14px] text-ink">
