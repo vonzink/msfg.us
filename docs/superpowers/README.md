@@ -27,6 +27,7 @@ File names start with the date the document was written.
 | 2026-06-18 | [Client Password Reset + Officer-Assisted Reset — Design](specs/2026-06-18-password-reset-and-officer-assist-design.md) |
 | 2026-06-23 | [Mortgage Glossary page — design](specs/2026-06-23-mortgage-glossary-design.md) |
 | 2026-06-27 | [Funnel pivot: officer-picker search/grid + finish-step LO off-ramp](specs/2026-06-27-funnel-pivot-officer-picker-and-lo-offramp-design.md) |
+| 2026-11-18 | [Public calculators: seven simplified calculators plus a shared kit](specs/2026-11-18-public-calculators-design.md) |
 
 ## Plans (step-by-step build instructions)
 
@@ -54,6 +55,7 @@ File names start with the date the document was written.
 | 2026-06-23 | [Mortgage Glossary Implementation Plan](plans/2026-06-23-mortgage-glossary.md) |
 | 2026-06-25 | [msfg.us Prod Cutover (GoHighLevel → Next.js funnel on EC2) — Implementation Plan](plans/2026-06-25-msfg-us-prod-cutover.md) |
 | 2026-06-27 | [Funnel Pivot (Officer Picker + Finish-Step LO Off-Ramp) Implementation Plan](plans/2026-06-27-funnel-pivot-officer-offramp.md) |
+| 2026-11-18 | [Calculators: Shared Kit and Mortgage Calculator](plans/2026-11-18-calculators-shared-kit-and-mortgage.md) |
 
 ## Handoffs
 
