@@ -51,13 +51,18 @@ export function tenantOrigin(tenant: OriginTenant): string {
  * Cached reader for a tenant's PUBLISHED config revision. Per-tenant tag so a
  * publish can `revalidateTag(configTag(id))`. Falls back to DEFAULT via
  * parseTenantConfig when no published revision exists.
+ *
+ * The cache holds the stored revision and parsing happens on every read. A cache entry can outlive
+ * a deploy (a local `.next/cache`, a hosted data cache), so parsing inside the cache would hand
+ * back a config in the previous release's shape, missing any setting added since.
  */
 function publishedConfigReader(tenantId: string) {
-  return unstable_cache(
-    async () => parseTenantConfig(await getPublishedData(tenantId, "CONFIG", "default")),
+  const read = unstable_cache(
+    async () => getPublishedData(tenantId, "CONFIG", "default"),
     ["tenant-config", tenantId],
     { tags: [configTag(tenantId)] },
   );
+  return async () => parseTenantConfig(await read());
 }
 
 /** Resolve the active tenant's config. Draft Mode editors see the working draft. */

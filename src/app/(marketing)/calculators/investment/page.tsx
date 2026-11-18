@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { PageJsonLd } from "@/components/seo/PageJsonLd";
 import { InvestmentCalculator } from "@/calculators/investment/InvestmentCalculator";
 import { buildMetadata } from "@/lib/seo/buildMetadata";
+import { isCalculatorEnabled } from "@/calculators/registry";
+import { getTenantConfig } from "@/server/tenant/config";
 
 const PATH = "/calculators/investment";
 
-export function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata(): Promise<Metadata> {
+  const config = await getTenantConfig();
+  if (!isCalculatorEnabled("investment", config.calculators)) notFound();
   return buildMetadata(PATH, {
     title: "Investment Property Calculator",
     description:
@@ -15,7 +20,9 @@ export function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function InvestmentCalculatorPage() {
+export default async function InvestmentCalculatorPage() {
+  const config = await getTenantConfig();
+  if (!isCalculatorEnabled("investment", config.calculators)) notFound();
   return (
     <>
       <PageJsonLd path={PATH} />

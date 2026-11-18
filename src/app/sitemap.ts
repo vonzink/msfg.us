@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { getTenantOrigin } from "@/server/tenant/config";
+import { getTenantConfig, getTenantOrigin } from "@/server/tenant/config";
+import { enabledCalculators } from "@/calculators/registry";
 import { getPageSeo } from "@/server/cms/seo";
 import { sitemapEntry } from "./sitemap.helpers";
 
@@ -14,7 +15,6 @@ const ROUTES = [
   "/commercial",
   "/rates",
   "/loan-officers",
-  "/calculators/investment",
   "/developers",
   "/apply/buy",
   "/apply/refi",
@@ -33,9 +33,11 @@ const ROUTES = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const origin = await getTenantOrigin();
+  const [origin, config] = await Promise.all([getTenantOrigin(), getTenantConfig()]);
+  // Calculators come from the registry, so a switched-off one leaves the sitemap too.
+  const routes = [...ROUTES, ...enabledCalculators(config.calculators).map((c) => c.path)];
   const entries = await Promise.all(
-    ROUTES.map(async (route) => sitemapEntry(origin, route, await getPageSeo(route))),
+    routes.map(async (route) => sitemapEntry(origin, route, await getPageSeo(route))),
   );
   return entries.filter((e): e is NonNullable<typeof e> => e !== null);
 }

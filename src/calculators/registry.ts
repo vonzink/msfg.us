@@ -1,0 +1,43 @@
+/**
+ * The one list of public calculators. The menu, the sitemap and the /calculators landing page all
+ * read it, so adding a calculator is one entry here plus its folder and route.
+ *
+ * Names and URLs live here, in code, because a URL must not change from an admin screen.
+ * A tenant switches a calculator off with `calculators.disabled` in its config.
+ * The generated MBS page (src/calculators/mbs/) is unlisted on purpose and is never registered.
+ */
+export type CalculatorEntry = {
+  /** Folder name under src/calculators/ and the last URL segment. */
+  slug: string;
+  path: `/calculators/${string}`;
+  /** Menu label. */
+  label: string;
+  /** The visitor's question, used as the page heading and the landing card title. */
+  question: string;
+  /** One sentence for the landing card. */
+  description: string;
+  /** Where the call to action under the results goes. */
+  applyHref: "/apply/buy" | "/apply/refi";
+};
+
+export const CALCULATORS: CalculatorEntry[] = [
+  {
+    slug: "investment",
+    path: "/calculators/investment",
+    label: "Investment calculator",
+    question: "Will this rental pay off?",
+    description: "See the cash flow, tax effect, equity and five-year return on a rental property.",
+    applyHref: "/apply/buy",
+  },
+];
+
+type Settings = { disabled: string[] };
+
+/** Registered calculators this tenant has not switched off, in menu order. */
+export function enabledCalculators(settings: Settings): CalculatorEntry[] {
+  return CALCULATORS.filter((c) => !settings.disabled.includes(c.slug));
+}
+
+export function isCalculatorEnabled(slug: string, settings: Settings): boolean {
+  return enabledCalculators(settings).some((c) => c.slug === slug);
+}

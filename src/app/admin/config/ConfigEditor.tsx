@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { TextField } from "@/components/admin/fields/TextField";
 import { TextAreaField } from "@/components/admin/fields/TextAreaField";
 import { SwitchField } from "@/components/admin/fields/SwitchField";
+import { CALCULATORS } from "@/calculators/registry";
 import { saveConfigDraftAction, publishConfigAction } from "./actions";
 
 export function ConfigEditor({
@@ -309,6 +310,21 @@ export function ConfigEditor({
           Calculators
         </h2>
         <div className="grid gap-3">
+          {CALCULATORS.map((c) => (
+            <SwitchField
+              key={c.slug}
+              label={c.label}
+              checked={!cfg.calculators.disabled.includes(c.slug)}
+              onChange={(on) =>
+                setCalculators(
+                  "disabled",
+                  on
+                    ? cfg.calculators.disabled.filter((s) => s !== c.slug)
+                    : [...cfg.calculators.disabled, c.slug],
+                )
+              }
+            />
+          ))}
           <TextField
             label="Example interest rate (%)"
             name="calculators.exampleRatePct"

@@ -13,8 +13,14 @@ vi.mock("@/lib/env", () => ({
     },
   }),
 }));
+// `stale.entry` stands in for a value the data cache stored before a deploy: when set, the cached
+// function returns it without running the reader, as a cache hit would.
+const stale = vi.hoisted(() => ({ entry: undefined as unknown }));
 vi.mock("next/cache", () => ({
-  unstable_cache: (fn: (...a: unknown[]) => unknown) => fn,
+  unstable_cache:
+    (fn: (...a: unknown[]) => unknown) =>
+    (...a: unknown[]) =>
+      stale.entry !== undefined ? stale.entry : fn(...a),
 }));
 vi.mock("next/headers", () => ({
   draftMode: vi.fn(async () => ({ isEnabled: false })),
@@ -116,5 +122,18 @@ describe("getTenantConfig", () => {
     (getPublishedData as any).mockResolvedValue(null);
     const cfg = await getTenantConfig();
     expect(cfg).toEqual(DEFAULT_TENANT_CONFIG);
+  });
+
+  it("fills new settings into a config the cache stored before they existed", async () => {
+    (getTenant as any).mockResolvedValue({ id: "tenant_msfg", slug: "msfg", name: "MSFG" });
+    (draftMode as any).mockResolvedValue({ isEnabled: false });
+    const { calculators: _c, ...cachedBeforeDeploy } = DEFAULT_TENANT_CONFIG;
+    stale.entry = cachedBeforeDeploy;
+    try {
+      const cfg = await getTenantConfig();
+      expect(cfg.calculators).toEqual({ disabled: [], exampleRatePct: 7 });
+    } finally {
+      stale.entry = undefined;
+    }
   });
 });
