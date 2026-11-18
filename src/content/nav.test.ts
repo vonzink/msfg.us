@@ -17,6 +17,7 @@ const KNOWN = new Set([
   "/veterans", "/reverse", "/investment", "/commercial",
   "/about", "/careers", "/know-your-lender", "/resources/mortgage-glossary",
   "/calculators", "/calculators/investment", "/calculators/mortgage", "/calculators/buydown", "/calculators/blended-rate", "/calculators/refinance-breakeven",
+  "/calculators/rent-vs-buy",
 ]);
 
 function allLinks(): NavLink[] {

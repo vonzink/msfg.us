@@ -20,7 +20,18 @@ describe("calculator registry", () => {
   });
 
   it("lists the calculators in menu order", () => {
-    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "blended-rate", "refinance-breakeven", "investment"]);
+    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "investment"]);
+  });
+
+  it("lists the Rent vs buy calculator fifth, leading to the purchase application", () => {
+    expect(CALCULATORS[4]).toEqual({
+      slug: "rent-vs-buy",
+      path: "/calculators/rent-vs-buy",
+      label: "Rent vs buy calculator",
+      question: "Does renting or buying cost less over time?",
+      description: "Compare the cost of renting with the cost of buying over the years you plan to stay, and see when buying pulls ahead.",
+      applyHref: "/apply/buy",
+    });
   });
 
   it("leaves out switched-off calculators and ignores unknown slugs", () => {

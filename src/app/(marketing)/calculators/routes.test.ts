@@ -15,6 +15,7 @@ import BlendedRatePage from "./blended-rate/page";
 import BuydownPage from "./buydown/page";
 import MortgagePage from "./mortgage/page";
 import BreakevenPage from "./refinance-breakeven/page";
+import RentVsBuyPage from "./rent-vs-buy/page";
 import InvestmentPage from "./investment/page";
 import LandingPage from "./page";
 
@@ -29,6 +30,15 @@ describe("switched-off calculators", () => {
     expect(await outcome(MortgagePage)).toBe("renders");
     expect(await outcome(BuydownPage)).toBe("renders");
     expect(await outcome(InvestmentPage)).toBe("renders");
+    expect(await outcome(RentVsBuyPage)).toBe("renders");
+    expect(await outcome(LandingPage)).toBe("renders");
+  });
+
+  it("makes a switched-off rent vs buy calculator not found", async () => {
+    expect(await outcome(RentVsBuyPage)).toBe("renders");
+    settings.disabled = ["rent-vs-buy"];
+    expect(await outcome(RentVsBuyPage)).toBe("not found");
+    expect(await outcome(MortgagePage)).toBe("renders");
     expect(await outcome(LandingPage)).toBe("renders");
   });
 
@@ -67,7 +77,7 @@ describe("switched-off calculators", () => {
   });
 
   it("makes the landing page not found when every calculator is off", async () => {
-    settings.disabled = ["mortgage", "buydown", "blended-rate", "refinance-breakeven", "investment"];
+    settings.disabled = ["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "investment"];
     expect(await outcome(LandingPage)).toBe("not found");
   });
 });
