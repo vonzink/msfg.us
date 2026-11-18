@@ -135,7 +135,7 @@ function Group({ def, values, numbers, result, onChange }: {
     );
   }
   return (
-    <details data-reo-panel className={cn(shell, "group")}>
+    <details data-calc-panel className={cn(shell, "group")}>
       <summary className="flex cursor-pointer list-none items-baseline gap-3 rounded-xl px-5 py-4 max-[600px]:px-4 [&::-webkit-details-marker]:hidden">
         <span className="text-[17px] font-bold">{def.title}</span>
         <span className="ml-auto text-right text-[14px] tabular-nums text-muted">{def.summary?.(numbers, result)}</span>
@@ -308,7 +308,7 @@ export function InvestmentCalculator() {
   useEffect(() => {
     let reopened: HTMLDetailsElement[] = [];
     const before = () => {
-      reopened = Array.from(document.querySelectorAll<HTMLDetailsElement>("details[data-reo-panel]")).filter((d) => !d.open);
+      reopened = Array.from(document.querySelectorAll<HTMLDetailsElement>("details[data-calc-panel]")).filter((d) => !d.open);
       reopened.forEach((d) => (d.open = true));
     };
     const after = () => {
@@ -421,7 +421,7 @@ export function InvestmentCalculator() {
       {/* Outside the grid above: a sticky results column may only travel within that grid,
           so it can never slide over this table. */}
       <section aria-label="Five-year projection" className="mt-7 max-[980px]:mt-5 print:break-before-page">
-          <details data-reo-panel open className="group rounded-xl border border-line bg-white shadow-card print:shadow-none">
+          <details data-calc-panel open className="group rounded-xl border border-line bg-white shadow-card print:shadow-none">
             <summary className="flex cursor-pointer list-none items-baseline gap-3 rounded-xl px-5 py-4 max-[600px]:px-4 [&::-webkit-details-marker]:hidden">
               <span className="text-[17px] font-bold">Year-by-year numbers</span>
               <span className="ml-auto text-[14px] text-muted">All five years, line by line</span>
