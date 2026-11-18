@@ -67,9 +67,10 @@ export function Field({ def, idPrefix, values, numbers, onChange, disabled = fal
         <input
           id={id}
           type="text"
-          inputMode="decimal"
+          // A name gets the normal keyboard on a phone; every other field gets the number pad.
+          inputMode={def.type === "text" ? "text" : "decimal"}
           autoComplete="off"
-          placeholder="0"
+          placeholder={def.type === "text" ? undefined : "0"}
           value={value}
           disabled={disabled}
           aria-describedby={describedBy}
