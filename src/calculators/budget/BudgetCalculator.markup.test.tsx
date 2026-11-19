@@ -6,9 +6,9 @@ import type { Values } from "../shared/fields";
 import { BudgetCalculator } from "./BudgetCalculator";
 import { BLANK, exampleValues, toInput } from "./fields";
 import golden from "./golden.json";
-import { BACK_BANDS, calculateBudget, FRONT_BANDS, type BudgetInput } from "./math";
+import { calculateBudget, FRONT_BANDS, type BudgetInput } from "./math";
 import { BudgetPrintDetails, BudgetPrintSummary } from "./PrintSummary";
-import { bandRangesText, BudgetResults, dialScale, headlineText, PRIVACY_LINE, promptText, RATIO_NOTE, shareText, usd, type FormState } from "./Results";
+import { BudgetResults, dialScale, headlineText, PRIVACY_LINE, promptText, RATIO_NOTE, shareText, usd, type FormState } from "./Results";
 import { blankRows } from "./rows";
 
 const DISCLAIMER = "This is an estimate based on the numbers you entered.";
@@ -100,12 +100,19 @@ describe("home budget calculator page", () => {
     expect(bandWords(results(goldenInput("band-edges")))).toEqual(["comfortable", "comfortable"]);
   });
 
-  it("says the band ranges in words, from the model's own edges", () => {
-    expect(bandRangesText(FRONT_BANDS)).toBe("Up to 32% is Comfortable. Above 32% and up to 47% is Stretching. Above 47% is High.");
-    expect(bandRangesText(BACK_BANDS)).toBe("Up to 47% is Comfortable. Above 47% and up to 55% is Stretching. Above 55% is High.");
+  it("has no sentence of band ranges under the gauges, on screen or in print: the dial carries the edges", () => {
+    for (const html of [page(), results(goldenInput("example")), results(goldenInput("high")), print(goldenInput("example"))]) {
+      expect(html).not.toMatch(/Up to \d+% is|Above \d+%/);
+      expect(html).not.toContain("is Comfortable");
+      expect(html).not.toContain("is Stretching");
+      expect(html).not.toContain("is High");
+    }
+    // The dial, its edge labels, the percent and the band word stay.
     const html = results(goldenInput("example"));
-    expect(html).toContain(bandRangesText(FRONT_BANDS));
-    expect(html).toContain(bandRangesText(BACK_BANDS));
+    expect(html).toContain(">32%</text>");
+    expect(html).toContain(">55%</text>");
+    expect(html).toContain("30.00%");
+    expect(bandWords(html)).toEqual(["comfortable", "comfortable"]);
   });
 
   it("words a negative cash flow as short each month, with no bar and a sentence saying by how much", () => {

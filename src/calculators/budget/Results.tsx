@@ -59,13 +59,6 @@ export const BAND_LABEL: Record<Band, string> = { comfortable: "Comfortable", st
 const BAND_DOT: Record<Band, string> = { comfortable: "bg-chart-3", stretching: "bg-chart-4", high: "bg-loss" };
 type Bands = { comfortable: number; stretching: number };
 
-/** The three bands of a share in words, from the model's own edges so the two cannot drift apart. */
-export function bandRangesText(bands: Bands): string {
-  const low = percentText(bands.comfortable);
-  const high = percentText(bands.stretching);
-  return `Up to ${low} is ${BAND_LABEL.comfortable}. Above ${low} and up to ${high} is ${BAND_LABEL.stretching}. Above ${high} is ${BAND_LABEL.high}.`;
-}
-
 /**
  * The scale of the shared dial for a share of income. The dial rates a higher value as better and
  * gives a value on a cutoff the better zone. A share is better when lower, so the dial is fed the
@@ -158,7 +151,7 @@ function BandWord({ band }: { band: Band }) {
   );
 }
 
-/** One share of income: the shared dial, the percent, the band in words and the ranges of the three bands. */
+/** One share of income: the shared dial with the band edges written on it, the percent and the band in words. */
 function ShareCard({ label, secondary, ratio, band, bands }: { label: string; secondary: string; ratio: number; band: Band; bands: Bands }) {
   return (
     <div className="flex min-w-0 flex-col items-center gap-0.5 rounded-lg border border-line bg-white p-3.5 text-center print:break-inside-avoid">
@@ -169,7 +162,6 @@ function ShareCard({ label, secondary, ratio, band, bands }: { label: string; se
       </div>
       <span className="mt-1 text-[22px] font-extrabold tabular-nums tracking-[-0.01em]">{shareText(ratio)}</span>
       <BandWord band={band} />
-      <p className="mt-1.5 text-[12px] text-muted">{bandRangesText(bands)}</p>
     </div>
   );
 }
