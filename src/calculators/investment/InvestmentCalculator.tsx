@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { projectReo, type ReoResult } from "./math";
 import { formatUSD } from "@/lib/finance";
 import { cn } from "@/lib/cn";
+import { AddDetail } from "../shared/AddDetail";
 import { CalculatorShell } from "../shared/CalculatorShell";
 import { SeriesChart } from "../shared/Charts";
 import { Field } from "../shared/Field";
@@ -20,8 +21,10 @@ const ratio = (x: number) => (Number.isFinite(x) ? x.toFixed(2) : "n/a");
 
 // ---------- Inputs ----------
 
-function Group({ def, values, numbers, result, onChange }: {
+function Group({ def, rateNote, values, numbers, result, onChange }: {
   def: GroupDef;
+  /** The tenant's example-rate note, shown under the interest rate field while a loan is picked. */
+  rateNote: string;
   values: Values;
   numbers: Numbers;
   result: ReoResult;
@@ -33,7 +36,8 @@ function Group({ def, values, numbers, result, onChange }: {
       <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-x-4 gap-y-3.5">
         {def.fields.map((f) => (
           <Field
-            key={f.id} def={f} idPrefix="reo" values={values} numbers={numbers} onChange={onChange}
+            key={f.id} def={f.id === "rate" ? { ...f, hint: rateNote } : f}
+            idPrefix="reo" values={values} numbers={numbers} onChange={onChange}
             // Loan fields stay filled in but do nothing for an all-cash purchase.
             disabled={f.loanOnly === true && values.amortType === "cash"}
             disabledHint="Not used when paying all cash."
@@ -52,14 +56,18 @@ function Group({ def, values, numbers, result, onChange }: {
       </section>
     );
   }
+  // A panel inside "Add detail" has its own named group, so its arrow turns with it and not with the expander around it.
+  const arrow = def.detail
+    ? "group-open/detail:translate-y-0.5 group-open/detail:-rotate-135"
+    : "group-open:translate-y-0.5 group-open:-rotate-135";
   return (
-    <details data-calc-panel className={cn(shell, "group")}>
+    <details data-calc-panel className={cn(shell, def.detail ? "group/detail" : "group")}>
       <summary className="flex cursor-pointer list-none items-baseline gap-3 rounded-xl px-5 py-4 max-[600px]:px-4 [&::-webkit-details-marker]:hidden">
         <span className="text-[17px] font-bold">{def.title}</span>
         <span className="ml-auto text-right text-[14px] tabular-nums text-muted">{def.summary?.(numbers, result)}</span>
         <span
           aria-hidden="true"
-          className="ml-1 size-2.5 flex-none -translate-y-0.5 rotate-45 self-center border-b-2 border-r-2 border-muted transition-transform group-open:translate-y-0.5 group-open:-rotate-135 print:hidden"
+          className={cn("ml-1 size-2.5 flex-none -translate-y-0.5 rotate-45 self-center border-b-2 border-r-2 border-muted transition-transform", arrow, "print:hidden")}
         />
       </summary>
       {body}
@@ -160,8 +168,15 @@ function Note({ term, children }: { term: string; children: ReactNode }) {
 
 // ---------- Calculator ----------
 
-/** `exampleRatePct` is the tenant's example interest rate, from config, not a constant. */
-export function InvestmentCalculator({ exampleRatePct }: { exampleRatePct: number }) {
+/**
+ * The example interest rate, the note under that field and the disclaimer come from tenant config
+ * through the route page, never from a constant here.
+ */
+export function InvestmentCalculator({ exampleRatePct, exampleRateNote, disclaimer }: {
+  exampleRatePct: number;
+  exampleRateNote: string;
+  disclaimer: string;
+}) {
   const [values, setValues] = useState<Values>(() => exampleValues(exampleRatePct));
   const onChange = (id: string, value: string) => setValues((v) => ({ ...v, [id]: value }));
 
@@ -177,6 +192,9 @@ export function InvestmentCalculator({ exampleRatePct }: { exampleRatePct: numbe
   const vsAlt = r.vsAlt[4];
   const hasLoan = r.debtService[1] > 0;
   const heldSaving = r.lossSavingAtSale[4];
+  const group = (g: GroupDef) => (
+    <Group key={g.id} def={g} rateNote={exampleRateNote} values={values} numbers={numbers} result={r} onChange={onChange} />
+  );
 
   return (
     <CalculatorShell
@@ -186,9 +204,10 @@ export function InvestmentCalculator({ exampleRatePct }: { exampleRatePct: numbe
       onClear={() => setValues(BLANK)}
       form={
         <>
-          {GROUPS.map((g) => (
-            <Group key={g.id} def={g} values={values} numbers={numbers} result={r} onChange={onChange} />
-          ))}
+          {GROUPS.filter((g) => !g.detail).map(group)}
+          <AddDetail>
+            <div className="grid gap-3.5">{GROUPS.filter((g) => g.detail).map(group)}</div>
+          </AddDetail>
         </>
       }
       results={
@@ -324,6 +343,7 @@ export function InvestmentCalculator({ exampleRatePct }: { exampleRatePct: numbe
             legal or investment advice and is not a guarantee of return. Talk with your tax and investment advisors
             before you buy.
           </p>
+          <p className="mx-1 mt-2 max-w-[90ch] text-[13px] text-muted">{disclaimer}</p>
       </section>
 
       {/* Phone: results summary pinned to the bottom of the screen */}

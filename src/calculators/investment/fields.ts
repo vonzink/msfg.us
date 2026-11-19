@@ -14,6 +14,8 @@ export type GroupDef = {
   lead: string;
   /** Always open, no disclosure. */
   fixed?: boolean;
+  /** Behind the "Add detail" expander. Its example values apply whether or not it is opened. */
+  detail?: boolean;
   /** Shown beside the title so a closed group still says what it holds. */
   summary?: (n: Numbers, r: ReoResult) => string;
   fields: ReoFieldDef[];
@@ -97,6 +99,7 @@ export const GROUPS: GroupDef[] = [
   {
     id: "growth",
     title: "Growth and sale",
+    detail: true,
     lead: "Yearly changes used for the five-year projection.",
     summary: (n) => `${n.appreciation}% appreciation`,
     fields: [
@@ -109,6 +112,7 @@ export const GROUPS: GroupDef[] = [
   {
     id: "taxes",
     title: "Income taxes",
+    detail: true,
     lead: "Used to estimate the tax you owe, or save, on the rental each year.",
     summary: (n) => `${n.taxBracket}% bracket`,
     fields: [
@@ -138,6 +142,7 @@ export const GROUPS: GroupDef[] = [
   {
     id: "compare",
     title: "Opportunity cost",
+    detail: true,
     lead: "See how the property stacks up against putting the same cash somewhere else.",
     summary: (n) => (n.compareOn ? `vs ${n.altReturn}% a year` : "Off"),
     fields: [

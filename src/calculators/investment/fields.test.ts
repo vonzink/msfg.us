@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { projectReo } from "./math";
-import { BLANK, EXAMPLE, exampleValues, FIELDS, toModel, toNumbers, verdict, type Values } from "./fields";
+import { BLANK, EXAMPLE, exampleValues, FIELDS, GROUPS, toModel, toNumbers, verdict, type Values } from "./fields";
 
 const project = (values: Values) => {
   const n = toNumbers(values);
@@ -90,5 +90,13 @@ describe("example values", () => {
 
   it("is the 7% example when the rate is the default", () => {
     expect(exampleValues(7)).toEqual(EXAMPLE);
+  });
+});
+
+describe("groups", () => {
+  it("puts growth, taxes and opportunity cost behind Add detail and keeps the rest up front, in the same order", () => {
+    expect(GROUPS.map((g) => g.id)).toEqual(["deal", "upfront", "expenses", "growth", "taxes", "compare"]);
+    expect(GROUPS.filter((g) => g.detail).map((g) => g.id)).toEqual(["growth", "taxes", "compare"]);
+    expect(GROUPS.filter((g) => g.detail && g.fixed)).toEqual([]);
   });
 });
