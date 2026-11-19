@@ -1,7 +1,7 @@
 import { roundCents } from "@/lib/finance";
 import { parseRate, typedAmount, type FieldDef, type Values } from "../shared/fields";
 import type { BudgetInput } from "./math";
-import type { Row } from "./rows";
+import { rowName, type Row } from "./rows";
 
 /**
  * Inputs of the Home budget calculator. Five are always visible. Behind "Add detail" each of
@@ -136,6 +136,38 @@ export function balancesTotal(values: Values): number {
  */
 export function savingsRateUnreadable(values: Values): boolean {
   return !isEmpty(values.savingsRate) && Number.isNaN(parseRate(values.savingsRate));
+}
+
+/** What is wrong with the entries behind "Add detail", for the page to name. Null when nothing is. */
+export type EntryFaults = {
+  /** The label of the first box holding a negative amount. */
+  negative: string | null;
+  /** The first itemized group with a line that is typed but is not a number. */
+  unreadable: Group | null;
+};
+
+/**
+ * Finds a negative amount or an unreadable line among the entries the math would use: the lines
+ * of each itemized group (for debts, the rows' payments) and the balances. The lines of a group
+ * entered as one total are not looked at. A negative amount would otherwise be taken off the sum
+ * without a word, so the page shows no result while there is one.
+ */
+export function entryFaults(values: Values, debtRows: Row[]): EntryFaults {
+  const boxes = (group: Group): { label: string; text: string | undefined }[] =>
+    group === "debts"
+      ? debtRows.map((r, i) => ({ label: debtPaymentLabel(r, i), text: r.payment }))
+      : (group === "housing" ? HOUSING_LINES : LIVING_LINES).map((f) => ({ label: f.label, text: values[f.id] }));
+  const used = GROUPS.filter((g) => isItemized(values, g));
+  const all = [...used.flatMap(boxes), ...BALANCE_FIELDS.map((f) => ({ label: f.label, text: values[f.id] }))];
+  return {
+    negative: all.find((b) => typedAmount(b.text) < 0)?.label ?? null,
+    unreadable: used.find((g) => boxes(g).some((b) => !isEmpty(b.text) && Number.isNaN(typedAmount(b.text)))) ?? null,
+  };
+}
+
+/** The label of a debt row's payment box: "Car loan monthly payment", or "Debt 2 monthly payment". */
+export function debtPaymentLabel(row: Row, index: number): string {
+  return `${rowName(row, index)} monthly payment`;
 }
 
 /** Turns what was typed into the model's input. */

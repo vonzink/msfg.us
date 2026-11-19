@@ -51,6 +51,13 @@ describe("home budget page text", () => {
     expect(how).toContain(PRIVACY_LINE);
   });
 
+  it("B6: does not say how many months a loan asks for; a lender counts reserves in its own way", () => {
+    const { a } = QUESTIONS.find(({ q }) => q === "How many months of savings is enough?")!;
+    expect(a).toContain("A lender counts reserves in its own way, and a loan officer can explain what applies to you.");
+    expect(a).not.toContain("set number of months");
+    expect(a).not.toContain("Some loans");
+  });
+
   it("answers the four questions of the plan", () => {
     expect(QUESTIONS.map(({ q }) => q)).toEqual([
       "Do I enter gross income or take-home pay?",

@@ -4,7 +4,7 @@ import { GaugeDial } from "../shared/Gauge";
 import type { Scale } from "../shared/gaugeScale";
 import { Stat } from "../shared/Stat";
 import { FRONT_FIELDS, SAVINGS_RATE_FIELD, type Group } from "./fields";
-import { BACK_BANDS, FRONT_BANDS, RATE_RANGE, type Band, type BudgetInput, type BudgetResult } from "./math";
+import { BACK_BANDS, FRONT_BANDS, RATE_RANGE, roundShare, type Band, type BudgetInput, type BudgetResult } from "./math";
 
 export const PRIVACY_LINE = "Your numbers stay in this browser. They are not saved or sent anywhere.";
 export const RATIO_NOTE =
@@ -15,8 +15,17 @@ const SAVINGS_UNREADABLE_PROMPT = "Enter a number for the share of income set as
 
 /** Whole dollars. A figure that rounds to nothing is "$0", never "-$0". */
 export const usd = (x: number) => formatUSD(Math.round(x) === 0 ? 0 : x);
-/** A share of income to one decimal: 0.3667 is "36.7%". */
-export const shareText = (ratio: number) => `${(ratio * 100).toFixed(1)}%`;
+/**
+ * A share of income to two decimals: 0.36667 is "36.67%". It is rounded the way the model rounds
+ * it to read the band, so the figure and the band word beside it always agree.
+ */
+export const shareText = (ratio: number) => `${(roundShare(ratio) * 100).toFixed(2)}%`;
+/** A part of the income bar to one decimal. A part of nothing is "0.0%", never "-0.0%". */
+const partShareText = (share: number) => `${(Math.max(0, share) * 100).toFixed(1)}%`;
+const RESERVES_NOTE = "A lender counts reserves in its own way, so this is not that figure.";
+/** Under the two shares when the month is short: they can read well while the month does not add up. */
+export const shortNote = (taxRate: number) =>
+  `These shares are of income before tax. On these numbers the month still falls short once ${taxRate > 0 ? "tax and " : ""}living costs are counted.`;
 /** A rate or a band edge without trailing zeros: 0.22 is "22%". */
 export const percentText = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 
@@ -32,10 +41,11 @@ export function bandRangesText(bands: Bands): string {
 }
 
 /**
- * The shared dial reads left to right from its worst zone to its best, and a value on a cutoff
- * gets the better zone. A share of income is better when lower, so the dial is fed the share with
- * its sign turned: the cutoffs are the model's band edges, and a share exactly on an edge lands in
- * the band below it, as `bandFor` has it. The far left is the whole income.
+ * The scale of the shared dial for a share of income. The dial rates a higher value as better and
+ * gives a value on a cutoff the better zone. A share is better when lower, so the dial is fed the
+ * share with its sign turned and drawn mirrored: the cutoffs are the model's band edges, a share
+ * on an edge lands in the band below it as `bandFor` has it, and the needle moves to the right as
+ * the share rises, from nothing at the far left to the whole income at the far right.
  */
 export function dialScale(bands: Bands): Scale {
   return { min: -1, fair: -bands.stretching, good: -bands.comfortable, max: 0 };
@@ -52,7 +62,14 @@ export const fallsShort = (cashFlow: number) => Math.round(cashFlow) < 0;
 export const reserveText = (months: number) => `${months} month${months === 1 ? "" : "s"} of housing`;
 
 /** What the page knows that the model's input does not say: which groups are itemized, and a savings box that cannot be read. */
-export type FormState = { itemized: Group[]; savingsUnreadable: boolean };
+export type FormState = {
+  itemized: Group[];
+  savingsUnreadable: boolean;
+  /** The label of a box behind Add detail holding a negative amount. */
+  negative?: string | null;
+  /** An itemized group with a line that is not a number. */
+  unreadable?: Group | null;
+};
 const PLAIN_FORM: FormState = { itemized: [], savingsUnreadable: false };
 
 /** The five front boxes as the prompts name them, in the order of the form. */
@@ -67,6 +84,11 @@ const EMPTY_GROUP: Record<Group, string> = {
   housing: "Enter at least one housing line, or switch back to one total.",
   debts: "Enter at least one debt, or switch back to one total.",
   living: "Enter at least one living cost, or switch back to one total.",
+};
+const UNREADABLE_GROUP: Record<Group, string> = {
+  housing: "One of the housing lines is not a number.",
+  debts: "One of the debts is not a number.",
+  living: "One of the living costs is not a number.",
 };
 const frontLabel = (id: string) => FRONT_FIELDS.find((f) => f.id === id)!.label;
 const listText = (items: string[]) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
@@ -85,6 +107,8 @@ export function promptText(input: BudgetInput, form: FormState = PLAIN_FORM): st
     const zeroAllowed = missing.some(({ id }) => id !== "grossIncome");
     return `Enter ${listText(missing.map((m) => m.name))} to see what is left each month.${zeroAllowed ? " Enter 0 for any cost that does not apply." : ""}`;
   }
+  if (form.negative) return `${form.negative} must be $0 or more.`;
+  if (form.unreadable) return UNREADABLE_GROUP[form.unreadable];
   const emptyGroup = form.itemized.find((group) => Number.isNaN(input[group]));
   if (emptyGroup) return EMPTY_GROUP[emptyGroup];
   if (!(input.grossIncome > 0) || !Number.isFinite(input.grossIncome)) return `${frontLabel("grossIncome")} must be above $0.`;
@@ -118,7 +142,7 @@ function ShareCard({ label, secondary, ratio, band, bands }: { label: string; se
       <h2 className="text-[14px] font-bold">{label}</h2>
       <span className="text-[12px] text-muted">{secondary}</span>
       <div className="mt-2 flex w-full justify-center">
-        <GaugeDial value={-ratio} scale={dialScale(bands)} />
+        <GaugeDial value={-roundShare(ratio)} scale={dialScale(bands)} mirror edgeLabels={[percentText(bands.comfortable), percentText(bands.stretching)]} />
       </div>
       <span className="mt-1 text-[22px] font-extrabold tabular-nums tracking-[-0.01em]">{shareText(ratio)}</span>
       <BandWord band={band} />
@@ -159,10 +183,11 @@ function IncomeBar({ input, result }: { input: BudgetInput; result: BudgetResult
             <i aria-hidden="true" className={cn("inline-block size-2.5 flex-none rounded-[2px]", p.swatch)} />
             <span className="font-semibold">{p.label}</span>
             <span className="ml-auto font-semibold tabular-nums">{usd(p.amount)}</span>
-            <span className="w-[52px] text-right tabular-nums text-muted">{shareText(share(p.amount))}</span>
+            <span className="w-[52px] text-right tabular-nums text-muted">{partShareText(share(p.amount))}</span>
           </li>
         ))}
       </ul>
+      <p className="mt-2.5 text-[12px] text-muted">Figures are rounded.</p>
     </div>
   );
 }
@@ -204,6 +229,8 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
         <ShareCard label="Housing and debts as a share of income" secondary="back-end ratio" ratio={r.backRatio} band={r.backBand} bands={BACK_BANDS} />
       </div>
 
+      {short && <p className="mx-1 text-[14px] font-semibold text-ink">{shortNote(input.taxRate)}</p>}
+
       <div className={cn("grid gap-3", r.reserveMonths !== null && "grid-cols-2 max-[600px]:grid-cols-1")}>
         <Stat
           label="Left after housing and debts"
@@ -217,7 +244,7 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
             label="Savings cover"
             value={reserveText(r.reserveMonths)}
             sub={`from ${usd(input.balances)} in account balances`}
-            tip="The balances entered under Add detail, divided by the monthly housing payment and rounded down to whole months."
+            tip={`The balances entered under Add detail, divided by the monthly housing payment and rounded down to whole months. ${RESERVES_NOTE}`}
           />
         )}
       </div>

@@ -43,3 +43,47 @@ describe("a money box when focus leaves it", () => {
     expect(typed("6.50")).toBe("6.50");
   });
 });
+
+describe("a read-only box", () => {
+  const def: FieldDef = { id: "a", label: "Amount", type: "money", example: "", hint: "Per month." };
+  const changes: string[] = [];
+  const show = (props: { readOnly?: boolean; readOnlyHint?: string; disabled?: boolean; disabledHint?: string }) =>
+    render(<Field def={def} idPrefix="t" values={{ a: "0" }} numbers={{}} onChange={(_id, value) => changes.push(value)} {...props} />);
+  const input = () => screen.getByLabelText("Amount") as HTMLInputElement;
+
+  it("shows its value at full contrast, can be reached, and is never written to", () => {
+    changes.length = 0;
+    const { container } = show({ readOnly: true, readOnlyHint: "Worked out for you." });
+    expect(input().readOnly).toBe(true);
+    expect(input().disabled).toBe(false);
+    expect(input().getAttribute("aria-readonly")).toBe("true");
+    expect(input().placeholder).toBe("");
+    expect(container.innerHTML).not.toContain("opacity-60");
+    expect(container.textContent).toContain("Worked out for you.");
+    expect(container.textContent).not.toContain("Per month.");
+    fireEvent.focus(input());
+    fireEvent.change(input(), { target: { value: "5" } });
+    fireEvent.blur(input());
+    expect(changes).toEqual([]);
+  });
+
+  it("leaves a disabled box as it was: greyed out, with the placeholder and its own hint", () => {
+    const { container } = show({ disabled: true, disabledHint: "Not used." });
+    expect(input().disabled).toBe(true);
+    expect(input().readOnly).toBe(false);
+    expect(input().getAttribute("aria-readonly")).toBeNull();
+    expect(input().placeholder).toBe("0");
+    expect(container.innerHTML).toContain("opacity-60");
+    expect(container.textContent).toContain("Not used.");
+  });
+
+  it("leaves an ordinary box as it was", () => {
+    changes.length = 0;
+    show({});
+    expect(input().readOnly).toBe(false);
+    expect(input().getAttribute("aria-readonly")).toBeNull();
+    expect(input().placeholder).toBe("0");
+    fireEvent.blur(input());
+    expect(changes).toEqual([""]);
+  });
+});

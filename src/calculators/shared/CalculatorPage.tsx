@@ -10,11 +10,11 @@ import { PrintLetterhead } from "./PrintLetterhead";
  * officer through a plain link. It never opens the booking pop-up, so a calculator page collects
  * nothing from the visitor.
  */
-export function CalculatorCta({ entry }: { entry: CalculatorEntry }) {
+export function CalculatorCta({ entry, title = "Like these numbers?" }: { entry: CalculatorEntry; title?: string }) {
   return (
     <div className="print:hidden">
       <CtaBand
-        title="Like these numbers?"
+        title={title}
         lead="Start your application or talk it through with a loan officer."
         primaryHref={entry.applyHref}
         secondaryHref="/loan-officers"
@@ -31,13 +31,15 @@ export function CalculatorCta({ entry }: { entry: CalculatorEntry }) {
  * call to action. A server component: the calculator itself is the client component passed as
  * children. In print, only a letterhead and the calculator's own printed content appear.
  */
-export function CalculatorPage({ entry, intro, howItWorks, questions, children }: {
+export function CalculatorPage({ entry, intro, howItWorks, questions, ctaTitle, children }: {
   entry: CalculatorEntry;
   /** One or two sentences under the heading. Leave out when the heading says enough. */
   intro?: string;
   /** Plain-language paragraphs. No formulas. */
   howItWorks: string[];
   questions: { q: string; a: string }[];
+  /** The question over the call to action, for a page where "Like these numbers?" does not fit. */
+  ctaTitle?: string;
   children: ReactNode;
 }) {
   return (
@@ -82,7 +84,7 @@ export function CalculatorPage({ entry, intro, howItWorks, questions, children }
         </div>
       </section>
 
-      <CalculatorCta entry={entry} />
+      <CalculatorCta entry={entry} title={ctaTitle} />
     </>
   );
 }

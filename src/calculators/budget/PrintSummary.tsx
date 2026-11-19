@@ -2,7 +2,7 @@ import { formatUSD } from "@/lib/finance";
 import { PrintSummary, type PrintColumn } from "../shared/PrintSummary";
 import { FRONT_FIELDS, SAVINGS_RATE_FIELD } from "./fields";
 import type { BudgetInput, BudgetResult } from "./math";
-import { BAND_LABEL, fallsShort, percentText, PRIVACY_LINE, RATIO_NOTE, reserveText, shareText, usd } from "./Results";
+import { BAND_LABEL, fallsShort, percentText, RATIO_NOTE, reserveText, shareText, usd } from "./Results";
 
 type Rows = PrintColumn["rows"];
 /** The lines of one itemized group, as typed: only the ones with an amount. */
@@ -33,7 +33,8 @@ export function BudgetPrintSummary({ input, result: r }: { input: BudgetInput; r
 
 /**
  * The rest of the printed page, under the summary: the lines of each itemized group, the note on
- * what the ratios are, the privacy line and the disclaimer. Hidden on screen.
+ * what the ratios are and the disclaimer. Hidden on screen. The privacy line is about the form,
+ * so it stays on screen under the form and is not printed.
  */
 export function BudgetPrintDetails({ groups, disclaimer }: { groups: PrintGroup[]; disclaimer: string }) {
   return (
@@ -56,7 +57,6 @@ export function BudgetPrintDetails({ groups, disclaimer }: { groups: PrintGroup[
         </section>
       )}
       <p className="mt-3 text-[12px]">{RATIO_NOTE}</p>
-      <p className="mt-2 text-[12px]">{PRIVACY_LINE}</p>
       <p className="mt-2 text-[10px] text-muted">{disclaimer}</p>
     </div>
   );

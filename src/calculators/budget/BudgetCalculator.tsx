@@ -7,7 +7,7 @@ import { CalculatorShell } from "../shared/CalculatorShell";
 import { Field } from "../shared/Field";
 import { typedAmount, type FieldDef, type Values } from "../shared/fields";
 import {
-  BALANCE_FIELDS, BLANK, exampleValues, FRONT_FIELDS, GROUPS, groupTotal, HOUSING_LINES, isItemized, LIVING_LINES, MODE_FIELDS,
+  BALANCE_FIELDS, BLANK, debtPaymentLabel, entryFaults, exampleValues, FRONT_FIELDS, GROUPS, groupTotal, HOUSING_LINES, isItemized, LIVING_LINES, MODE_FIELDS,
   SAVINGS_RATE_FIELD, savingsRateUnreadable, toInput, type Group,
 } from "./fields";
 import { calculateBudget } from "./math";
@@ -26,7 +26,7 @@ const modeField = (group: Group) => MODE_FIELDS.find((f) => f.id === `${group}Mo
 const DEBT_NAME: FieldDef = { id: "name", label: "What is it?", type: "text", example: "" };
 /** A debt of $0 a month is an answer, so a typed 0 stays in the box. */
 const debtPayment = (row: Row, index: number): FieldDef => ({
-  id: "payment", label: `${rowName(row, index)} monthly payment`, type: "money", example: "", keepZero: true,
+  id: "payment", label: debtPaymentLabel(row, index), type: "money", example: "", keepZero: true,
 });
 const SAVINGS_WARNING = "Enter a number, or leave it empty.";
 const PART_HEADING: Record<Group, string> = {
@@ -57,11 +57,12 @@ export function BudgetCalculator({ disclaimer, mortgageHref }: {
   // One input feeds the math, the results and the printed page.
   const input = useMemo(() => toInput(values, rows), [values, rows]);
   const form = useMemo<FormState>(
-    () => ({ itemized: GROUPS.filter((g) => isItemized(values, g)), savingsUnreadable: savingsRateUnreadable(values) }),
-    [values],
+    () => ({ itemized: GROUPS.filter((g) => isItemized(values, g)), savingsUnreadable: savingsRateUnreadable(values), ...entryFaults(values, rows) }),
+    [values, rows],
   );
-  // An optional box holding something unreadable is not counted as 0%: there is no result until it is fixed.
-  const result = useMemo(() => (form.savingsUnreadable ? null : calculateBudget(input)), [form, input]);
+  // An optional box holding something unreadable is not counted as 0%, and a negative line is not
+  // quietly taken off a sum: there is no result until it is fixed.
+  const result = useMemo(() => (form.savingsUnreadable || form.negative ? null : calculateBudget(input)), [form, input]);
 
   // Adding or removing a row unmounts the button that was just pressed. Without this, keyboard
   // focus would drop to the top of the page. Send it to the new row, or to the Add button.
@@ -84,7 +85,7 @@ export function BudgetCalculator({ disclaimer, mortgageHref }: {
   const field = (def: FieldDef) => (
     <Field key={def.id} def={def} idPrefix="budget" values={values} numbers={NO_NUMBERS} onChange={onChange} />
   );
-  /** The front box of a group: typed as one total, or read-only showing the sum the math uses. */
+  /** The front box of a group: typed as one total, or read-only showing the sum the math uses. Read-only, so it can still be reached and read. */
   const groupBox = (group: Group) => {
     const itemized = isItemized(values, group);
     return (
@@ -94,8 +95,8 @@ export function BudgetCalculator({ disclaimer, mortgageHref }: {
         values={itemized ? { [group]: totalText(groupTotal(values, rows, group)) } : values}
         numbers={NO_NUMBERS}
         onChange={onChange}
-        disabled={itemized}
-        disabledHint={ITEMIZED_HINT}
+        readOnly={itemized}
+        readOnlyHint={ITEMIZED_HINT}
       />
     );
   };
@@ -211,7 +212,7 @@ export function BudgetCalculator({ disclaimer, mortgageHref }: {
               <section className="grid gap-3">
                 <h3 className={partHeading}>Savings</h3>
                 <div className={grid}>{field(savingsRate)}</div>
-                <p className="text-[14px] text-muted">Account balances, to see how many months of housing they would cover.</p>
+                <p className="text-[14px] text-muted">Account balances. Enter what would be left after your down payment and closing costs.</p>
                 <div className={grid}>{BALANCE_FIELDS.map(field)}</div>
               </section>
             </div>

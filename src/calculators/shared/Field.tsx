@@ -7,7 +7,7 @@ import { moneyOnBlur, parseNumber, type FieldDef, type Numbers, type Values } fr
  * One input: money, percent, number or text as a labelled text box (with an optional slider), or a
  * choice as a segmented control. `idPrefix` keeps ids unique when two calculators share a page.
  */
-export function Field({ def, idPrefix, values, numbers, onChange, disabled = false, disabledHint }: {
+export function Field({ def, idPrefix, values, numbers, onChange, disabled = false, disabledHint, readOnly = false, readOnlyHint }: {
   def: FieldDef;
   idPrefix: string;
   values: Values;
@@ -17,6 +17,14 @@ export function Field({ def, idPrefix, values, numbers, onChange, disabled = fal
   disabled?: boolean;
   /** Replaces the hint while disabled, to say why. */
   disabledHint?: string;
+  /**
+   * For a box that shows a figure worked out elsewhere. Unlike `disabled` it keeps full contrast
+   * and can still be reached and read; nothing typed or blurred changes it, it has no "0"
+   * placeholder, and its warnings are ignored. Text boxes only, not a choice.
+   */
+  readOnly?: boolean;
+  /** Replaces the hint while read-only, to say where the figure comes from. */
+  readOnlyHint?: string;
 }) {
   const id = `${idPrefix}-${def.id}`;
   const value = values[def.id] ?? "";
@@ -49,8 +57,8 @@ export function Field({ def, idPrefix, values, numbers, onChange, disabled = fal
   }
 
   const suffix = def.type === "pct" ? "%" : def.suffix;
-  const hint = disabled && disabledHint ? disabledHint : def.hintFn ? def.hintFn(numbers) : def.hint;
-  const warning = disabled ? null : (def.warnFn?.(numbers) ?? null);
+  const hint = disabled && disabledHint ? disabledHint : readOnly && readOnlyHint ? readOnlyHint : def.hintFn ? def.hintFn(numbers) : def.hint;
+  const warning = disabled || readOnly ? null : (def.warnFn?.(numbers) ?? null);
   const describedBy = [hint && `${id}-hint`, warning && `${id}-warn`].filter(Boolean).join(" ") || undefined;
 
   return (
@@ -60,7 +68,7 @@ export function Field({ def, idPrefix, values, numbers, onChange, disabled = fal
         className={cn(
           "flex items-center rounded-md border bg-white transition-shadow focus-within:border-spring-2 focus-within:shadow-[0_0_0_3px_var(--color-spring-soft)]",
           warning ? "border-loss" : "border-line",
-          disabled && "bg-paper-2",
+          (disabled || readOnly) && "bg-paper-2",
         )}
       >
         {def.type === "money" && <span aria-hidden="true" className="pl-2.5 text-[15px] font-semibold text-muted">$</span>}
@@ -70,13 +78,17 @@ export function Field({ def, idPrefix, values, numbers, onChange, disabled = fal
           // A name gets the normal keyboard on a phone; every other field gets the number pad.
           inputMode={def.type === "text" ? "text" : "decimal"}
           autoComplete="off"
-          placeholder={def.type === "text" ? undefined : "0"}
+          placeholder={def.type === "text" || readOnly ? undefined : "0"}
           value={value}
           disabled={disabled}
+          readOnly={readOnly || undefined}
+          aria-readonly={readOnly || undefined}
           aria-describedby={describedBy}
-          onChange={(e) => onChange(def.id, e.target.value)}
+          onChange={(e) => {
+            if (!readOnly) onChange(def.id, e.target.value);
+          }}
           onBlur={() => {
-            if (def.type === "money") onChange(def.id, moneyOnBlur(value, def.keepZero));
+            if (def.type === "money" && !readOnly) onChange(def.id, moneyOnBlur(value, def.keepZero));
           }}
           className="w-full min-w-0 flex-1 border-0 bg-transparent px-2.5 py-2.5 text-[16px] font-semibold tabular-nums text-ink outline-none placeholder:font-normal placeholder:text-muted/60 disabled:cursor-not-allowed"
         />

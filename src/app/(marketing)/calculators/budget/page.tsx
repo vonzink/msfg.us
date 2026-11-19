@@ -25,7 +25,7 @@ export default async function BudgetCalculatorPage() {
   // Link the housing box to the Mortgage calculator only while that one is switched on.
   const mortgage = enabledCalculators(config.calculators).find((c) => c.slug === "mortgage");
   return (
-    <CalculatorPage entry={ENTRY} intro={INTRO} howItWorks={HOW_IT_WORKS} questions={QUESTIONS}>
+    <CalculatorPage entry={ENTRY} intro={INTRO} howItWorks={HOW_IT_WORKS} questions={QUESTIONS} ctaTitle="Want to go through your numbers with someone?">
       <BudgetCalculator disclaimer={config.legal.calculatorDisclaimer} mortgageHref={mortgage?.path ?? null} />
     </CalculatorPage>
   );

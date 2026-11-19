@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BALANCE_FIELDS, balancesTotal, BLANK, exampleValues, FRONT_FIELDS, groupTotal, HOUSING_LINES, isItemized, LIVING_LINES, MODE_FIELDS,
+  BALANCE_FIELDS, balancesTotal, BLANK, entryFaults, exampleValues, FRONT_FIELDS, groupTotal, HOUSING_LINES, isItemized, LIVING_LINES, MODE_FIELDS,
   SAVINGS_RATE_FIELD, savingsRateUnreadable, toInput, type Group,
 } from "./fields";
 import golden from "./golden.json";
@@ -102,6 +102,34 @@ describe("home budget fields", () => {
   it("clears to empty boxes with every group back to one total", () => {
     expect(Object.keys(BLANK)).toEqual(Object.keys(example));
     for (const [id, value] of Object.entries(BLANK)) expect(value, id).toBe(id.endsWith("Mode") ? "total" : "");
+  });
+});
+
+describe("B5: negative and unreadable entries behind Add detail", () => {
+  const faults = (changes: Record<string, string> = {}, rows: Row[] = noRows) => entryFaults({ ...example, ...changes }, rows);
+
+  it("finds nothing wrong in the example or a cleared form", () => {
+    expect(faults()).toEqual({ negative: null, unreadable: null });
+    expect(entryFaults(BLANK, noRows)).toEqual({ negative: null, unreadable: null });
+  });
+
+  it("names a negative line of an itemized group, a negative debt row and a negative balance", () => {
+    expect(faults({ housingMode: "itemized", housingPi: "1,900", housingTax: "-50" }).negative).toBe("Property tax");
+    expect(faults({ livingMode: "itemized", livingGroceries: "-1" }).negative).toBe("Groceries");
+    expect(faults({ debtsMode: "itemized" }, rowsOf([350, -20])).negative).toBe("Debt 2 monthly payment");
+    expect(faults({ debtsMode: "itemized" }, [{ id: 1, name: "Car loan", payment: "-20" }]).negative).toBe("Car loan monthly payment");
+    expect(faults({ balanceSavings: "-100" }).negative).toBe("Savings accounts");
+  });
+
+  it("ignores the lines and rows of a group entered as one total", () => {
+    expect(faults({ housingTax: "-50", livingGroceries: "abc" }, rowsOf([-20]))).toEqual({ negative: null, unreadable: null });
+  });
+
+  it("names the group with a line that is not a number, apart from a group with nothing entered", () => {
+    expect(faults({ housingMode: "itemized", housingPi: "1,900", housingTax: "12..5" }).unreadable).toBe("housing");
+    expect(faults({ debtsMode: "itemized" }, rowsOf(["abc"])).unreadable).toBe("debts");
+    expect(faults({ livingMode: "itemized", livingOther: "." }).unreadable).toBe("living");
+    expect(faults({ housingMode: "itemized" }).unreadable).toBeNull();
   });
 });
 

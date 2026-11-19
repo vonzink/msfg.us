@@ -27,8 +27,11 @@
  *   - Bands: a ratio at or under `comfortable` is "comfortable", at or under `stretching` is
  *     "stretching", above it "high". A ratio exactly on an edge is in the band below it, as in the
  *     dashboard's own `<=` tests. They are a way to read a share of income, nothing more.
+ *   - A band is read from the ratio rounded to four decimal places (`roundShare`), a hundredth of
+ *     a percent, which is also how the page shows it. So the band and the figure shown always
+ *     agree: 47.00% is the lower band and 47.01% the upper, whatever cents are behind it.
  *   - Sums are kept unrounded, as on the dashboard, and each reported amount is rounded to cents
- *     on its own. Ratios are not rounded.
+ *     on its own. The ratios in the result are not rounded; the page rounds them with `roundShare`.
  *
  * The deliberate differences from the dashboard
  *   - One income figure. The dashboard splits the income of its employment rows, which
@@ -36,10 +39,10 @@
  *     additional), which tax, savings and cash flow use. Here there is one gross monthly household
  *     income, used everywhere. The two agree when there is no additional income, which is how
  *     every golden case is recorded.
- *   - The band edges are compared as decimals. The dashboard compares percents, and in floating
- *     point 5,500 / 10,000 x 100 comes to a hair above 55, so a back ratio of exactly 55% reads
- *     as over its upper edge there. Here exactly 55% is "stretching", as that edge is written.
- *     The lower edges (32%, 47%) agree and are in the golden cases.
+ *   - A share within a hundredth of a percent of an edge reads as the lower band; the dashboard's
+ *     float arithmetic can tip it over. There 5,500 / 10,000 x 100 comes to a hair above 55, so a
+ *     back ratio of exactly 55% reads as the upper band; here it is "stretching". After rounding,
+ *     the edges hold for amounts with cents too. The golden cases (32% and 47% exactly) agree.
  *   - With a ratio of exactly 0 the dashboard asks for data instead of naming a band. Here 0 is
  *     "comfortable".
  *   - Months of reserves is null, not 0, when there are no balances or no housing: there is
@@ -95,9 +98,19 @@ export type BudgetResult = {
   reserveMonths: number | null;
 };
 
+/** Hundredths of a percent, as a whole number: 0.4703 is 4703. */
+const hundredths = (ratio: number): number => Math.round(ratio * 10000);
+
+/** A ratio rounded to four decimal places, a hundredth of a percent: the figure a band is read from and the page shows. */
+export function roundShare(ratio: number): number {
+  return hundredths(ratio) / 10000 + 0;
+}
+
+/** The band of a ratio, read from the ratio rounded to a hundredth of a percent. */
 export function bandFor(ratio: number, bands: { comfortable: number; stretching: number }): Band {
-  if (ratio <= bands.comfortable) return "comfortable";
-  return ratio <= bands.stretching ? "stretching" : "high";
+  const shown = hundredths(ratio);
+  if (shown <= hundredths(bands.comfortable)) return "comfortable";
+  return shown <= hundredths(bands.stretching) ? "stretching" : "high";
 }
 
 /** Whole cents, and never a negative zero. */

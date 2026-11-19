@@ -32,14 +32,27 @@ function arcPath(from: number, to: number): string {
  * The dial. Decorative for screen readers: the value and the rating word beside it carry the
  * meaning. A value that isn't a finite number (no loan, no rent) draws a grey dial with no needle.
  */
-export function GaugeDial({ value, scale }: { value: number; scale: Scale }) {
+export function GaugeDial({ value, scale, mirror = false, edgeLabels }: {
+  value: number;
+  scale: Scale;
+  /**
+   * Draws the dial the other way round, for a figure that is better when lower: the good zone on
+   * the left, the poor zone on the right, and the needle turned to match. The scale is unchanged,
+   * so the caller passes the figure with its sign turned.
+   */
+  mirror?: boolean;
+  /** Text written on the dial at its two cutoffs, left then right. */
+  edgeLabels?: [string, string];
+}) {
   const live = Number.isFinite(value);
   const current = live ? rate(value, scale) : null;
-  const angle = live ? -90 + 180 * dialPosition(value, scale) : -90;
+  const position = live ? dialPosition(value, scale) : 0;
+  const angle = live ? -90 + 180 * (mirror ? 1 - position : position) : -90;
+  const zones = mirror ? ZONES.map((z) => ({ ...z, from: 1 - z.to, to: 1 - z.from })).reverse() : ZONES;
 
   return (
     <svg viewBox="0 0 120 68" aria-hidden="true" className="block h-auto w-full max-w-[150px]">
-      {ZONES.map((z) => (
+      {zones.map((z) => (
         <path
           key={z.rating}
           d={arcPath(z.from + (z.from > 0 ? GAP / 2 : 0), z.to - (z.to < 1 ? GAP / 2 : 0))}
@@ -57,6 +70,22 @@ export function GaugeDial({ value, scale }: { value: number; scale: Scale }) {
         </g>
       )}
       <circle cx={CX} cy={CY} r={5} className={live ? "fill-ink" : "fill-line"} />
+      {edgeLabels?.map((label, i) => {
+        // Just outside the arc at the cutoff, growing away from the top of the dial.
+        const a = Math.PI * (1 - (i + 1) / 3);
+        const r = R + STROKE / 2 + 3;
+        return (
+          <text
+            x={(CX + r * Math.cos(a)).toFixed(2)}
+            y={(CY - r * Math.sin(a) + 1).toFixed(2)}
+            textAnchor={i === 0 ? "end" : "start"}
+            key={label + i}
+            className="fill-muted text-[8px] font-semibold"
+          >
+            {label}
+          </text>
+        );
+      })}
     </svg>
   );
 }

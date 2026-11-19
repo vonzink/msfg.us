@@ -34,6 +34,6 @@ export const QUESTIONS: { q: string; a: string }[] = [
   },
   {
     q: "How many months of savings is enough?",
-    a: "There is no single answer. The figure here is how many whole months of the housing payment your balances would cover if no income came in. Some loans ask for a set number of months in reserve, and the number depends on the loan. A loan officer can tell you what applies to yours.",
+    a: "There is no single answer. The figure here is how many whole months of the housing payment your balances would cover if no income came in. A lender counts reserves in its own way, and a loan officer can explain what applies to you.",
   },
 ];

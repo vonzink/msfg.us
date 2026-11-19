@@ -8,7 +8,7 @@ import { BLANK, exampleValues, toInput } from "./fields";
 import golden from "./golden.json";
 import { BACK_BANDS, calculateBudget, FRONT_BANDS, type BudgetInput } from "./math";
 import { BudgetPrintDetails, BudgetPrintSummary } from "./PrintSummary";
-import { bandRangesText, BudgetResults, headlineText, PRIVACY_LINE, promptText, RATIO_NOTE, usd, type FormState } from "./Results";
+import { bandRangesText, BudgetResults, dialScale, headlineText, PRIVACY_LINE, promptText, RATIO_NOTE, shareText, usd, type FormState } from "./Results";
 import { blankRows } from "./rows";
 
 const DISCLAIMER = "This is an estimate based on the numbers you entered.";
@@ -30,7 +30,7 @@ const print = (input: BudgetInput) => {
 const count = (html: string, needle: string) => html.split(needle).length - 1;
 const bandWords = (html: string) => [...html.matchAll(/data-band="(\w+)"/g)].map((m) => m[1]);
 
-const BAD_OUTPUT = /NaN|Infinity|undefined|-\$0/;
+const BAD_OUTPUT = /NaN|Infinity|undefined|-\$0|-0\.0+%/;
 const BAD_WORDS = /qualif|approved|eligible|your rate|should|guideline|limit|DTI/i;
 const BAR_HEADING = "Where the income goes";
 const FOLDER = path.join(process.cwd(), "src", "calculators", "budget");
@@ -43,8 +43,8 @@ describe("home budget calculator page", () => {
     expect(html).toContain("Estimated monthly cash flow");
     expect(html).toContain("$1,220 left each month");
     expect(html).toContain("after tax, savings, housing, debts and living costs");
-    expect(html).toContain("30.0%");
-    expect(html).toContain("36.7%");
+    expect(html).toContain("30.00%");
+    expect(html).toContain("36.67%");
     expect(html).toContain("$5,700");
     expect(html).toContain("Housing as a share of income");
     expect(html).toContain("front-end ratio");
@@ -186,6 +186,81 @@ describe("home budget calculator page", () => {
   });
 });
 
+describe("review fixes", () => {
+  const SHORT_NOTE = "These shares are of income before tax. On these numbers the month still falls short once tax and living costs are counted.";
+
+  it("B1: shows each share to two decimals, and the band always agrees with the figure shown", () => {
+    expect(shareText(0.3)).toBe("30.00%");
+    expect(shareText(11 / 30)).toBe("36.67%");
+    expect(shareText(0)).toBe("0.00%");
+    const upper = results({ ...goldenInput("example"), housing: 4233, debts: 0 });
+    expect(upper).toContain("47.03%");
+    expect(bandWords(upper)).toEqual(["high", "stretching"]);
+    const edge = results({ ...goldenInput("example"), grossIncome: 5130, housing: 2411.1, debts: 0, living: 0 });
+    expect(edge).toContain("47.00%");
+    expect(bandWords(edge)).toEqual(["stretching", "comfortable"]);
+  });
+
+  it("B2: says under the gauges that the shares are before tax when the month is short", () => {
+    const high = results(goldenInput("high"));
+    expect(high).toContain(SHORT_NOTE);
+    expect(high.indexOf(SHORT_NOTE)).toBeGreaterThan(high.indexOf("back-end ratio"));
+    expect(high.indexOf(SHORT_NOTE)).toBeLessThan(high.indexOf("Left after housing and debts"));
+    expect(results(goldenInput("example"))).not.toContain("These shares are of income before tax.");
+    const noTax = results({ ...goldenInput("high"), taxRate: 0, living: 2000 });
+    expect(noTax).toContain("These shares are of income before tax. On these numbers the month still falls short once living costs are counted.");
+    expect(noTax).not.toContain("once tax and");
+  });
+
+  it("B3: the dial runs from Comfortable on the left to High on the right, with the band edges written on it", () => {
+    expect(dialScale(FRONT_BANDS)).toEqual({ min: -1, fair: -0.47, good: -0.32, max: 0 });
+    const html = results(goldenInput("example"));
+    const dials = html.split("<svg").slice(1).map((s) => s.slice(0, s.indexOf("</svg>")));
+    expect(dials).toHaveLength(2);
+    // Zones are drawn left to right: green, amber, red.
+    for (const dial of dials) expect([...dial.matchAll(/stroke-(chart-3|chart-4|loss)/g)].map((m) => m[1])).toEqual(["chart-3", "chart-4", "loss"]);
+    expect([...dials[0].matchAll(/<text[^>]*>([^<]+)<\/text>/g)].map((m) => m[1])).toEqual(["32%", "47%"]);
+    expect([...dials[1].matchAll(/<text[^>]*>([^<]+)<\/text>/g)].map((m) => m[1])).toEqual(["47%", "55%"]);
+    // The needle moves to the right as the share rises.
+    const angle = (h: string) => Number(h.match(/rotate\((-?[\d.]+)deg\)/)![1]);
+    const low = angle(results({ ...goldenInput("example"), housing: 900 }));
+    const mid = angle(results(goldenInput("example")));
+    const top = angle(results(goldenInput("high")));
+    expect(low).toBeLessThan(mid);
+    expect(mid).toBeLessThan(0);
+    expect(top).toBeGreaterThan(30);
+    expect(angle(results({ ...goldenInput("example"), housing: 0 }))).toBe(-90);
+  });
+
+  it("B4: the front total of an itemized group is read-only, not disabled", () => {
+    expect(page()).not.toMatch(/<input[^>]* (disabled|readonly)=""/i);
+  });
+
+  it("B5: names a negative entry, and says when a line is not a number", () => {
+    const form = (more: Partial<FormState>): FormState => ({ itemized: ["housing"], savingsUnreadable: false, ...more });
+    expect(promptText(typed({ housingMode: "itemized", housingTax: "-50" }), form({ negative: "Property tax" }))).toBe("Property tax must be $0 or more.");
+    expect(promptText(typed(), { itemized: [], savingsUnreadable: false, negative: "Savings accounts" })).toBe("Savings accounts must be $0 or more.");
+    expect(promptText(typed({ housingMode: "itemized", housingTax: "1..2" }), form({ unreadable: "housing" }))).toBe("One of the housing lines is not a number.");
+    expect(promptText(typed({ debtsMode: "itemized" }), { itemized: ["debts"], savingsUnreadable: false, unreadable: "debts" })).toBe("One of the debts is not a number.");
+    expect(promptText(typed({ livingMode: "itemized", livingOther: "x" }), { itemized: ["living"], savingsUnreadable: false, unreadable: "living" })).toBe("One of the living costs is not a number.");
+    // Nothing entered at all is still the first prompt.
+    expect(promptText(typed({ housingMode: "itemized" }), form({}))).toBe("Enter at least one housing line, or switch back to one total.");
+  });
+
+  it("B6: says what to enter as balances, and that a lender counts reserves in its own way", () => {
+    expect(page()).toContain("Enter what would be left after your down payment and closing costs.");
+    expect(results(goldenInput("with-savings-and-balances"))).toContain("A lender counts reserves in its own way, so this is not that figure.");
+  });
+
+  it("B7: never shows a negative share of nothing in the bar, and says the figures are rounded", () => {
+    const html = results({ ...goldenInput("example"), living: 2500 + 1220.4 });
+    expect(html).toContain(BAR_HEADING);
+    expect(html).not.toContain("-0.0%");
+    expect(html).toContain(">0.0%<");
+    expect(html).toContain("Figures are rounded.");
+  });
+});
+
 describe("with no result", () => {
   const prompt = (changes: Values, form?: FormState) => promptText(typed(changes), form);
 
@@ -236,15 +311,20 @@ describe("the printed page", () => {
     for (const text of [
       "The month", "Gross monthly household income", "$9,000", "Estimated tax rate", "22%", "Monthly housing payment", "$2,700",
       "Monthly debt payments", "$600", "Monthly living costs", "$2,500", "Share of income set aside as savings", "10%",
-      "The estimate", "Left each month", "$320", "Housing as a share of income", "30.0%, Comfortable", "Housing and debts as a share of income", "36.7%, Comfortable",
+      "The estimate", "Left each month", "$320", "Housing as a share of income", "30.00%, Comfortable", "Housing and debts as a share of income", "36.67%, Comfortable",
       "Left after housing and debts", "$5,700", "Savings cover", "9 months of housing",
       "Housing, line by line", "Property tax", "$400",
-      RATIO_NOTE, PRIVACY_LINE, DISCLAIMER,
+      RATIO_NOTE, DISCLAIMER,
     ]) expect(html, text).toContain(text);
     const plain = print(goldenInput("example"));
     expect(plain).not.toContain("Savings cover");
     expect(plain).toContain("None");
     expect(print(goldenInput("high"))).toContain("Short each month");
+  });
+
+  it("B9: leaves the privacy line off the printed page; it is on screen once, under the form", () => {
+    expect(print(goldenInput("example"))).not.toContain(PRIVACY_LINE);
+    expect(count(page(), PRIVACY_LINE)).toBe(1);
   });
 
   it("prints only what is below the form and the results", () => {

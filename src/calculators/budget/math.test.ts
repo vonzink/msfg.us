@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import golden from "./golden.json";
-import { BACK_BANDS, bandFor, calculateBudget, FRONT_BANDS, RATE_RANGE, type Band, type BudgetInput } from "./math";
+import { BACK_BANDS, bandFor, calculateBudget, FRONT_BANDS, RATE_RANGE, roundShare, type Band, type BudgetInput } from "./math";
 
 const cases = golden.cases;
 const named = (name: string): BudgetInput => cases.find((c) => c.name === name)!.input;
@@ -98,6 +98,33 @@ describe("bands", () => {
     expect(calc({ grossIncome: 10000, housing: 3200, debts: 1500 })).toMatchObject({ frontBand: "comfortable", backBand: "comfortable" });
     expect(calc({ grossIncome: 10000, housing: 4700, debts: 800 })).toMatchObject({ frontBand: "stretching", backBand: "stretching" });
     expect(calc({ grossIncome: 10000, housing: 4701, debts: 800 })).toMatchObject({ frontBand: "high", backBand: "high" });
+  });
+});
+
+describe("B1: a band is read from the share as it is shown, rounded to a hundredth of a percent", () => {
+  it("rounds a share to four decimal places", () => {
+    expect(roundShare(4233 / 9000)).toBe(0.4703);
+    expect(roundShare(2411.1 / 5130)).toBe(0.47);
+    expect(roundShare(0.366666)).toBe(0.3667);
+    expect(roundShare(0)).toBe(0);
+  });
+
+  it("puts a share that shows as the edge in the lower band, and one a hundredth above it in the upper", () => {
+    expect(bandFor(0.47004, BACK_BANDS)).toBe("comfortable");
+    expect(bandFor(0.4700499, FRONT_BANDS)).toBe("stretching");
+    expect(bandFor(0.47006, BACK_BANDS)).toBe("stretching");
+    expect(bandFor(0.4701, FRONT_BANDS)).toBe("high");
+    expect(bandFor(0.55004, BACK_BANDS)).toBe("stretching");
+    expect(bandFor(0.32004, FRONT_BANDS)).toBe("comfortable");
+  });
+
+  it("the reviewer's cases: 4,233 of 9,000 is 47.03% and the upper band; 2,411.10 of 5,130 is exactly 47% and the lower", () => {
+    expect(calc({ grossIncome: 9000, housing: 4233, debts: 0 })).toMatchObject({ frontBand: "high", backBand: "stretching" });
+    expect(calc({ grossIncome: 5130, housing: 2411.1, debts: 0 })).toMatchObject({ frontBand: "stretching", backBand: "comfortable" });
+    // With cents the edge holds too: 5,500.00 of 10,000 and a cent either side of what shows as 55.00%.
+    expect(calc({ grossIncome: 10000, housing: 5500, debts: 0 })!.backBand).toBe("stretching");
+    expect(calc({ grossIncome: 10000, housing: 5500.49, debts: 0 })!.backBand).toBe("stretching");
+    expect(calc({ grossIncome: 10000, housing: 5500.5, debts: 0 })!.backBand).toBe("high");
   });
 });
 

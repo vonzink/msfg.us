@@ -44,8 +44,8 @@ describe("Clear, then the example's five numbers", () => {
     type(LIVING, "2500");
     expect(status()).toBeNull();
     expect(results()).toContain(EXAMPLE);
-    expect(results()).toContain("30.0%");
-    expect(results()).toContain("36.7%");
+    expect(results()).toContain("30.00%");
+    expect(results()).toContain("36.67%");
     expect(results()).toContain("$5,700");
     expect(box(INCOME).value).toBe("9,000");
   });
@@ -56,7 +56,7 @@ describe("Clear, then the example's five numbers", () => {
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
     fireEvent.click(screen.getByRole("button", { name: "Load example" }));
     expect(results()).toContain(EXAMPLE);
-    expect(box(HOUSING).disabled).toBe(false);
+    expect(box(HOUSING).readOnly).toBe(false);
     expect(box(HOUSING).value).toBe("2,700");
   });
 
@@ -70,7 +70,7 @@ describe("Clear, then the example's five numbers", () => {
     expect(box(TAX).value).toBe("0");
     expect(status()).toBeNull();
     expect(results()).toContain("$9,000 left each month");
-    expect(results()).toContain("0.0%");
+    expect(results()).toContain("0.00%");
     // Deleting the 0 by hand empties the box again, and the figure goes.
     type(DEBTS, "");
     expect(box(DEBTS).value).toBe("");
@@ -89,9 +89,15 @@ describe("one total or the lines, never both", () => {
     open();
     expect(screen.queryByLabelText("Property tax")).toBeNull();
     mode("Enter housing as", "Itemize");
-    expect(box(HOUSING).disabled).toBe(true);
+    // B4: read-only and still reachable, with no placeholder that looks like a typed 0.
+    expect(box(HOUSING).disabled).toBe(false);
+    expect(box(HOUSING).readOnly).toBe(true);
+    expect(box(HOUSING).getAttribute("aria-readonly")).toBe("true");
+    expect(box(HOUSING).tabIndex).toBe(0);
+    expect(box(HOUSING).placeholder).toBe("");
     expect(box(HOUSING).value).toBe("");
-    expect(document.body.textContent).toContain("Total of the lines under Add detail");
+    expect(document.getElementById("budget-housing-hint")!.textContent).toBe("Total of the lines under Add detail");
+    expect(box(HOUSING).getAttribute("aria-describedby")).toBe("budget-housing-hint");
     expect(status()).toBe("Enter at least one housing line, or switch back to one total.");
     expect(results()).not.toContain("$");
 
@@ -101,7 +107,7 @@ describe("one total or the lines, never both", () => {
     expect(status()).toBeNull();
     // 9,000 less 22% tax is 7,020; less 2,300, 600 and 2,500 leaves 1,620.
     expect(results()).toContain("$1,620 left each month");
-    expect(results()).toContain("25.6%");
+    expect(results()).toContain("25.56%");
     type("Homeowners insurance", "150");
     type("Mortgage insurance", "120");
     type("HOA dues", "130");
@@ -111,8 +117,16 @@ describe("one total or the lines, never both", () => {
     expect(box("HOA dues").value).toBe("0");
     expect(box(HOUSING).value).toBe("2,570");
 
+    // Leaving the read-only box does not write the sum over the typed total.
+    fireEvent.focus(box(HOUSING));
+    fireEvent.change(box(HOUSING), { target: { value: "99" } });
+    fireEvent.blur(box(HOUSING));
+    expect(box(HOUSING).value).toBe("2,570");
+
     mode("Enter housing as", "One total");
-    expect(box(HOUSING).disabled).toBe(false);
+    expect(box(HOUSING).readOnly).toBe(false);
+    expect(box(HOUSING).getAttribute("aria-readonly")).toBeNull();
+    expect(box(HOUSING).placeholder).toBe("0");
     expect(box(HOUSING).value).toBe("2,700");
     expect(results()).toContain(EXAMPLE);
     expect(screen.queryByLabelText("Property tax")).toBeNull();
@@ -128,7 +142,7 @@ describe("one total or the lines, never both", () => {
     expect(status()).toBe("Enter at least one living cost, or switch back to one total.");
     type("Groceries", "900");
     type("Insurance", "350");
-    expect(box(LIVING).disabled).toBe(true);
+    expect(box(LIVING).readOnly).toBe(true);
     expect(box(LIVING).value).toBe("1,250");
     expect(results()).toContain("$2,470 left each month");
     mode("Enter living costs as", "One total");
@@ -147,7 +161,7 @@ describe("one total or the lines, never both", () => {
     type("Car loan monthly payment", "350");
     type("Debt 2 monthly payment", "0");
     expect(box("Debt 2 monthly payment").value).toBe("0");
-    expect(box(DEBTS).disabled).toBe(true);
+    expect(box(DEBTS).readOnly).toBe(true);
     expect(box(DEBTS).value).toBe("350");
     expect(results()).toContain("$1,470 left each month");
 
@@ -187,6 +201,52 @@ describe("one total or the lines, never both", () => {
     expect(printed).toContain("Property tax");
     expect(printed).toContain("$400");
     expect(printed).not.toContain("HOA dues");
+  });
+});
+
+describe("B5: negative amounts and lines that are not numbers", () => {
+  it("a negative housing line gives no result and is named", () => {
+    open();
+    mode("Enter housing as", "Itemize");
+    type("Principal and interest", "1900");
+    type("Property tax", "-50");
+    expect(box("Property tax").value).toBe("-50");
+    expect(status()).toBe("Property tax must be $0 or more.");
+    expect(results()).not.toContain("each month");
+    type("Property tax", "50");
+    expect(status()).toBeNull();
+    expect(results()).toContain("$1,970 left each month");
+  });
+
+  it("a negative debt payment gives no result and is named", () => {
+    open();
+    mode("Enter debts as", "Itemize");
+    type("Debt 1 monthly payment", "350");
+    type("Debt 2 monthly payment", "-20");
+    expect(status()).toBe("Debt 2 monthly payment must be $0 or more.");
+    expect(results()).not.toContain("each month");
+  });
+
+  it("a negative balance gives no result, no reserves card, and is named", () => {
+    open();
+    type("Savings accounts", "25000");
+    expect(results()).toContain("9 months of housing");
+    type("Checking accounts", "-100");
+    expect(status()).toBe("Checking accounts must be $0 or more.");
+    expect(results()).not.toContain("Savings cover");
+    expect(results()).not.toContain("each month");
+  });
+
+  it("a line that is not a number, mid-typing, is said to be that and not a missing line", () => {
+    open();
+    mode("Enter housing as", "Itemize");
+    type("Principal and interest", "1900");
+    fireEvent.change(box("Property tax"), { target: { value: "4..0" } });
+    expect(status()).toBe("One of the housing lines is not a number.");
+    mode("Enter living costs as", "Itemize");
+    fireEvent.change(box("Property tax"), { target: { value: "400" } });
+    fireEvent.change(box("Groceries"), { target: { value: "." } });
+    expect(status()).toBe("One of the living costs is not a number.");
   });
 });
 
