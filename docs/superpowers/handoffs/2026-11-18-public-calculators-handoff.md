@@ -1,4 +1,4 @@
-# Public calculators: handoff after four of eight
+# Public calculators: handoff after five of eight
 
 Date: 2026-11-18. Written at the end of a long session so the next one can start from files, not memory.
 
@@ -7,7 +7,7 @@ Date: 2026-11-18. Written at the end of a long session so the next one can start
 1. `docs/superpowers/specs/2026-11-18-public-calculators-design.md`. The binding design. It has been amended several times; the amendments are in place, in the section each one changes.
 2. `src/calculators/CLAUDE.md`. Rules for anything under `src/calculators/`.
 3. `AGENTS.md` and `docs/CODEBASE.md`, section "Adding a calculator".
-4. The plan for the calculator most like the one you are building, in `docs/superpowers/plans/`. Refinance breakeven is the most complete example, amendments included.
+4. The plan for the calculator most like the one you are building, in `docs/superpowers/plans/`. Refinance breakeven and Rent vs buy are the most complete examples, amendments included.
 
 ## Where things stand
 
@@ -18,8 +18,8 @@ Date: 2026-11-18. Written at the end of a long session so the next one can start
 | 2 | Rate buydown, `/calculators/buydown` | Done, on `main` |
 | 3 | Blended rate, `/calculators/blended-rate` | Done, on `main` |
 | 4 | Refinance breakeven, `/calculators/refinance-breakeven` | Done, on `main` |
-| 5 | Rent vs buy, `/calculators/rent-vs-buy` | **Next** |
-| 6 | Home budget, `/calculators/budget` | Not started |
+| 5 | Rent vs buy, `/calculators/rent-vs-buy` | Done, on `main` |
+| 6 | Home budget, `/calculators/budget` | **Next** |
 | 7 | APR, `/calculators/apr` | Not started |
 | 8 | Investment retrofit | Not started |
 
@@ -61,11 +61,13 @@ One calculator at a time, each on its own branch from `main`:
 - **Do not add a combined figure Zachary did not ask for** without putting the accounting choice in front of him first. That is how the rejected version shipped.
 - **A shared component has limits.** The year-by-year `SeriesChart` starts at year 1; it was wrong for a breakeven in months and was replaced by `refinance-breakeven/BreakevenChart.tsx`.
 - **Print is a laid-out page:** `CalculatorShell printBelowOnly`, a `PrintSummary` from the shared kit, then the calculator's table or caution, then the disclaimer. The letterhead comes from `CalculatorPage`.
-- **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block.
+- **No silent $0 for a cost that leans the answer** (Rent vs buy). After Clear, closing costs, property tax, insurance and maintenance must be entered before a comparison shows; a typed 0 counts. The first build counted empty as $0 and made buying look $81,000 better. The shared money box empties a typed 0 on blur; Rent vs buy works round that in `keepTypedZero`.
+- **Zachary removed the on-screen assumptions box from Rent vs buy** after testing it. Do not put it back. The printout keeps the list.
+- **A prompt names the field at fault and its range** (`promptText` in `rent-vs-buy/Results.tsx`), with limits exported from `math.ts`.
+- **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block; Rent vs buy stops mortgage payments at the end of the loan, fixes cost inflation at 3%, and adds closing costs, mortgage insurance, HOA dues, the full monthly payment and an optional interest deduction.
 
 ## Notes for the remaining calculators
 
-- **Rent vs buy.** Source: `msfg-calc/views/calculators/buy-vs-rent.ejs` and `public/js/calculators/buy-vs-rent.js`. Five inputs up front, eight in detail. The spec's assumptions rule is the main risk: the assumptions in use are printed under the result even when the detail section is closed. This calculator needs a two-path chart over many years, which the shared `SeriesChart` does suit.
 - **Home budget.** Source: `budget.ejs`, `budget.js` (about 1,100 lines, DOM-bound; expect to drive it with a stand-in page as Blended rate's golden script does). Four results are required: front-end ratio, back-end ratio, monthly residual, monthly cash flow. Gauges use the dashboard bands with the words "Comfortable", "Stretching", "High". Reuse `blended-rate/rows.ts` as the pattern for debt rows. It has a privacy line that must stay true.
 - **APR.** Source: `apr.ejs`, `apr.js` (913 lines). Conventional loan assumed; mortgage insurance ends at 78% of a home value field in detail; prepaid interest defaults to 15 days and is shown in the breakdown. The result must say the official APR is the one on the Loan Estimate.
 - **Investment retrofit.** Move growth and sale, income taxes and opportunity cost behind "Add detail"; put the page on `CalculatorPage`; add the config disclaimer and example-rate note. Its markup snapshot test will need a deliberate update.
@@ -79,6 +81,7 @@ None block anything. Zachary has seen all of them.
 - **Rate buydown:** a rate such as 0.0000001% rounds to 0% and shows a $0 result; the payment table cannot be scrolled by keyboard at phone width.
 - **Blended rate:** the fifth and sixth bar colours are close.
 - **Refinance breakeven:** an example rate of 0 in tenant config opens the page on the prompt; the printout does not say when monthly savings include debt payments or mortgage insurance.
+- **Rent vs buy:** the chart's two lines differ only by colour and a stay over 12 years has no keyboard route to the yearly figures; rent and price read "2.400" as $2.40; the mortgage insurance cutoff uses the unrounded balance and could differ from the Mortgage calculator by one payment; the call to action reads "Like these numbers?" under a result where renting is ahead (shared band, every calculator).
 
 ## Not verified by any session
 
