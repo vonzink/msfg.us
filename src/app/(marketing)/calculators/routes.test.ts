@@ -11,6 +11,7 @@ vi.mock("@/server/tenant/config", () => ({
   }),
 }));
 
+import AprPage from "./apr/page";
 import BlendedRatePage from "./blended-rate/page";
 import BudgetPage from "./budget/page";
 import BuydownPage from "./buydown/page";
@@ -33,7 +34,30 @@ describe("switched-off calculators", () => {
     expect(await outcome(InvestmentPage)).toBe("renders");
     expect(await outcome(RentVsBuyPage)).toBe("renders");
     expect(await outcome(BudgetPage)).toBe("renders");
+    expect(await outcome(AprPage)).toBe("renders");
+    expect(await outcome(BlendedRatePage)).toBe("renders");
+    expect(await outcome(BreakevenPage)).toBe("renders");
     expect(await outcome(LandingPage)).toBe("renders");
+  });
+
+  it("makes a switched-off APR calculator not found", async () => {
+    expect(await outcome(AprPage)).toBe("renders");
+    settings.disabled = ["apr"];
+    expect(await outcome(AprPage)).toBe("not found");
+    expect(await outcome(MortgagePage)).toBe("renders");
+    expect(await outcome(BudgetPage)).toBe("renders");
+    expect(await outcome(LandingPage)).toBe("renders");
+  });
+
+  it("gives the APR page the example rate, its note and the disclaimer from tenant config", async () => {
+    const page = (await AprPage()) as { props: { entry: { slug: string }; intro?: string; children: { props: Record<string, unknown> } } };
+    expect(page.props.entry.slug).toBe("apr");
+    expect(page.props.intro).toBeUndefined();
+    expect(page.props.children.props).toEqual({
+      exampleRatePct: DEFAULT_TENANT_CONFIG.calculators.exampleRatePct,
+      exampleRateNote: DEFAULT_TENANT_CONFIG.legal.exampleRateNote,
+      disclaimer: DEFAULT_TENANT_CONFIG.legal.calculatorDisclaimer,
+    });
   });
 
   it("makes a switched-off home budget calculator not found", async () => {
@@ -77,7 +101,7 @@ describe("switched-off calculators", () => {
   it("B8: only the home budget page words its call to action differently", async () => {
     const title = async (page: () => Promise<unknown>) => ((await page()) as { props: { ctaTitle?: string } }).props.ctaTitle;
     expect(await title(BudgetPage)).toBe("Want to go through your numbers with someone?");
-    for (const page of [MortgagePage, BuydownPage, BlendedRatePage, BreakevenPage, RentVsBuyPage, InvestmentPage]) expect(await title(page)).toBeUndefined();
+    for (const page of [MortgagePage, BuydownPage, BlendedRatePage, BreakevenPage, RentVsBuyPage, AprPage, InvestmentPage]) expect(await title(page)).toBeUndefined();
   });
 
   it("makes a switched-off blended rate calculator not found", async () => {
@@ -102,6 +126,9 @@ describe("switched-off calculators", () => {
 
   it("makes the landing page not found when every calculator is off", async () => {
     settings.disabled = ["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "budget", "investment"];
+    // The APR calculator alone keeps the landing page.
+    expect(await outcome(LandingPage)).toBe("renders");
+    settings.disabled = [...settings.disabled, "apr"];
     expect(await outcome(LandingPage)).toBe("not found");
   });
 });

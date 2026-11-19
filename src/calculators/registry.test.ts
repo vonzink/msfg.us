@@ -20,7 +20,7 @@ describe("calculator registry", () => {
   });
 
   it("lists the calculators in menu order", () => {
-    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "budget", "investment"]);
+    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "budget", "apr", "investment"]);
   });
 
   it("lists the Rent vs buy calculator fifth, leading to the purchase application", () => {
@@ -34,7 +34,7 @@ describe("calculator registry", () => {
     });
   });
 
-  it("lists the Home budget calculator sixth, before the Investment calculator, leading to the purchase application", () => {
+  it("lists the Home budget calculator sixth, leading to the purchase application", () => {
     expect(CALCULATORS[5]).toEqual({
       slug: "budget",
       path: "/calculators/budget",
@@ -43,7 +43,19 @@ describe("calculator registry", () => {
       description: "See how much of your income goes to housing and debts, and what is left each month after your bills.",
       applyHref: "/apply/buy",
     });
-    expect(CALCULATORS[6].slug).toBe("investment");
+  });
+
+  it("lists the APR calculator seventh, before the Investment calculator, leading to the purchase application", () => {
+    expect(CALCULATORS[6]).toEqual({
+      slug: "apr",
+      path: "/calculators/apr",
+      label: "APR calculator",
+      question: "What is the APR on a loan once fees are counted?",
+      description: "See how lender fees, points and mortgage insurance turn an interest rate into an APR.",
+      applyHref: "/apply/buy",
+    });
+    expect(CALCULATORS[7].slug).toBe("investment");
+    expect(CALCULATORS).toHaveLength(8);
   });
 
   it("leaves out switched-off calculators and ignores unknown slugs", () => {

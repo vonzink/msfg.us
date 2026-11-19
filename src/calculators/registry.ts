@@ -70,6 +70,14 @@ export const CALCULATORS: CalculatorEntry[] = [
     applyHref: "/apply/buy",
   },
   {
+    slug: "apr",
+    path: "/calculators/apr",
+    label: "APR calculator",
+    question: "What is the APR on a loan once fees are counted?",
+    description: "See how lender fees, points and mortgage insurance turn an interest rate into an APR.",
+    applyHref: "/apply/buy",
+  },
+  {
     slug: "investment",
     path: "/calculators/investment",
     label: "Investment calculator",

@@ -17,7 +17,7 @@ const KNOWN = new Set([
   "/veterans", "/reverse", "/investment", "/commercial",
   "/about", "/careers", "/know-your-lender", "/resources/mortgage-glossary",
   "/calculators", "/calculators/investment", "/calculators/mortgage", "/calculators/buydown", "/calculators/blended-rate", "/calculators/refinance-breakeven",
-  "/calculators/rent-vs-buy", "/calculators/budget",
+  "/calculators/rent-vs-buy", "/calculators/budget", "/calculators/apr",
 ]);
 
 function allLinks(): NavLink[] {
@@ -86,6 +86,12 @@ describe("nav/footer links", () => {
     const navigation = navigationForFeatures({ ratesNavigation: true }, CALCULATORS);
     expect(navigation.map((i) => i.label)).toEqual(NAV.map((i) => i.label));
     expect(navigation.find((i) => i.href === "/rates")).toEqual(NAV.find((i) => i.href === "/rates"));
+  });
+
+  it("links every registered calculator, the APR calculator among them, to a known route", () => {
+    const menu = navigationForFeatures({ ratesNavigation: true }, CALCULATORS).find((i) => i.label === "Mortgage Calculators")!;
+    expect(menu.items).toContainEqual({ label: "APR calculator", href: "/calculators/apr" });
+    for (const c of CALCULATORS) expect(KNOWN.has(c.path), c.path).toBe(true);
   });
 
   it("no internal link is the bare-home placeholder", () => {
