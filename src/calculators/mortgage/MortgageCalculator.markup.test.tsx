@@ -403,19 +403,30 @@ describe("payment mode: costs come off the payment", () => {
   it("with no costs, says nothing is taken off", () => {
     const html = text(results({}, "payment"));
     expect(html).toContain("Estimated loan amount$320,000what $2,128.97 a month pays off over 30 years at 7%. No tax or insurance is taken off.With 20% down, that is a home price of $400,000.");
-    expect(html).not.toMatch(/of principal and interest|comes off|not included/);
+    expect(html).not.toMatch(/of principal and interest|comes? off|not included/);
   });
 
   it("with costs, says what is left and what came off", () => {
     expect(text(results(whole, "payment"))).toContain(
-      "Estimated loan amount$320,005what $2,129.00 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax, insurance comes off the $2,679.00 payment.With 20% down, that is a home price of $400,006.",
+      "Estimated loan amount$320,005what $2,129.00 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax and insurance come off the $2,679.00 payment.With 20% down, that is a home price of $400,006.",
     );
     expect(text(results(all, "payment"))).toContain(
-      "Estimated loan amount$304,974what $2,029.00 a month of principal and interest pays off over 30 years at 7%, after $800.00 a month of tax, insurance, HOA dues, mortgage insurance comes off the $2,829.00 payment.With 10% down, that is a home price of $338,860.",
+      "Estimated loan amount$304,974what $2,029.00 a month of principal and interest pays off over 30 years at 7%, after $800.00 a month of tax, insurance, HOA dues and mortgage insurance come off the $2,829.00 payment.With 10% down, that is a home price of $338,860.",
     );
     expect(text(results(all, "payment"))).toContain("Includes mortgage insurance until payment 115.");
     expect(text(results({ payment: "2,500", monthlyHoa: "100" }, "payment"))).toContain("after $100.00 a month of HOA dues comes off the $2,500.00 payment.");
     expect(text(results(whole, "payment"))).not.toContain("No tax or insurance is taken off.");
+  });
+
+  it("lists the costs taken off with \"and\" before the last, and the verb agrees", () => {
+    const sub = (changes: Record<string, string>) => text(results(changes, "payment")).match(/, after .*? payment\./)![0];
+    // One cost: "comes".
+    expect(sub({ payment: "2,529", yearlyTax: "4,800" })).toBe(", after $400.00 a month of tax comes off the $2,529.00 payment.");
+    // Two: "and", no comma, "come".
+    expect(sub(whole)).toBe(", after $550.00 a month of tax and insurance come off the $2,679.00 payment.");
+    // Three or more: commas, then "and" before the last.
+    expect(sub({ ...whole, payment: "2,779", monthlyHoa: "100" })).toBe(", after $650.00 a month of tax, insurance and HOA dues come off the $2,779.00 payment.");
+    expect(sub(all)).toBe(", after $800.00 a month of tax, insurance, HOA dues and mortgage insurance come off the $2,829.00 payment.");
   });
 
   it("has no full monthly payment card: the payment typed is the full payment", () => {

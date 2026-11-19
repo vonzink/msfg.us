@@ -227,7 +227,7 @@ describe("switching modes keeps what carries over", () => {
     expect(box("Interest rate").value).toBe("7");
     expect(box("Loan term").value).toBe("30");
     // The tax and insurance of the purchase come along, and come off the payment again.
-    expect(results()).toContain("Estimated loan amount$400,000what $2,661.21 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax, insurance comes off the $3,211.21 payment.");
+    expect(results()).toContain("Estimated loan amount$400,000what $2,661.21 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax and insurance come off the $3,211.21 payment.");
     expect(results()).not.toContain("Full monthly payment");
     expect(results()).not.toContain("Estimated monthly payment");
     mode("Purchase");
@@ -248,7 +248,7 @@ describe("switching modes keeps what carries over", () => {
     expect(box("Home price").value).toBe("500,000");
     mode("Payment");
     expect(box("Monthly payment").value).toBe("1,800");
-    expect(results()).toContain("comes off the $1,800.00 payment.");
+    expect(results()).toContain("of tax and insurance come off the $1,800.00 payment.");
   });
 
   it("an absurd price switched to Payment does not hang, and the payment is asked for", () => {
@@ -497,7 +497,7 @@ describe("Payment mode: costs come off the payment", () => {
     type("Monthly payment", "2679");
     type("Property tax", "4800");
     type("Homeowners insurance", "1800");
-    expect(results()).toContain("Estimated loan amount$320,005what $2,129.00 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax, insurance comes off the $2,679.00 payment.With 20% down, that is a home price of $400,006.");
+    expect(results()).toContain("Estimated loan amount$320,005what $2,129.00 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax and insurance come off the $2,679.00 payment.With 20% down, that is a home price of $400,006.");
     expect(results()).not.toContain("Full monthly payment");
     expect(phoneBar()).toContain("Estimated loan amount$320,005");
     type("Monthly payment", "2829");
@@ -525,7 +525,7 @@ describe("Payment mode: costs come off the payment", () => {
     expect(results()).toContain("Estimated monthly payment$3,211$2,661 principal and interest on a $400,000 loan.");
     mode("Payment");
     expect(box("Monthly payment").value).toBe("3,211.21");
-    expect(results()).toContain("Estimated loan amount$400,000what $2,661.21 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax, insurance comes off the $3,211.21 payment.With 20% down, that is a home price of $500,000.");
+    expect(results()).toContain("Estimated loan amount$400,000what $2,661.21 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax and insurance come off the $3,211.21 payment.With 20% down, that is a home price of $500,000.");
   });
 
   it("the untouched purchase example opens Payment on its own example", () => {

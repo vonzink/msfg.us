@@ -46,6 +46,9 @@ export function promptText(fault: InputFault | null): string {
   }
 }
 
+/** A list in words: "tax", "tax and insurance", "tax, insurance and HOA dues". */
+const listText = (items: string[]) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
+
 /** A rate as typed, without trailing zeros: 0.07 is "7%". */
 const ratePercent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 
@@ -83,7 +86,7 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
   // Payment mode goes by the percent typed, as the model's input does, not the cents of the worked-out price.
   const lowDown = scenario.mode === "payment" ? scenario.downPct < 20 : measured && r.ltv > 80;
   // Payment mode: what comes off the payment typed before the principal and interest.
-  const onTop = [first.tax > 0 && "tax", first.insurance > 0 && "insurance", first.hoa > 0 && "HOA dues", hasPmi && "mortgage insurance"].filter(Boolean);
+  const onTop = [first.tax > 0 && "tax", first.insurance > 0 && "insurance", first.hoa > 0 && "HOA dues", hasPmi && "mortgage insurance"].filter((name): name is string => Boolean(name));
   const needsPmiPrompt = lowDown && !hasPmi;
   const payoff = start ? `${MONTHS[r.payoff.month]} ${r.payoff.year}` : duration(r.schedule.length);
 
@@ -105,7 +108,7 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
             a month{onTop.length > 0 && " of principal and interest"} pays off over {scenario.termYears}{" "}
             {scenario.termYears === 1 ? "year" : "years"} at {ratePercent(scenario.annualRate)}
             {onTop.length > 0
-              ? `, after ${formatUSDCents(scenario.payment - scenario.principalAndInterest)} a month of ${onTop.join(", ")} comes off the ${formatUSDCents(scenario.payment)} payment.`
+              ? `, after ${formatUSDCents(scenario.payment - scenario.principalAndInterest)} a month of ${listText(onTop)} ${onTop.length === 1 ? "comes" : "come"} off the ${formatUSDCents(scenario.payment)} payment.`
               : ". No tax or insurance is taken off."}
           </p>
         ) : null}
