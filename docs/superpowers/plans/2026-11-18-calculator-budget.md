@@ -165,3 +165,9 @@ From the final review, each fixed test-first (commit `e1471a0`):
 **Open, for Zachary before production cutover:** the root layout loads the LeadConnector chat widget on every page when `NEXT_PUBLIC_GHL_CHAT_WIDGET_ID` is set. It is not loaded on staging; the current production site does load it. The privacy line is only true if that widget stays off calculator pages or is shown not to read form fields.
 
 **Deferred minors:** money boxes read "9.000" as $9 and "1e4" as $14 (shared `parseNumber`); the first result may not be announced by screen readers; Clear then Print gives a letterhead-only page; an unreadable balance mid-typing hides the reserves card without a message; the bar's swatch colours match the band dots.
+
+## Amendment 2: changes from Zachary's staging test (2026-11-18)
+
+- **Empty tax rate, debts and living costs count as 0** and the page calculates (commit `90b05a4`). Only the income and the housing payment must be entered. An empty box shows a grey "0", and Zachary read that as zero. This reverses the "no result until all five are entered" constraint above for this calculator; junk text still gets a named prompt. A keystroke-level test showed a typed 0 had worked all along.
+- **"Work this out" opens the Mortgage calculator in a new tab**, so what is typed here stays.
+- **The band ranges sentence under each gauge is removed** (commit `05a90e4`). The dial keeps its edge labels; the ranges are still in "How this works".
