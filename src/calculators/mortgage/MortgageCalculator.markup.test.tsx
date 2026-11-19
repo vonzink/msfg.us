@@ -37,11 +37,11 @@ describe("mortgage calculator page", () => {
 
   it("labels every typed field and groups every choice", () => {
     const html = page();
-    for (const id of ["homePrice", "downPayment", "rate", "yearlyTax", "yearlyInsurance", "monthlyHoa", "monthlyPmi", "extraAmount"]) {
+    for (const id of ["homePrice", "downPayment", "rate", "termYears", "yearlyTax", "yearlyInsurance", "monthlyHoa", "monthlyPmi", "extraAmount"]) {
       expect(html.split(`id="mortgage-${id}"`).length - 1, id).toBe(1);
       expect(html, id).toContain(`for="mortgage-${id}"`);
     }
-    for (const legend of ["Down payment as", "Loan term", "Pay the extra"]) {
+    for (const legend of ["Down payment as", "Pay the extra"]) {
       expect(html).toMatch(new RegExp(`<legend[^>]*>${legend}</legend>`));
     }
   });
