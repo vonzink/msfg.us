@@ -26,6 +26,7 @@ export function BudgetPrintSummary({ input, result: r }: { input: BudgetInput; r
     { label: "Housing as a share of income", value: `${shareText(r.frontRatio)}, ${BAND_LABEL[r.frontBand]}` },
     { label: "Housing and debts as a share of income", value: `${shareText(r.backRatio)}, ${BAND_LABEL[r.backBand]}` },
     { label: "Left after housing and debts", value: usd(r.residual) },
+    { label: "After all expenses, before tax and savings", value: usd(r.residualAfterLiving) },
     ...(r.reserveMonths !== null ? [{ label: "Savings cover", value: reserveText(r.reserveMonths) }] : []),
   ];
   return <PrintSummary title="Home budget estimate" columns={[{ heading: "The month", rows: month }, { heading: "The estimate", rows: estimate }]} />;

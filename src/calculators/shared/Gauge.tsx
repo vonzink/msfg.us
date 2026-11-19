@@ -1,5 +1,5 @@
 import { cn } from "@/lib/cn";
-import { dialPosition, rate, RATING_LABEL, type Rating, type Scale } from "./gaugeScale";
+import { dialPosition, halfDialPosition, rate, RATING_LABEL, type Rating, type Scale } from "./gaugeScale";
 
 /** A half-circle speedometer: poor / fair / good zones and a needle. Inline SVG, no library. */
 
@@ -32,7 +32,7 @@ function arcPath(from: number, to: number): string {
  * The dial. Decorative for screen readers: the value and the rating word beside it carry the
  * meaning. A value that isn't a finite number (no loan, no rent) draws a grey dial with no needle.
  */
-export function GaugeDial({ value, scale, mirror = false, edgeLabels }: {
+export function GaugeDial({ value, scale, mirror = false, edgeLabels, twoZone = false, centerLabel }: {
   value: number;
   scale: Scale;
   /**
@@ -43,15 +43,27 @@ export function GaugeDial({ value, scale, mirror = false, edgeLabels }: {
   mirror?: boolean;
   /** Text written on the dial at its two cutoffs, left then right. */
   edgeLabels?: [string, string];
+  /**
+   * For a figure that is only above or below a line, with no middle ground: two zones, poor on the
+   * left half and good on the right, meeting at the top centre. The line is the scale's `good`;
+   * `fair` is not used. A value exactly on the line lights neither side. Not for use with `mirror`.
+   */
+  twoZone?: boolean;
+  /** Text written over the top centre of the dial, such as the value of a two-zone dial's line. */
+  centerLabel?: string;
 }) {
   const live = Number.isFinite(value);
-  const current = live ? rate(value, scale) : null;
-  const position = live ? dialPosition(value, scale) : 0;
+  const side = value > scale.good ? "good" : value < scale.good ? "poor" : null;
+  const current = !live ? null : twoZone ? side : rate(value, scale);
+  const position = !live ? 0 : twoZone ? halfDialPosition(value, scale) : dialPosition(value, scale);
   const angle = live ? -90 + 180 * (mirror ? 1 - position : position) : -90;
-  const zones = mirror ? ZONES.map((z) => ({ ...z, from: 1 - z.to, to: 1 - z.from })).reverse() : ZONES;
+  const zones = twoZone
+    ? [{ ...ZONES[0], to: 0.5 }, { ...ZONES[2], from: 0.5 }]
+    : mirror ? ZONES.map((z) => ({ ...z, from: 1 - z.to, to: 1 - z.from })).reverse() : ZONES;
 
   return (
-    <svg viewBox="0 0 120 68" aria-hidden="true" className="block h-auto w-full max-w-[150px]">
+    // A label over the top centre needs room above the arc; the dial itself is drawn the same size.
+    <svg viewBox={centerLabel ? "0 -9 120 77" : "0 0 120 68"} aria-hidden="true" className="block h-auto w-full max-w-[150px]">
       {zones.map((z) => (
         <path
           key={z.rating}
@@ -86,6 +98,9 @@ export function GaugeDial({ value, scale, mirror = false, edgeLabels }: {
           </text>
         );
       })}
+      {centerLabel && (
+        <text x={CX} y={-1.5} textAnchor="middle" className="fill-muted text-[8px] font-semibold">{centerLabel}</text>
+      )}
     </svg>
   );
 }

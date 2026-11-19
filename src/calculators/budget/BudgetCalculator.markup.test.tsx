@@ -218,8 +218,9 @@ describe("review fixes", () => {
   it("B2: says under the gauges that the shares are before tax when the month is short", () => {
     const high = results(goldenInput("high"));
     expect(high).toContain(SHORT_NOTE);
-    expect(high.indexOf(SHORT_NOTE)).toBeGreaterThan(high.indexOf("back-end ratio"));
-    expect(high.indexOf(SHORT_NOTE)).toBeLessThan(high.indexOf("Left after housing and debts"));
+    // Under the grid of four cards, above the shortfall sentence.
+    expect(high.indexOf(SHORT_NOTE)).toBeGreaterThan(high.indexOf("Short each month"));
+    expect(high.indexOf(SHORT_NOTE)).toBeLessThan(high.indexOf("On these numbers the month falls short by"));
     expect(results(goldenInput("example"))).not.toContain("These shares are of income before tax.");
     const noTax = results({ ...goldenInput("high"), taxRate: 0, living: 2000 });
     expect(noTax).toContain("These shares are of income before tax. On these numbers the month still falls short once living costs are counted.");
@@ -230,9 +231,9 @@ describe("review fixes", () => {
     expect(dialScale(FRONT_BANDS)).toEqual({ min: -1, fair: -0.47, good: -0.32, max: 0 });
     const html = results(goldenInput("example"));
     const dials = html.split("<svg").slice(1).map((s) => s.slice(0, s.indexOf("</svg>")));
-    expect(dials).toHaveLength(2);
+    expect(dials).toHaveLength(4);
     // Zones are drawn left to right: green, amber, red.
-    for (const dial of dials) expect([...dial.matchAll(/stroke-(chart-3|chart-4|loss)/g)].map((m) => m[1])).toEqual(["chart-3", "chart-4", "loss"]);
+    for (const dial of dials.slice(0, 2)) expect([...dial.matchAll(/stroke-(chart-3|chart-4|loss)/g)].map((m) => m[1])).toEqual(["chart-3", "chart-4", "loss"]);
     expect([...dials[0].matchAll(/<text[^>]*>([^<]+)<\/text>/g)].map((m) => m[1])).toEqual(["32%", "47%"]);
     expect([...dials[1].matchAll(/<text[^>]*>([^<]+)<\/text>/g)].map((m) => m[1])).toEqual(["47%", "55%"]);
     // The needle moves to the right as the share rises.
@@ -272,6 +273,132 @@ describe("review fixes", () => {
     expect(html).not.toContain("-0.0%");
     expect(html).toContain(">0.0%<");
     expect(html).toContain("Figures are rounded.");
+  });
+});
+
+describe("D: the residual and the cash flow as gauge cards with tables", () => {
+  const SECOND: BudgetInput = { grossIncome: 5000, taxRate: 0.22, savingsRate: Number.NaN, housing: 1600, debts: 750, living: 1700, balances: Number.NaN };
+  const strip = (html: string) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+  const card = (html: string, from: string, to: string) => html.slice(html.indexOf(`>${from}</h2>`), html.indexOf(to, html.indexOf(`>${from}</h2>`)));
+  const residualCard = (html: string) => card(html, "Left after housing and debts", ">Monthly cash flow</h2>");
+  const cashCard = (html: string) => card(html, "Monthly cash flow", "</dl>");
+  const rows = (part: string) => [...part.matchAll(/<dt[^>]*>(.*?)<\/dt><dd[^>]*>(.*?)<\/dd>/g)].map((m) => [strip(m[1]), strip(m[2])]);
+  const angles = (html: string) => [...html.matchAll(/rotate\((-?[\d.]+)deg\)/g)].map((m) => Number(m[1]));
+  const status = (part: string) => part.match(/data-status="(\w+)"[^>]*>.*?<span>([^<]+)<\/span>/)!.slice(1);
+
+  it("shows four gauge cards in a grid of two, in order, and no longer a plain residual figure", () => {
+    const html = results(goldenInput("example"));
+    const titles = [...html.matchAll(/<h2 class="text-\[14px\] font-bold">([^<]+)<\/h2>/g)].map((m) => m[1]);
+    expect(titles).toEqual(["Housing as a share of income", "Housing and debts as a share of income", "Left after housing and debts", "Monthly cash flow"]);
+    expect(html).toContain("grid-cols-2 gap-3 max-[600px]:grid-cols-1");
+    expect(html.split("<svg")).toHaveLength(5);
+    expect(count(html, 'aria-hidden="true" class="block h-auto')).toBe(4);
+    expect(html).toContain(">monthly residual<");
+    expect(html).toContain(">after tax, savings and all costs<");
+    expect(html).not.toContain("Gross monthly income less the housing payment");
+    // The headline card and the bar stay.
+    expect(html).toContain("Estimated monthly cash flow");
+    expect(html).toContain(BAR_HEADING);
+  });
+
+  it("D1: the example's residual card, row by row", () => {
+    const part = residualCard(results(goldenInput("example")));
+    expect(part).toContain(">$5,700<");
+    expect(status(part)).toEqual(["above", "Income covers housing and debts"]);
+    expect(rows(part)).toEqual([
+      ["Gross income", "$9,000"],
+      ["Housing payment", "-$2,700"],
+      ["Debt payments", "-$600"],
+      ["After housing and debts", "$5,700"],
+      ["After all expenses before tax and savings", "$3,200"],
+    ]);
+  });
+
+  it("D2: the example's cash flow card, row by row", () => {
+    const part = cashCard(results(goldenInput("example")));
+    expect(part).toContain(">$1,220<");
+    expect(status(part)).toEqual(["above", "Money left over"]);
+    expect(rows(part)).toEqual([
+      ["Gross income", "$9,000"],
+      ["Tax", "-$1,980"],
+      ["Housing payment", "-$2,700"],
+      ["Debt payments", "-$600"],
+      ["Living costs", "-$2,500"],
+      ["Left each month", "$1,220"],
+    ]);
+  });
+
+  it("the second case: 5,000 of income, 22% tax, 1,600 housing, 750 debts, 1,700 living", () => {
+    const html = results(SECOND);
+    expect(html).toContain("$150 short each month");
+    expect(residualCard(html)).toContain(">$2,650<");
+    expect(status(residualCard(html))).toEqual(["above", "Income covers housing and debts"]);
+    expect(rows(residualCard(html))).toEqual([
+      ["Gross income", "$5,000"], ["Housing payment", "-$1,600"], ["Debt payments", "-$750"], ["After housing and debts", "$2,650"],
+      ["After all expenses before tax and savings", "$950"],
+    ]);
+    expect(cashCard(html)).toContain(">-$150<");
+    expect(cashCard(html)).toContain("text-loss");
+    expect(status(cashCard(html))).toEqual(["below", "Costs come to more than the income"]);
+    expect(rows(cashCard(html))).toEqual([
+      ["Gross income", "$5,000"], ["Tax", "-$1,100"], ["Housing payment", "-$1,600"], ["Debt payments", "-$750"], ["Living costs", "-$1,700"],
+      ["Short each month", "$150"],
+    ]);
+  });
+
+  it("D2: tax and savings rows only when above zero; debts and living always, as $0 with no minus sign", () => {
+    const bare = cashCard(results(typed({ taxRate: "", debts: "", living: "" })));
+    expect(rows(bare)).toEqual([["Gross income", "$9,000"], ["Housing payment", "-$2,700"], ["Debt payments", "$0"], ["Living costs", "$0"], ["Left each month", "$6,300"]]);
+    const saving = cashCard(results(goldenInput("with-savings-and-balances")));
+    expect(rows(saving).map(([label]) => label)).toEqual(["Gross income", "Tax", "Savings set aside", "Housing payment", "Debt payments", "Living costs", "Left each month"]);
+    expect(rows(saving)[2]).toEqual(["Savings set aside", "-$900"]);
+    expect(rows(residualCard(results(typed({ debts: "" }))))[2]).toEqual(["Debt payments", "$0"]);
+  });
+
+  it("D3: two-zone dials with $0 at the top centre, the needle placed by the figure as a share of income and pinned at 50%", () => {
+    const html = results(goldenInput("example"));
+    const dials = html.split("<svg").slice(1).map((s) => s.slice(0, s.indexOf("</svg>")));
+    for (const dial of dials.slice(2)) {
+      expect([...dial.matchAll(/stroke-(chart-3|chart-4|loss)/g)].map((m) => m[1])).toEqual(["loss", "chart-3"]);
+      expect([...dial.matchAll(/<text[^>]*>([^<]+)<\/text>/g)].map((m) => m[1])).toEqual(["$0"]);
+    }
+    // 5,700 of 9,000 is past 50%: pinned at the right. 1,220 of 9,000 is 13.56%: 24.4 degrees right of centre.
+    expect(angles(html)[2]).toBe(90);
+    expect(angles(html)[3]).toBeCloseTo(24.4, 1);
+    // 2,650 of 5,000 is pinned; -150 of 5,000 is 3% left of centre: 5.4 degrees.
+    expect(angles(results(SECOND))[2]).toBe(90);
+    expect(angles(results(SECOND))[3]).toBeCloseTo(-5.4, 1);
+    expect(angles(results(goldenInput("expenses-over-income")))[3]).toBe(-90);
+  });
+
+  it("D3: says in words which side of zero each figure is on, exactly zero included", () => {
+    const behind = residualCard(results({ ...goldenInput("high"), debts: 3100 }));
+    expect(status(behind)).toEqual(["below", "Housing and debts come to more than the income"]);
+    expect(behind).toContain(">-$700<");
+    const all = results({ ...goldenInput("example"), housing: 8400, living: 0 });
+    expect(status(residualCard(all))).toEqual(["zero", "Housing and debts take all of the income"]);
+    expect(residualCard(all)).toContain(">$0<");
+    const even = results({ ...goldenInput("example"), living: 2500 + 1220 });
+    expect(status(cashCard(even))).toEqual(["zero", "Nothing left over"]);
+    expect(rows(cashCard(even)).at(-1)).toEqual(["Left each month", "$0"]);
+    // A few cents either way is still $0, in the middle, and never "-$0".
+    const cents = results({ ...goldenInput("example"), living: 2500 + 1220.4 });
+    expect(status(cashCard(cents))).toEqual(["zero", "Nothing left over"]);
+    expect(angles(cents)[3]).toBe(0);
+    expect(cents).not.toContain("-$0");
+  });
+
+  it("D5: none of the dashboard's labels are carried over", () => {
+    for (const html of [results(goldenInput("example")), results(SECOND), print(goldenInput("example"))]) {
+      expect(html).not.toMatch(/Qualifying|After DTI|Active Debts|Payoff|Obligations/i);
+    }
+  });
+
+  it("D4: the printed page has the figures and no dials", () => {
+    const html = print(goldenInput("example"));
+    expect(html).not.toContain("<svg");
+    expect(html).toContain("After all expenses, before tax and savings");
+    expect(html).toContain("$3,200");
   });
 });
 
@@ -355,7 +482,7 @@ describe("the printed page", () => {
       "The month", "Gross monthly household income", "$9,000", "Estimated tax rate", "22%", "Monthly housing payment", "$2,700",
       "Monthly debt payments", "$600", "Monthly living costs", "$2,500", "Share of income set aside as savings", "10%",
       "The estimate", "Left each month", "$320", "Housing as a share of income", "30.00%, Comfortable", "Housing and debts as a share of income", "36.67%, Comfortable",
-      "Left after housing and debts", "$5,700", "Savings cover", "9 months of housing",
+      "Left after housing and debts", "$5,700", "After all expenses, before tax and savings", "$3,200", "Savings cover", "9 months of housing",
       "Housing, line by line", "Property tax", "$400",
       RATIO_NOTE, DISCLAIMER,
     ]) expect(html, text).toContain(text);

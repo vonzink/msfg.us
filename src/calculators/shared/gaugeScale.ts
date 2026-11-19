@@ -29,6 +29,15 @@ export function rate(value: number, s: Scale): Rating {
   return "poor";
 }
 
+/**
+ * Needle position on a two-zone dial, from 0 (far left) to 1 (far right). The dial has one cutoff,
+ * the scale's `good`, at the top centre: each side of it takes half of the dial. `fair` is not used.
+ */
+export function halfDialPosition(value: number, s: Scale): number {
+  const within = (v: number, lo: number, hi: number) => (hi > lo ? Math.min(1, Math.max(0, (v - lo) / (hi - lo))) : 0);
+  return value < s.good ? within(value, s.min, s.good) / 2 : (1 + within(value, s.good, s.max)) / 2;
+}
+
 /** Needle position from 0 (far left) to 1 (far right). */
 export function dialPosition(value: number, s: Scale): number {
   const within = (v: number, lo: number, hi: number) =>

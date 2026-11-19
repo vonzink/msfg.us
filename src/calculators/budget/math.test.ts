@@ -54,6 +54,15 @@ describe("matches the dashboard (golden cases from msfg-calc)", () => {
     });
   });
 
+  it("D1: what is left after all expenses, before tax and savings, is the income less housing, debts and living costs", () => {
+    expect(calc()!.residualAfterLiving).toBe(3200); // 9,000 - 5,800
+    expect(calc({ savingsRate: 0.1 })!.residualAfterLiving).toBe(3200); // tax and savings are not in it
+    // 5,000 - 1,600 - 750 - 1,700 = 950, while the cash flow is 5,000 - 1,100 - 4,050 = -150.
+    expect(calc({ grossIncome: 5000, housing: 1600, debts: 750, living: 1700 })).toMatchObject({ residual: 2650, residualAfterLiving: 950, cashFlow: -150 });
+    expect(calc({ grossIncome: 4000, taxRate: 0.2, housing: 2500, debts: 1200, living: 1500 })!.residualAfterLiving).toBe(-1200);
+    expect(Object.is(calc({ grossIncome: 5800 })!.residualAfterLiving, 0)).toBe(true);
+  });
+
   it("the itemized case is the example typed line by line", () => {
     expect(named("itemized")).toEqual(example);
     expect(calculateBudget(named("itemized"))).toEqual(calc());

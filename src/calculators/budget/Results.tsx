@@ -166,6 +166,97 @@ function ShareCard({ label, secondary, ratio, band, bands }: { label: string; se
   );
 }
 
+/**
+ * The scale of the shared two-zone dial for a dollar figure. There are no bands for dollars, only
+ * above or below zero, so the dial has one line, $0 at the top centre. The needle is placed by the
+ * figure as a share of gross income and pinned at half of the income either way.
+ */
+export const MONEY_SCALE: Scale = { min: -0.5, fair: 0, good: 0, max: 0.5 };
+
+type Side = "above" | "zero" | "below";
+const SIDE_DOT: Record<Side, string> = { above: "bg-chart-3", zero: "bg-chart-axis", below: "bg-loss" };
+/** Which side of zero a figure is on, as it is shown: a few cents either way is zero. */
+const sideOf = (amount: number): Side => (Math.round(amount) > 0 ? "above" : Math.round(amount) < 0 ? "below" : "zero");
+export const RESIDUAL_STATUS: Record<Side, string> = {
+  above: "Income covers housing and debts",
+  zero: "Housing and debts take all of the income",
+  below: "Housing and debts come to more than the income",
+};
+export const CASH_FLOW_STATUS: Record<Side, string> = {
+  above: "Money left over",
+  zero: "Nothing left over",
+  below: "Costs come to more than the income",
+};
+/** An amount taken off: a minus sign only when it is not zero, so never "-$0". */
+const taken = (amount: number) => (Math.round(amount) === 0 ? "$0" : `-${formatUSD(amount)}`);
+
+type MoneyRow = { label: string; value: string; note?: string; total?: boolean };
+
+/**
+ * A dollar figure as a gauge card: the two-zone dial, the figure, which side of zero it is on in
+ * words with a dot, and a small table of how it is reached.
+ */
+function MoneyCard({ label, secondary, amount, income, status, rows }: {
+  label: string;
+  secondary: string;
+  amount: number;
+  income: number;
+  status: Record<Side, string>;
+  rows: MoneyRow[];
+}) {
+  const side = sideOf(amount);
+  return (
+    <div className="flex min-w-0 flex-col items-center gap-0.5 rounded-lg border border-line bg-white p-3.5 text-center print:break-inside-avoid">
+      <h2 className="text-[14px] font-bold">{label}</h2>
+      <span className="text-[12px] text-muted">{secondary}</span>
+      <div className="mt-2 flex w-full justify-center">
+        <GaugeDial value={side === "zero" ? 0 : amount / income} scale={MONEY_SCALE} twoZone centerLabel="$0" />
+      </div>
+      <span className={cn("mt-1 text-[22px] font-extrabold tabular-nums tracking-[-0.01em]", side === "below" && "text-loss")}>{usd(amount)}</span>
+      <span data-status={side} className="inline-flex items-center gap-1.5 text-[13px] font-bold">
+        <span className="sr-only">Status:</span>
+        <i aria-hidden="true" className={cn("inline-block size-2.5 flex-none rounded-full", SIDE_DOT[side])} />
+        <span>{status[side]}</span>
+      </span>
+      <dl className="m-0 mt-3 w-full text-left text-[13px]">
+        {rows.map((row) => (
+          <div key={row.label} className={cn("flex items-baseline justify-between gap-3 border-t border-line py-1.5", row.total && "font-bold")}>
+            <dt className={row.total ? undefined : "text-muted"}>
+              {row.label}
+              {row.note && <span className="block text-[11px] font-normal text-muted">{row.note}</span>}
+            </dt><dd className="m-0 whitespace-nowrap font-semibold tabular-nums">{row.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
+/** The rows of the residual card: the income, what housing and debts take, and what is left after living costs too. */
+export function residualRows(input: BudgetInput, r: BudgetResult): MoneyRow[] {
+  return [
+    { label: "Gross income", value: formatUSD(input.grossIncome) },
+    { label: "Housing payment", value: taken(input.housing) },
+    { label: "Debt payments", value: taken(input.debts) },
+    { label: "After housing and debts", value: usd(r.residual), total: true },
+    { label: "After all expenses", value: usd(r.residualAfterLiving), note: "before tax and savings" },
+  ];
+}
+
+/** The rows of the cash flow card. Tax and savings only when above zero; the three costs always, so the table keeps its shape. */
+export function cashFlowRows(input: BudgetInput, r: BudgetResult): MoneyRow[] {
+  const short = fallsShort(r.cashFlow);
+  return [
+    { label: "Gross income", value: formatUSD(input.grossIncome) },
+    ...(r.taxAmount > 0 ? [{ label: "Tax", value: taken(r.taxAmount) }] : []),
+    ...(r.savingsAmount > 0 ? [{ label: "Savings set aside", value: taken(r.savingsAmount) }] : []),
+    { label: "Housing payment", value: taken(input.housing) },
+    { label: "Debt payments", value: taken(input.debts) },
+    { label: "Living costs", value: taken(input.living) },
+    { label: short ? "Short each month" : "Left each month", value: usd(Math.abs(Math.round(r.cashFlow))), total: true },
+  ];
+}
+
 type Part = { label: string; amount: number; swatch: string };
 
 /** The parts the income is split into, in the order of the form. A part of nothing is left off, except what is left over. */
@@ -227,7 +318,6 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
   }
 
   const short = fallsShort(r.cashFlow);
-  const behind = Math.round(r.residual) < 0;
 
   return (
     <>
@@ -242,27 +332,26 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
       <div className="grid grid-cols-2 gap-3 max-[600px]:grid-cols-1">
         <ShareCard label="Housing as a share of income" secondary="front-end ratio" ratio={r.frontRatio} band={r.frontBand} bands={FRONT_BANDS} />
         <ShareCard label="Housing and debts as a share of income" secondary="back-end ratio" ratio={r.backRatio} band={r.backBand} bands={BACK_BANDS} />
+        <MoneyCard
+          label="Left after housing and debts" secondary="monthly residual"
+          amount={r.residual} income={input.grossIncome} status={RESIDUAL_STATUS} rows={residualRows(input, r)}
+        />
+        <MoneyCard
+          label="Monthly cash flow" secondary="after tax, savings and all costs"
+          amount={r.cashFlow} income={input.grossIncome} status={CASH_FLOW_STATUS} rows={cashFlowRows(input, r)}
+        />
       </div>
 
       {short && <p className="mx-1 text-[14px] font-semibold text-ink">{shortNote(input, r)}</p>}
 
-      <div className={cn("grid gap-3", r.reserveMonths !== null && "grid-cols-2 max-[600px]:grid-cols-1")}>
+      {r.reserveMonths !== null && (
         <Stat
-          label="Left after housing and debts"
-          value={usd(r.residual)}
-          loss={behind}
-          sub={behind ? "monthly residual: housing and debts come to more than the income" : "monthly residual, before tax and living costs"}
-          tip="Gross monthly income less the housing payment and the debt payments. Tax, savings and living costs have not been taken off."
+          label="Savings cover"
+          value={reserveText(r.reserveMonths)}
+          sub={`from ${usd(input.balances)} in account balances`}
+          tip={`The balances entered under Add detail, divided by the monthly housing payment and rounded down to whole months. ${RESERVES_NOTE}`}
         />
-        {r.reserveMonths !== null && (
-          <Stat
-            label="Savings cover"
-            value={reserveText(r.reserveMonths)}
-            sub={`from ${usd(input.balances)} in account balances`}
-            tip={`The balances entered under Add detail, divided by the monthly housing payment and rounded down to whole months. ${RESERVES_NOTE}`}
-          />
-        )}
-      </div>
+      )}
 
       {short ? (
         <p className="mx-1 text-[16px] font-semibold text-ink">

@@ -10,6 +10,8 @@
  *   - Housing and debts as a share of income: `(housing + debts) / grossIncome` (its back ratio).
  *   - Left after housing and debts: `grossIncome - housing - debts` (its residual after both). This is
  *     before tax and before living costs.
+ *   - Left after all expenses: `grossIncome - housing - debts - living` (the dashboard's second
+ *     residual, shown under the first). It is before tax and savings.
  *   - Tax and savings are each a share of gross income: `grossIncome x taxRate` and
  *     `grossIncome x savingsRate`. Spendable income is gross income minus both.
  *   - Total expenses are `housing + debts + living`.
@@ -56,7 +58,7 @@
  *   - Liability balances, months left, and the omit and payoff flags (and so the payoff total).
  *     A debt is a monthly payment.
  *   - Flood insurance and "other housing expense".
- *   - The dashboard's second residual (income minus all expenses, before tax).
+ *   - The payoff flag, and so the "payoff cash needed" row of the dashboard's cash flow card.
  */
 import { roundCents } from "@/lib/finance";
 
@@ -89,6 +91,8 @@ export type BudgetResult = {
   backBand: Band;
   /** Gross income minus housing minus debts. */
   residual: number;
+  /** Gross income minus housing, debts and living costs: before tax and savings. */
+  residualAfterLiving: number;
   taxAmount: number;
   savingsAmount: number;
   /** Income after tax and savings. */
@@ -147,6 +151,7 @@ export function calculateBudget(input: BudgetInput): BudgetResult | null {
     backRatio,
     backBand: bandFor(backRatio, BACK_BANDS),
     residual: cents(grossIncome - housing - debts),
+    residualAfterLiving: cents(grossIncome - totalExpenses),
     taxAmount: cents(taxAmount),
     savingsAmount: cents(savingsAmount),
     spendable: cents(spendable),
