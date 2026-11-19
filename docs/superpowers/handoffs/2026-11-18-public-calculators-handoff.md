@@ -22,7 +22,7 @@ Date: 2026-11-18. Written at the end of a long session so the next one can start
 | 6 | Home budget, `/calculators/budget` | Done, on `main` |
 | 7 | APR, `/calculators/apr` | Done, on `main` |
 | 8 | Investment retrofit | Done, on `main` |
-| 9 | Mortgage: Purchase / Refinance / Payment modes and any term to 30 years (added by Zachary) | **In progress**, branch `feat/mortgage-modes`, plan `2026-11-18-calculator-mortgage-modes.md` |
+| 9 | Mortgage: Purchase / Refinance / Payment modes and any term to 30 years (added by Zachary) | Done, on `main`. Plan `2026-11-18-calculator-mortgage-modes.md` |
 
 `main`, GitHub and staging (https://staging.msfg.us) hold the same code. Production (`msfg.us`) is still the old site and is not touched by any of this.
 
@@ -71,11 +71,13 @@ One calculator at a time, each on its own branch from `main`:
 - **APR wording:** never "official". The line is "This is an estimate. The APR for your loan is the one on your Loan Estimate." Lender fees include the lender's title insurance, as the dashboard's catalog counts it.
 - **Comparing APR with the dashboard:** the dashboard pre-fills about twenty catalog fees. Clear them there first, or the two will not match.
 - **Investment wording Zachary set:** the verdict starts "On these assumptions,"; the gauges read Higher / Middle / Lower, never Good / Fair / Poor; the tips do not say what lenders want. A line under the closed "Add detail" panel repeats the summaries of the panels inside it.
+- **Mortgage modes:** the switch has no visible label. Payment mode's typed payment is principal and interest; tax, insurance, HOA and mortgage insurance are added on top and never change the loan amount (Zachary chose "add them on top" over "take them off the payment"). The page must keep the sentence "This is arithmetic on the payment entered. It is not the amount a lender would lend." The loan term is any whole year from 1 to 30 on this page only.
+- **The call to action is "Want to go through your numbers with someone?" on every calculator.** It is the shared default; do not bring back "Like these numbers?".
 - **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block; Rent vs buy stops mortgage payments at the end of the loan, fixes cost inflation at 3%, and adds closing costs, mortgage insurance, HOA dues, the full monthly payment and an optional interest deduction; Home budget uses one income figure for everything and decides bands on the share rounded to a hundredth of a percent; APR takes one fee total, shows the rate itself when nothing is counted, needs a home value for mortgage insurance, solves from 0 and takes loans of $1,000 and up.
 
 ## Notes for the remaining calculators
 
-All eight are built. What remains is the Mortgage modes work above, the open items below, and the production cutover with its compliance review.
+All eight are built, and the Mortgage modes are in. What remains is the open items below and the production cutover with its compliance review.
 
 ## Deferred minors, by calculator
 
@@ -89,6 +91,7 @@ None block anything. Zachary has seen all of them.
 - **Rent vs buy:** the chart's two lines differ only by colour and a stay over 12 years has no keyboard route to the yearly figures; rent and price read "2.400" as $2.40; the mortgage insurance cutoff uses the unrounded balance and could differ from the Mortgage calculator by one payment; the call to action reads "Like these numbers?" under a result where renting is ahead (shared band, every calculator).
 - **Home budget:** the first result may not be announced by screen readers; an unreadable balance mid-typing hides the reserves card without a message; the band edges reach a screen reader only through "How this works".
 - **Investment:** with the panels open the printout runs to seven pages and breaks awkwardly; if a browser does not fire its print event the three moved panels print as the words "Add detail"; the page's own caution and the tenant disclaimer overlap; a screen reader still hears "Rating: Higher".
+- **Mortgage modes:** the call to action's button goes to the purchase application in every mode; the example payment backs into $320,000.30, so a $400,000 home value typed in Payment mode counts mortgage insurance; carrying a rounded payment between modes can show a loan $1 off; chart labels may overlap at some terms.
 
 ## Open with Zachary
 
