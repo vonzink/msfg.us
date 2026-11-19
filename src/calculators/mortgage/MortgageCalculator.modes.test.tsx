@@ -71,24 +71,24 @@ describe("the three modes", () => {
     clean();
   });
 
-  it("Payment asks for the payment, the rate and the term, and gives the loan amount", () => {
+  it("Payment asks for the payment, a down payment, the rate and the term, and gives the loan amount", () => {
     open();
     mode("Payment");
     expect(chosen("Payment")).toBe(true);
-    expect(firstCard()).toEqual(["Monthly payment", "Interest rate", "Loan term"]);
+    expect(firstCard()).toEqual(["Monthly payment", "Down payment", "Interest rate", "Loan term"]);
     expect(box("Monthly payment").value).toBe("2,128.97");
-    expect(results()).toContain(`Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%. Tax and insurance are not included.${NOT_A_LENDING_AMOUNT}Where each payment goes`);
+    expect(results()).toContain(`Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%. Tax and insurance are not included.With 20% down, that is a home price of $400,000.${NOT_A_LENDING_AMOUNT}Where each payment goes`);
     expect(phoneBar()).toContain("Estimated loan amount$320,000");
-    for (const label of ["Home price", "Down payment", "Loan amount"]) expect(hasBox(label), label).toBe(false);
+    for (const label of ["Home price", "Loan amount"]) expect(hasBox(label), label).toBe(false);
     expect(detailLabels()).toEqual(["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Extra principal", "Pay the extra", "First payment"]);
     expect(hasBox("Home value")).toBe(false);
     for (const label of ["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Extra principal"]) expect(box(label).value, label).toBe("");
     expect(form().textContent).not.toMatch(/home value/i);
     expect(screen.getByLabelText("First payment month")).toBeTruthy();
-    expect(`${results()}${printed()}`).not.toMatch(/Property tax|Homeowners|HOA|mortgage insurance|down payment|home value|home price|Full monthly payment/i);
-    expect(printed()).toContain("Monthly payment (principal and interest)$2,128.97Interest rate7%Loan term30 yearsFirst paymentDec 2026");
+    expect(`${results()}${printed()}`).not.toMatch(/Property tax|Homeowners|HOA|mortgage insurance|home value|Full monthly payment/i);
+    expect(printed()).toContain("Monthly payment (principal and interest)$2,128.97Down payment20%Interest rate7%Loan term30 yearsFirst paymentDec 2026");
     expect(printed()).toMatch(/^Loan amount estimate/);
-    expect(printed()).toContain("Estimated loan amount$320,000Total interest");
+    expect(printed()).toContain("Estimated loan amount$320,000Home price$400,000Total interest");
     expect(document.body.textContent!.split(NOT_A_LENDING_AMOUNT).length - 1).toBe(2); // on screen and in print
     expect(yearRows()).toBe(30);
     expect(slider().max).toBe("360");
@@ -117,6 +117,7 @@ describe("costs added on top in Payment mode", () => {
   it("adds them to a full monthly payment and leaves the loan amount alone", () => {
     open();
     mode("Payment");
+    type("Down payment", "0");
     type("Property tax", "4800");
     expect(results()).toContain("Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%.");
     expect(results()).not.toContain("Tax and insurance are not included.");
@@ -151,10 +152,18 @@ describe("costs added on top in Payment mode", () => {
     expect(hasBox("Home value")).toBe(false);
     expect(box("Mortgage insurance").value).toBe("150");
     expect(form().textContent).not.toMatch(/home value/i);
-    expect(results()).toContain("Includes mortgage insurance until payment 162.");
+    // What comes along is the equity as a down payment percent: $180,000 of $500,000.
+    expect(box("Down payment").value).toBe("36");
+    expect(results()).toContain("With 36% down, that is a home price of $500,000.");
+    expect(form().textContent).toContain("Not counted with 20% or more down.");
+    expect(results()).not.toContain("Includes mortgage insurance");
     expect(`${results()}${printed()}`).not.toMatch(/home value|most conventional loans/i);
-    expect(printed()).toContain("Mortgage insurance$150 a month, until payment 162");
     expect(status()).toBeNull();
+    // With nothing down the insurance is counted against the loan itself.
+    type("Down payment", "");
+    expect(results()).toContain("Includes mortgage insurance until payment 162.");
+    expect(printed()).toContain("Mortgage insurance$150 a month, until payment 162");
+    expect(`${results()}${printed()}`).not.toMatch(/home value/i);
     mode("Refinance");
     expect(box("Home value").value).toBe("500,000");
     expect(results()).not.toContain("Includes mortgage insurance");
@@ -306,10 +315,11 @@ describe("switching modes keeps what carries over", () => {
     type("Monthly payment", "1500");
     mode("Refinance");
     expect(box("Loan amount").value).toBe("225,461.35");
-    expect(box("Home value").value).toBe("");
+    // The home value is the price Payment mode worked out at its 20% down: $225,461.35 / 0.8.
+    expect(box("Home value").value).toBe("281,826.69");
     expect(results()).toContain("principal and interest on a $225,461 loan.");
     expect(results()).not.toMatch(/mortgage insurance|home value|down/i);
-    expect(printed()).not.toMatch(/Home value|Home price|Down payment/);
+    expect(printed()).not.toMatch(/Home price|Down payment/);
   });
 
   it("Clear and Load example stay in the mode", () => {
@@ -392,7 +402,7 @@ describe("refinance and the home value", () => {
     mode("Payment");
     expect(form().textContent).not.toMatch(/Counted only when|Not counted/);
     type("Mortgage insurance", "150");
-    expect(form().textContent).not.toMatch(/Counted only when|Not counted/);
+    expect(form().textContent).not.toMatch(/Counted only when|without a home value/);
   });
 
   it("with a home value below the loan: the box is named and there is no result", () => {
@@ -402,5 +412,99 @@ describe("refinance and the home value", () => {
     expect(status()).toBe("The home value is below the loan amount.");
     expect(document.querySelector("table")).toBeNull();
     expect(screen.queryByRole("link", { name: /See results/ })).toBeNull();
+  });
+});
+
+describe("Payment mode's down payment", () => {
+  it("opens at 20% down with the home price worked out, and no unit switch", () => {
+    open();
+    mode("Payment");
+    expect(firstCard()).toEqual(["Monthly payment", "Down payment", "Interest rate", "Loan term"]);
+    expect(box("Down payment").value).toBe("20");
+    expect(form().textContent).toContain("Of the home price.");
+    expect(screen.queryByRole("radio", { name: "Dollars" })).toBeNull();
+    expect(results()).toContain("Tax and insurance are not included.With 20% down, that is a home price of $400,000.");
+    expect(printed()).toContain("Down payment20%");
+    expect(printed()).toContain("Home price$400,000");
+    clean();
+  });
+
+  it("an empty box is nothing down and still calculates; Clear empties it and Load example brings back 20", () => {
+    open();
+    mode("Payment");
+    type("Down payment", "");
+    expect(status()).toBeNull();
+    expect(results()).toContain("Estimated loan amount$320,000");
+    expect(results()).toContain("With nothing down, the home price is the loan amount.");
+    press("Clear");
+    expect(box("Down payment").value).toBe("");
+    expect(status()).toBe("Enter the monthly payment.");
+    type("Monthly payment", "2128.97");
+    type("Interest rate", "7");
+    expect(status()).toBeNull();
+    expect(results()).toContain("With nothing down, the home price is the loan amount.");
+    press("Load example");
+    expect(box("Down payment").value).toBe("20");
+    clean();
+  });
+
+  it("names the box when the down payment is out of range or junk", () => {
+    open();
+    mode("Payment");
+    for (const bad of ["100", "abc", "-5"]) {
+      type("Down payment", bad);
+      expect(status(), bad).toBe("Enter a down payment from 0% to under 100%.");
+      expect(document.querySelector("table")).toBeNull();
+    }
+    type("Down payment", "99");
+    expect(status()).toBeNull();
+  });
+
+  it("mortgage insurance: warned as not counted at 20% down, counted under it", () => {
+    open();
+    mode("Payment");
+    type("Mortgage insurance", "150");
+    expect(form().textContent).toContain("Not counted with 20% or more down.");
+    expect(results()).not.toMatch(/Includes mortgage insurance|Full monthly payment/);
+    expect(results()).toContain("Tax and insurance are not included.");
+    type("Down payment", "10");
+    expect(form().textContent).not.toContain("Not counted with 20% or more down.");
+    expect(results()).toContain("With 10% down, that is a home price of $355,556.");
+    expect(results()).toContain("Includes mortgage insurance until payment 115.");
+    type("Property tax", "4800");
+    type("Homeowners insurance", "1800");
+    expect(results()).toContain("$2,829principal, interest, tax, insurance, mortgage insurance");
+    expect(results()).toContain("Estimated loan amount$320,000");
+    type("Mortgage insurance", "");
+    expect(results()).toContain("With less than 20% down, most conventional loans add mortgage insurance. Add it under Add detail.");
+    clean();
+  });
+
+  it("carries the purchase down payment in, and leaves the purchase boxes alone on the way back", () => {
+    open();
+    type("Home price", "500000");
+    type("Down payment", "10");
+    mode("Payment");
+    expect(box("Down payment").value).toBe("10");
+    expect(results()).toContain("With 10% down, that is a home price of $500,000.");
+    type("Down payment", "25");
+    mode("Purchase");
+    expect(box("Home price").value).toBe("500,000");
+    expect(box("Down payment").value).toBe("10");
+    expect(chosen("Percent of price")).toBe(true);
+    mode("Payment");
+    expect(box("Down payment").value).toBe("25");
+  });
+
+  it("fills an empty purchase from the worked-out price and percent", () => {
+    open();
+    mode("Payment");
+    type("Monthly payment", "2500");
+    type("Down payment", "15");
+    mode("Purchase");
+    expect(box("Down payment").value).toBe("15");
+    expect(chosen("Percent of price")).toBe(true);
+    expect(box("Home price").value).toBe("442,081.08"); // $375,768.91 / 0.85, to the cent above
+    expect(results()).toContain("principal and interest on a $375,769 loan.");
   });
 });

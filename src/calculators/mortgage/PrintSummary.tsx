@@ -28,7 +28,10 @@ export function PrintSummary({ input, result: r, start, scenario = { mode: "purc
   const downPct = (input.downPayment / input.homePrice) * 100;
   const borrowed: Rows =
     scenario.mode === "payment"
-      ? [{ label: "Monthly payment (principal and interest)", value: formatUSDCents(scenario.payment) }]
+      ? [
+          { label: "Monthly payment (principal and interest)", value: formatUSDCents(scenario.payment) },
+          { label: "Down payment", value: `${trim(scenario.downPct, 3)}%` },
+        ]
       : scenario.mode === "refinance"
         ? [
             { label: "Loan amount", value: formatUSD(r.loanAmount) },
@@ -55,7 +58,12 @@ export function PrintSummary({ input, result: r, start, scenario = { mode: "purc
     ...(r.extra.amount > 0 ? [{ label: "Extra principal", value: `${formatUSD(r.extra.amount)} ${EXTRA[r.extra.frequency]}` }] : []),
   ];
   const estimate: Rows = [
-    ...(payment ? [{ label: "Estimated loan amount", value: formatUSD(r.loanAmount) }] : []),
+    ...(payment
+      ? [
+          { label: "Estimated loan amount", value: formatUSD(r.loanAmount) },
+          { label: "Home price", value: formatUSD(input.homePrice) },
+        ]
+      : []),
     ...(costs
       ? [
           { label: payment ? "Full monthly payment" : "Monthly payment", value: formatUSD(r.first.total) },

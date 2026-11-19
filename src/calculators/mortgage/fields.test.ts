@@ -130,7 +130,7 @@ describe("the three modes", () => {
     expect(detailFields("purchase")).toEqual(DETAIL_FIELDS);
     expect(frontFields("refinance").map((f) => f.id)).toEqual(["loanAmount", "homeValue", "rate", "termYears", "yearlyTax", "yearlyInsurance"]);
     expect(detailFields("refinance").map((f) => f.id)).toEqual(["monthlyHoa", "monthlyPmi", "extraAmount", "extraFrequency"]);
-    expect(frontFields("payment").map((f) => f.id)).toEqual(["payment", "rate", "termYears"]);
+    expect(frontFields("payment").map((f) => f.id)).toEqual(["payment", "paymentDown", "rate", "termYears"]);
     expect(detailFields("payment").map((f) => f.id)).toEqual(["yearlyTax", "yearlyInsurance", "monthlyHoa", "monthlyPmi", "extraAmount", "extraFrequency"]);
   });
 
@@ -138,7 +138,7 @@ describe("the three modes", () => {
     const byId = Object.fromEntries(detailFields("payment").map((f) => [f.id, f]));
     for (const id of ["yearlyTax", "yearlyInsurance"]) expect(byId[id], id).toBe(frontFields("refinance").find((f) => f.id === id));
     expect(byId.monthlyHoa).toBe(detailFields("refinance").find((f) => f.id === "monthlyHoa"));
-    expect(byId.monthlyPmi).toEqual({ id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month." });
+    expect(byId.monthlyPmi).toMatchObject({ id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month." });
     expect(byId.homeValue).toBeUndefined();
     expect([...frontFields("payment"), ...detailFields("payment")].some((f) => /home value/i.test(`${f.label} ${f.hint ?? ""}`))).toBe(false);
     expect(exampleValues(7, "payment")).toMatchObject({ yearlyTax: "", yearlyInsurance: "", monthlyHoa: "", monthlyPmi: "", homeValue: "" });
@@ -243,7 +243,9 @@ describe("payment", () => {
   it("gives the model the loan that the payment pays off", () => {
     const input = toInput(pay, start);
     const loan = loanAmountForPayment(2128.97, 0.07, 30)!;
-    expect(input).toMatchObject({ homePrice: loan, downPayment: 0, annualRate: 0.07, termYears: 30 });
+    expect(input).toMatchObject({ annualRate: 0.07, termYears: 30 });
+    expect(Math.round((input.homePrice - input.downPayment) * 100) / 100).toBe(loan);
+    expect(toInput({ ...pay, paymentDown: "" }, start)).toMatchObject({ homePrice: loan, downPayment: 0 });
     const r = calc(pay)!;
     expect(r.loanAmount).toBe(loan);
     expect(r.monthlyPI).toBe(2128.97);
@@ -255,7 +257,8 @@ describe("payment", () => {
     expect(calc(pay)!.first).toEqual({ principalAndInterest: 2128.97, tax: 0, insurance: 0, hoa: 0, pmi: 0, total: 2128.97 });
   });
 
-  const costs = { yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150" };
+  // Under 20% down, so the mortgage insurance is counted.
+  const costs = { paymentDown: "10", yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150" };
 
   it("adds tax, insurance, HOA dues and mortgage insurance on top: the payment typed stays principal and interest and the loan does not move", () => {
     const values = { ...pay, ...costs };
@@ -271,10 +274,9 @@ describe("payment", () => {
 
   // Hand-checked with a separate month-by-month script in exact decimals: on the $320,000.30 loan
   // at 7% for 30 years the balance first reaches 78% of the loan ($249,600.23) with payment 162,
-  // and 78% of a $400,000 home ($312,000) with payment 29. Insurance is charged on the payments
-  // before that one, as in the other modes.
-  it("without a home value, counts mortgage insurance as if nothing were put down", () => {
-    const values = { ...pay, monthlyPmi: "150" };
+  // Insurance is charged on the payments before that one, as in the other modes.
+  it("with nothing down, counts mortgage insurance against the loan itself", () => {
+    const values = { ...pay, paymentDown: "", monthlyPmi: "150" };
     expect(toInput(values, start)).toMatchObject({ homePrice: 320000.3, downPayment: 0, monthlyPmi: 150 });
     const r = calc(values)!;
     expect(r.pmiEndPayment).toBe(162);
@@ -286,14 +288,14 @@ describe("payment", () => {
     expect(r.totalCost).toBe(Math.round((calc(pay)!.totalCost + 161 * 150) * 100) / 100);
   });
 
-  it.each(["", "400,000", "500,000", "300,000", "abc", "0"])("ends the example's mortgage insurance at payment 162 whatever home value (%s) Refinance left behind", (homeValue) => {
-    const values = { ...pay, monthlyPmi: "150", homeValue };
+  it.each(["", "400,000", "500,000", "300,000", "abc", "0"])("ends the example's mortgage insurance, with nothing down, at payment 162 whatever home value (%s) Refinance left behind", (homeValue) => {
+    const values = { ...pay, paymentDown: "0", monthlyPmi: "150", homeValue };
     expect(inputFault(values)).toBeNull();
     expect(toInput(values, start)).toMatchObject({ homePrice: 320000.3, downPayment: 0, monthlyPmi: 150 });
     const r = calc(values)!;
     expect(r.pmiEndPayment).toBe(162);
     expect(r.first.pmi).toBe(150);
-    expect(r).toEqual(calc({ ...pay, monthlyPmi: "150" }));
+    expect(r).toEqual(calc({ ...pay, paymentDown: "0", monthlyPmi: "150" }));
   });
 
   it("keeps extra principal and the start month", () => {
@@ -310,7 +312,7 @@ describe("payment", () => {
     expect(inputFault({ ...pay, payment: "abc" })).toMatchObject({ field: { id: "payment" }, problem: "unreadable" });
     expect(inputFault({ ...pay, payment: "0" })).toMatchObject({ field: { id: "payment" }, problem: "not-positive" });
     expect(inputFault({ ...pay, rate: "" })).toMatchObject({ field: { id: "rate", label: "Interest rate" }, problem: "empty" });
-    expect(inputFault({ ...pay, rate: "26" })).toEqual({ field: frontFields("payment")[1], problem: "range", min: 0, max: 25 });
+    expect(inputFault({ ...pay, rate: "26" })).toEqual({ field: frontFields("payment").find((f) => f.id === "rate"), problem: "range", min: 0, max: 25 });
     const faulty: Record<string, string>[] = [{ payment: "" }, { payment: "abc" }, { payment: "0" }, { rate: "" }, { rate: "26" }];
     for (const changes of faulty) expect(calc({ ...pay, ...changes })).toBeNull();
   });
@@ -402,7 +404,10 @@ describe("switching modes keeps what carries over", () => {
   it("leaving payment keeps the payment and fills an empty refinance loan with the loan it pays off", () => {
     const typed = { ...pay, payment: "2,500" };
     const next = switchMode(typed, "refinance", 7);
-    expect(next).toMatchObject({ mode: "refinance", payment: "2,500", homeValue: "" });
+    // The home value is the price worked out at the example's 20% down: $375,768.91 / 0.8.
+    expect(next).toMatchObject({ mode: "refinance", payment: "2,500", homeValue: "469,711.14" });
+    expect(calc(next)!.ltv).toBeLessThanOrEqual(80);
+    expect(switchMode({ ...typed, paymentDown: "" }, "refinance", 7).homeValue).toBe("");
     expect(Number(next.loanAmount.replace(/,/g, ""))).toBe(loanAmountForPayment(2500, 0.07, 30));
     // And back again: the same payment, not a cent lost.
     expect(switchMode(next, "payment", 7).payment).toBe("2,500");
@@ -421,8 +426,9 @@ describe("switching modes keeps what carries over", () => {
     const inPayment = switchMode(typed, "payment", 7);
     expect(inPayment).toMatchObject({ mode: "payment", yearlyTax: "5,000", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150", homeValue: "400,000" });
     expect(calc(inPayment)!.first).toEqual(calc(typed)!.first);
-    // The value is only stored: payment mode's model does not see it.
-    expect(toInput(inPayment, start)).toMatchObject({ homePrice: calc(inPayment)!.loanAmount, downPayment: 0 });
+    // The value is only stored. What comes along is the equity as a down payment percent: $40,000 of $400,000.
+    expect(inPayment.paymentDown).toBe("10");
+    expect(switchMode({ ...typed, homeValue: "" }, "payment", 7).paymentDown).toBe("");
     const changed = { ...inPayment, yearlyTax: "5,500" };
     expect(switchMode(changed, "refinance", 7)).toMatchObject({ mode: "refinance", loanAmount: "360,000", homeValue: "400,000", yearlyTax: "5,500", monthlyHoa: "75", monthlyPmi: "150" });
     expect(switchMode(changed, "purchase", 7)).toMatchObject({ mode: "purchase", yearlyTax: "5,500", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150" });
@@ -449,7 +455,10 @@ describe("switching modes keeps what carries over", () => {
     expect(calc(next)).not.toBeNull();
     // Not when the payment was raised past what the price covers, or a home value is already there.
     const raised = { ...switchMode(edited, "payment", 7), payment: "9,000" };
-    expect(switchMode(raised, "refinance", 7).homeValue).toBe("");
+    // Then the price payment mode worked out, at the 10% carried from the purchase, is used.
+    const raisedRefi = switchMode(raised, "refinance", 7);
+    expect(Number(raisedRefi.homeValue.replace(/,/g, ""))).toBe(toInput(raised, start).homePrice);
+    expect(calc(raisedRefi)).not.toBeNull();
     const valued = { ...switchMode(edited, "payment", 7), homeValue: "600,000" };
     expect(switchMode(valued, "refinance", 7).homeValue).toBe("600,000");
   });
@@ -490,9 +499,9 @@ describe("what the results are told about the mode", () => {
   });
 
   it("carries the payment as typed, with the rate and the term, in payment mode", () => {
-    expect(scenarioOf(exampleValues(7, "payment"))).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30 });
+    expect(scenarioOf(exampleValues(7, "payment"))).toMatchObject({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30 });
     // A home value left over from Refinance is not part of payment mode.
-    expect(scenarioOf({ ...exampleValues(7, "payment"), homeValue: "400,000" })).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30 });
+    expect(scenarioOf({ ...exampleValues(7, "payment"), homeValue: "500,000" })).toEqual(scenarioOf(exampleValues(7, "payment")));
     expect(scenarioOf({ ...exampleValues(7, "payment"), payment: "1,500", termYears: "7" })).toMatchObject({ payment: 1500, termYears: 7 });
   });
 });
@@ -547,5 +556,131 @@ describe("an optional home value that cannot be used", () => {
   it("does not trouble a purchase, which has no home value box", () => {
     expect(inputFault({ ...example, homeValue: "abc" })).toBeNull();
     expect(calc({ ...example, homeValue: "abc" })).not.toBeNull();
+  });
+});
+
+describe("payment mode's down payment and the home price worked out from it", () => {
+  const down = frontFields("payment").find((f) => f.id === "paymentDown")!;
+
+  it("is a percent box of its own in the top card, 20 in the example and empty when cleared", () => {
+    expect(frontFields("payment").map((f) => f.id)).toEqual(["payment", "paymentDown", "rate", "termYears"]);
+    expect(down).toEqual({ id: "paymentDown", label: "Down payment", type: "pct", example: "20", hint: "Of the home price." });
+    expect(frontFields("payment").some((f) => f.id === "downUnit" || f.id === "downPayment")).toBe(false);
+    expect(pay.paymentDown).toBe("20");
+    expect(blank("payment").paymentDown).toBe("");
+    // The purchase boxes are another pair: neither mode's example touches the other's.
+    expect(pay).toMatchObject({ downPayment: "", homePrice: "" });
+    expect(example.paymentDown).toBe("");
+  });
+
+  it("works the home price out as the loan divided by one minus the down payment", () => {
+    // $320,000.30 / 0.8 = $400,000.375
+    expect(toInput(pay, start)).toMatchObject({ homePrice: 400000.38, downPayment: 80000.08 });
+    expect(calc(pay)!.loanAmount).toBe(320000.3);
+    expect(scenarioOf(pay)).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30, downPct: 20, homePrice: 400000.38 });
+    // $320,000.30 / 0.9 = $355,555.888...
+    expect(toInput({ ...pay, paymentDown: "10" }, start)).toMatchObject({ homePrice: 355555.89, downPayment: 35555.59 });
+    expect(toInput({ ...pay, paymentDown: "3.5" }, start).homePrice).toBe(331606.53);
+    for (const paymentDown of ["0", "10", "3.5", "50", "99.99"]) expect(calc({ ...pay, paymentDown })!.loanAmount, paymentDown).toBe(320000.3);
+  });
+
+  it.each(["", "  ", "0", "0%"])("reads an empty box or a 0 (%s) as nothing down: the price is the loan amount", (paymentDown) => {
+    const values = { ...pay, paymentDown };
+    expect(inputFault(values)).toBeNull();
+    expect(toInput(values, start)).toMatchObject({ homePrice: 320000.3, downPayment: 0 });
+    expect(scenarioOf(values)).toMatchObject({ downPct: 0, homePrice: 320000.3 });
+  });
+
+  it.each(["100", "100.5", "250", "-1", "abc", "2..5"])("names the box for a down payment of %s, and gives no result", (paymentDown) => {
+    const values = { ...pay, paymentDown };
+    expect(inputFault(values)).toMatchObject({ field: { id: "paymentDown", label: "Down payment" } });
+    expect(calc(values)).toBeNull();
+  });
+
+  it("names the payment before the down payment, and the down payment before the rate", () => {
+    expect(inputFault({ ...pay, payment: "", paymentDown: "100" })).toMatchObject({ field: { id: "payment" } });
+    expect(inputFault({ ...pay, paymentDown: "100", rate: "" })).toMatchObject({ field: { id: "paymentDown" } });
+  });
+
+  // Hand-checked with a separate month-by-month script in exact decimals. On the $320,000.30 loan
+  // at 7% for 30 years, with 10% down the price is $355,555.89, 78% of it is $277,333.59, and the
+  // balance first reaches that with payment 115. With nothing down it is payment 162, as before.
+  it("counts mortgage insurance only under 20% down, until the balance reaches 78% of the worked-out price", () => {
+    const ten = calc({ ...pay, paymentDown: "10", monthlyPmi: "150", yearlyTax: "4,800", yearlyInsurance: "1,800" })!;
+    expect(ten.pmiEndPayment).toBe(115);
+    expect(ten.schedule.filter((row) => row.pmi > 0)).toHaveLength(114);
+    expect(ten.schedule[113].balance).toBeGreaterThan(277333.59);
+    expect(ten.schedule[114].balance).toBeLessThanOrEqual(277333.59);
+    // 2,128.97 + 400 tax + 150 insurance + 150 mortgage insurance
+    expect(ten.first).toEqual({ principalAndInterest: 2128.97, tax: 400, insurance: 150, hoa: 0, pmi: 150, total: 2828.97 });
+    expect(calc({ ...pay, paymentDown: "", monthlyPmi: "150" })!.pmiEndPayment).toBe(162);
+    expect(calc({ ...pay, paymentDown: "19.99", monthlyPmi: "150" })!.first.pmi).toBe(150);
+  });
+
+  it.each(["20", "20.01", "25", "50", "99"])("does not count mortgage insurance with %s%% down, whatever the cents of the price", (paymentDown) => {
+    for (const payment of ["2,128.97", "1,500", "1,234.56", "999.99", "3,333.33", "2,000.01"]) {
+      const r = calc({ ...pay, payment, paymentDown, monthlyPmi: "150" })!;
+      expect(r.first.pmi, payment).toBe(0);
+      expect(r.schedule.every((row) => row.pmi === 0), payment).toBe(true);
+      expect(r.first.total, payment).toBe(r.monthlyPI);
+    }
+  });
+
+  it("warns under the mortgage insurance box when an amount is typed and it is not counted", () => {
+    const pmi = detailFields("payment").find((f) => f.id === "monthlyPmi")!;
+    expect(pmi.hint).toBe("Per month.");
+    expect(pmi.warnFn!({ monthlyPmi: 150, paymentDown: 20 })).toBe("Not counted with 20% or more down.");
+    expect(pmi.warnFn!({ monthlyPmi: 150, paymentDown: 35 })).toBe("Not counted with 20% or more down.");
+    expect(pmi.warnFn!({ monthlyPmi: 150, paymentDown: 19.99 })).toBeNull();
+    expect(pmi.warnFn!({ monthlyPmi: 150, paymentDown: 0 })).toBeNull();
+    expect(pmi.warnFn!({ monthlyPmi: 0, paymentDown: 20 })).toBeNull();
+    // Purchase and Refinance have no such warning.
+    for (const mode of ["purchase", "refinance"] as const) expect(detailFields(mode).find((f) => f.id === "monthlyPmi")!.warnFn).toBeUndefined();
+  });
+});
+
+describe("switching modes and payment mode's down payment", () => {
+  const purchase = { ...example, homePrice: "500,000", downPayment: "10" };
+
+  it("purchase to payment carries the down payment as a percent while the box is empty or on its default", () => {
+    expect(switchMode(purchase, "payment", 7).paymentDown).toBe("10");
+    expect(switchMode({ ...purchase, paymentDown: "20" }, "payment", 7).paymentDown).toBe("10");
+    expect(switchMode({ ...purchase, downUnit: "usd", downPayment: "61,728" }, "payment", 7).paymentDown).toBe("12.35"); // 12.3456%
+    expect(switchMode({ ...purchase, downPayment: "" }, "payment", 7).paymentDown).toBe("0");
+    // A percent the visitor chose in payment mode is kept.
+    expect(switchMode({ ...purchase, paymentDown: "5" }, "payment", 7).paymentDown).toBe("5");
+    // No purchase loan, nothing to carry.
+    expect(switchMode({ ...purchase, homePrice: "" }, "payment", 7).paymentDown).toBe("");
+  });
+
+  it("purchase to payment leaves the purchase boxes as they were, and the same loan, price and insurance come out", () => {
+    const typed = { ...purchase, monthlyPmi: "150" };
+    const next = switchMode(typed, "payment", 7);
+    expect(next).toMatchObject({ homePrice: "500,000", downPayment: "10", downUnit: "pct" });
+    expect(Math.abs(calc(next)!.loanAmount - 450000)).toBeLessThan(1);
+    expect(Math.abs(toInput(next, start).homePrice - 500000)).toBeLessThan(1);
+    expect(calc(next)!.first).toEqual(calc(typed)!.first);
+    expect(calc(next)!.pmiEndPayment).toBe(calc(typed)!.pmiEndPayment);
+  });
+
+  it("payment to purchase fills an empty price and down payment from the worked-out price and the percent", () => {
+    const typed = { ...pay, payment: "2,500", paymentDown: "15" };
+    const next = switchMode(typed, "purchase", 7);
+    const price = toInput(typed, start).homePrice;
+    expect(next).toMatchObject({ mode: "purchase", downUnit: "pct", downPayment: "15", paymentDown: "15", payment: "2,500" });
+    expect(Number(next.homePrice.replace(/,/g, ""))).toBe(price);
+    expect(Math.abs(calc(next)!.loanAmount - calc(typed)!.loanAmount)).toBeLessThan(1);
+    // Nothing down: an empty down payment box.
+    expect(switchMode({ ...typed, paymentDown: "" }, "purchase", 7)).toMatchObject({ downPayment: "", downUnit: "pct" });
+    // Purchase numbers already there are kept.
+    expect(switchMode({ ...typed, homePrice: "600,000", downPayment: "25" }, "purchase", 7)).toMatchObject({ homePrice: "600,000", downPayment: "25" });
+    // Without a result there is nothing to fill with.
+    expect(switchMode({ ...typed, rate: "" }, "purchase", 7)).toMatchObject({ homePrice: "", downPayment: "" });
+  });
+
+  it("never rewrites the purchase down payment or its unit from payment mode", () => {
+    const usd = { ...purchase, downUnit: "usd", downPayment: "50,000" };
+    const back = switchMode({ ...switchMode(usd, "payment", 7), paymentDown: "33" }, "purchase", 7);
+    expect(back).toMatchObject({ homePrice: "500,000", downUnit: "usd", downPayment: "50,000", paymentDown: "33" });
   });
 });

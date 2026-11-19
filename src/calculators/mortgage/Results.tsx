@@ -17,6 +17,7 @@ const GENERAL_PROMPT = "Enter the numbers above to see the estimate.";
  */
 export function promptText(fault: InputFault | null): string {
   if (!fault) return GENERAL_PROMPT;
+  if (fault.field.id === "paymentDown") return "Enter a down payment from 0% to under 100%.";
   const label = fault.field.label.toLowerCase();
   // The home value may be left empty in the modes that have it.
   const optional = fault.field.id === "homeValue";
@@ -77,9 +78,11 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
   const hasExtra = r.extra.amount > 0;
   const hasPmi = first.pmi > 0;
   const measured = scenario.mode === "purchase" || (scenario.mode === "refinance" && scenario.homeValueKnown);
+  // Payment mode goes by the percent typed, as the model's input does, not the cents of the worked-out price.
+  const lowDown = scenario.mode === "payment" ? scenario.downPct < 20 : measured && r.ltv > 80;
   // Payment mode: what is counted on top of the principal and interest typed.
   const onTop = [first.tax > 0 && "tax", first.insurance > 0 && "insurance", first.hoa > 0 && "HOA dues", hasPmi && "mortgage insurance"].filter(Boolean);
-  const needsPmiPrompt = measured && r.ltv > 80 && !hasPmi;
+  const needsPmiPrompt = lowDown && !hasPmi;
   const payoff = start ? `${MONTHS[r.payoff.month]} ${r.payoff.year}` : duration(r.schedule.length);
 
   return (
@@ -96,6 +99,13 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
             what <strong className="text-white print:text-ink">{formatUSDCents(scenario.payment)}</strong> a month of principal and
             interest pays off over {scenario.termYears} {scenario.termYears === 1 ? "year" : "years"} at {ratePercent(scenario.annualRate)}.
             {onTop.length === 0 && " Tax and insurance are not included."}
+          </p>
+        ) : null}
+        {scenario.mode === "payment" ? (
+          <p className="mt-1.5 text-[14px] text-on-dark-2 print:text-ink">
+            {scenario.downPct > 0
+              ? `With ${Number(scenario.downPct.toFixed(3))}% down, that is a home price of ${formatUSD(scenario.homePrice)}.`
+              : "With nothing down, the home price is the loan amount."}
           </p>
         ) : (
           <p className="mt-1.5 text-[16px] text-on-dark-2 print:text-ink">
@@ -120,7 +130,7 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
         )}
         {needsPmiPrompt && (
           <p className="mt-1.5 text-[14px] text-on-dark-2 print:text-ink">
-            {scenario.mode === "purchase" ? "With less than 20% down" : "With a loan above 80% of the home value"}, most conventional loans add mortgage insurance. Add it under Add detail.
+            {scenario.mode === "refinance" ? "With a loan above 80% of the home value" : "With less than 20% down"}, most conventional loans add mortgage insurance. Add it under Add detail.
           </p>
         )}
       </div>

@@ -229,13 +229,13 @@ describe("payment mode results", () => {
     for (const part of ["Total interest", "Paid off", "mortgage-breakdown-month", "Loan balance at the end of each year"]) expect(html, part).toContain(part);
   });
 
-  it("says nothing about a down payment or loan-to-value, and no cost is listed while none is entered", () => {
+  it("lists no cost while none is entered, and says nothing of a home value", () => {
     const html = text(results({}, "payment"));
-    expect(html).not.toMatch(/HOA|down|home value|mortgage insurance|Property tax|Homeowners/i);
+    expect(html).not.toMatch(/HOA|home value|mortgage insurance|Property tax|Homeowners/i);
   });
 
   it("adds the full monthly payment straight under the not-a-lending-amount sentence when a cost is entered", () => {
-    const raw = results({ yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150" }, "payment");
+    const raw = results({ paymentDown: "0", yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150" }, "payment");
     const html = text(raw);
     expect(html).toContain("Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%.");
     expect(html).not.toContain("Tax and insurance are not included.");
@@ -245,20 +245,20 @@ describe("payment mode results", () => {
     expect(raw.indexOf("Full monthly payment")).toBeLessThan(raw.indexOf("Where each payment goes"));
     // The ring splits the full payment.
     for (const part of ["Property tax $400", "Homeowners insurance $150", "HOA dues $100", "Mortgage insurance $150"]) expect(raw, part).toContain(part);
-    expect(html).not.toMatch(/down|home value/i);
+    expect(html).not.toMatch(/home value/i);
   });
 
   it("lists only the parts present in the full monthly payment", () => {
     expect(text(results({ yearlyTax: "4,800" }, "payment"))).toContain("$2,529principal, interest, tax");
     expect(text(results({ yearlyTax: "4,800" }, "payment"))).not.toContain("principal, interest, tax,");
     expect(text(results({ yearlyInsurance: "1,800", monthlyHoa: "100" }, "payment"))).toContain("$2,379principal, interest, insurance, HOA dues");
-    expect(text(results({ monthlyPmi: "150" }, "payment"))).toContain("$2,279principal, interest, mortgage insurance");
+    expect(text(results({ paymentDown: "10", monthlyPmi: "150" }, "payment"))).toContain("$2,279principal, interest, mortgage insurance");
   });
 
   it("takes no notice of a home value left over from Refinance: no prompt, and the insurance is counted", () => {
     for (const homeValue of ["400,000", "500,000", "300,000", "abc"]) {
       expect(text(results({ homeValue }, "payment")), homeValue).toBe(text(results({}, "payment")));
-      const html = text(results({ monthlyPmi: "150", homeValue }, "payment"));
+      const html = text(results({ paymentDown: "0", monthlyPmi: "150", homeValue }, "payment"));
       expect(html, homeValue).toContain("Includes mortgage insurance until payment 162.");
       expect(html, homeValue).toContain("$2,279principal, interest, mortgage insurance");
       expect(html, homeValue).not.toMatch(/home value|most conventional loans/i);
@@ -316,10 +316,10 @@ describe("print summary by mode", () => {
 
   it("leads with the payment and the loan amount in payment mode", () => {
     const html = text(printed({}, "payment"));
-    expect(html).toMatch(/^Loan amount estimateThe loanMonthly payment \(principal and interest\)\$2,128\.97Interest rate7%Loan term30 years/);
-    expect(html).toContain("The estimateEstimated loan amount$320,000Total interest");
+    expect(html).toMatch(/^Loan amount estimateThe loanMonthly payment \(principal and interest\)\$2,128\.97Down payment20%Interest rate7%Loan term30 years/);
+    expect(html).toContain("The estimateEstimated loan amount$320,000Home price$400,000Total interest");
     expect(html).toContain(NOT_A_LENDING_AMOUNT);
-    expect(html).not.toMatch(/tax|insurance|HOA|Home price|Down payment|Home value|Mortgage payment estimate/i);
+    expect(html).not.toMatch(/tax|insurance|HOA|Home value|Mortgage payment estimate/i);
   });
 
   it("keeps the title for a purchase and a refinance", () => {
@@ -328,11 +328,10 @@ describe("print summary by mode", () => {
   });
 
   it("includes the costs entered in payment mode, as the other modes do", () => {
-    const html = text(printed({ yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150", homeValue: "400,000" }, "payment"));
+    const html = text(printed({ paymentDown: "0", yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150", homeValue: "400,000" }, "payment"));
     expect(html).not.toContain("Home value");
-    expect(html).toContain("Monthly payment (principal and interest)$2,128.97Interest rate7%Loan term30 yearsFirst paymentJan 2027Property tax$4,800 a yearHomeowners insurance$1,800 a yearHOA dues$100 a monthMortgage insurance$150 a month, until payment 162");
-    expect(html).toContain("The estimateEstimated loan amount$320,000Full monthly payment$2,929Property tax (monthly)$400Homeowners insurance (monthly)$150HOA dues (monthly)$100Mortgage insurance (monthly)$150Total interest");
-    expect(html).not.toMatch(/Home price|Down payment/);
+    expect(html).toContain("Monthly payment (principal and interest)$2,128.97Down payment0%Interest rate7%Loan term30 yearsFirst paymentJan 2027Property tax$4,800 a yearHomeowners insurance$1,800 a yearHOA dues$100 a monthMortgage insurance$150 a month, until payment 162");
+    expect(html).toContain("The estimateEstimated loan amount$320,000Home price$320,000Full monthly payment$2,929Property tax (monthly)$400Homeowners insurance (monthly)$150HOA dues (monthly)$100Mortgage insurance (monthly)$150Total interest");
   });
 });
 
@@ -369,5 +368,58 @@ describe("the words of the mortgage calculator", () => {
     expect(all).not.toMatch(/78% of the home price(?! or home value)/);
     expect(all).not.toMatch(BAD_WORDS);
     expect(all).not.toMatch(DASHES);
+  });
+});
+
+describe("payment mode's down payment in the results and in print", () => {
+  it("says the home price that goes with the down payment, inside the headline card under the sub line", () => {
+    const raw = results({}, "payment");
+    const html = text(raw);
+    expect(html).toContain("at 7%. Tax and insurance are not included.With 20% down, that is a home price of $400,000.");
+    expect(html).toContain(`With 20% down, that is a home price of $400,000.${NOT_A_LENDING_AMOUNT}`);
+    const card = raw.slice(0, raw.indexOf(NOT_A_LENDING_AMOUNT));
+    expect(card.split("<div").length - card.split("</div>").length).toBe(0); // the card has closed before the sentence
+    expect(raw.indexOf("that is a home price")).toBeLessThan(raw.indexOf("</div>"));
+    expect(text(results({ paymentDown: "10" }, "payment"))).toContain("With 10% down, that is a home price of $355,556.");
+    expect(text(results({ paymentDown: "3.5" }, "payment"))).toContain("With 3.5% down, that is a home price of $331,607.");
+  });
+
+  it("says the home price is the loan amount with nothing down", () => {
+    for (const paymentDown of ["", "0"]) {
+      const html = text(results({ paymentDown }, "payment"));
+      expect(html).toContain("With nothing down, the home price is the loan amount.");
+      expect(html).not.toContain("that is a home price of");
+    }
+  });
+
+  it.each(["100", "abc", "-5", "150"])("asks for a down payment from 0%% to under 100%% when it is %s", (paymentDown) => {
+    expect(text(results({ paymentDown }, "payment"))).toBe("Enter a down payment from 0% to under 100%.");
+  });
+
+  it("prompts for mortgage insurance under 20% down with none typed, as a purchase does", () => {
+    const prompt = "With less than 20% down, most conventional loans add mortgage insurance. Add it under Add detail.";
+    expect(text(results({ paymentDown: "10" }, "payment"))).toContain(prompt);
+    expect(text(results({ paymentDown: "" }, "payment"))).toContain(prompt);
+    expect(text(results({ paymentDown: "10", monthlyPmi: "150" }, "payment"))).not.toContain("most conventional loans");
+    expect(text(results({ paymentDown: "10", monthlyPmi: "150" }, "payment"))).toContain("Includes mortgage insurance until payment 115.");
+    for (const payment of ["2,128.97", "1,500", "1,234.56", "999.99"]) {
+      expect(text(results({ payment }, "payment")), payment).not.toContain("most conventional loans");
+      expect(text(results({ payment, monthlyPmi: "150" }, "payment")), payment).not.toMatch(/Includes mortgage insurance|Full monthly payment/);
+    }
+  });
+
+  it("gives the full monthly payment for the hand-checked case", () => {
+    const html = text(results({ paymentDown: "10", monthlyPmi: "150", yearlyTax: "4,800", yearlyInsurance: "1,800" }, "payment"));
+    expect(html).toContain("$2,829principal, interest, tax, insurance, mortgage insurance");
+    expect(html).toContain("Estimated loan amount$320,000");
+  });
+
+  it("prints the down payment on the left and the home price on the right", () => {
+    const html = text(printed({}, "payment"));
+    expect(html).toContain("The loanMonthly payment (principal and interest)$2,128.97Down payment20%Interest rate7%Loan term30 years");
+    expect(html).toContain("The estimateEstimated loan amount$320,000Home price$400,000Total interest");
+    expect(text(printed({ paymentDown: "" }, "payment"))).toContain("Down payment0%Interest rate");
+    expect(text(printed({ paymentDown: "" }, "payment"))).toContain("Estimated loan amount$320,000Home price$320,000Total interest");
+    expect(text(printed({ paymentDown: "10", monthlyPmi: "150" }, "payment"))).toContain("Mortgage insurance$150 a month, until payment 115");
   });
 });

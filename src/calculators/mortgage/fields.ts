@@ -13,10 +13,12 @@ import { calculateMortgage, loanAmountForPayment, RATE_LIMIT, type ExtraFrequenc
  *   - Payment: a monthly principal and interest payment in place of both. The loan is the amount
  *     that payment pays off (`loanAmountForPayment`). Property tax, homeowners insurance, HOA dues
  *     and mortgage insurance sit behind "Add detail" and are added on top: the payment typed stays
- *     principal and interest only, and the loan amount does not move. There is no home value in
- *     this mode: mortgage insurance is counted as typed, as if nothing were put down (the price
- *     being the loan amount), so it ends at 78% of the loan amount or the loan's midpoint. A home
- *     value typed in Refinance stays in the form's values for the way back and is not read here.
+ *     principal and interest only, and the loan amount does not move. A down payment percent of
+ *     its own (`paymentDown`, not the purchase boxes, so switching never rewrites a purchase)
+ *     gives the home price: the loan divided by one minus the down payment. An empty box is
+ *     nothing down. Mortgage insurance then follows the purchase rule on that price: counted only
+ *     under 20% down, until 78% of the price or the loan's midpoint. There is no home value in
+ *     this mode; one typed in Refinance stays in the form's values and is not read here.
  *
  * Property tax and insurance are yearly dollars; HOA dues and mortgage insurance are monthly.
  * Every public calculator uses those same units. The loan term is a typed whole number of years,
@@ -75,8 +77,15 @@ const REFINANCE_PMI: FieldDef = {
   id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "",
   hintFn: (n) => (n.homeValue > 0 ? PMI_WITH_VALUE : n.monthlyPmi > 0 ? "Per month. Not counted without a home value." : "Per month."),
 };
-// Payment mode has no home value: the insurance is always counted, against the loan itself.
-const PAYMENT_PMI: FieldDef = { id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month." };
+/** Payment mode's own down payment: a percent of the home price the page works out. */
+const PAYMENT_DOWN: FieldDef = { id: "paymentDown", label: "Down payment", type: "pct", example: "20", hint: "Of the home price." };
+/** Under this percent down, mortgage insurance is counted. */
+const PMI_BELOW_DOWN = 20;
+// With the default 20% down a typed amount is not counted, so the box says so.
+const PAYMENT_PMI: FieldDef = {
+  id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month.",
+  warnFn: (n) => (n.monthlyPmi > 0 && n.paymentDown >= PMI_BELOW_DOWN ? "Not counted with 20% or more down." : null),
+};
 const EXTRA: FieldDef[] = [
   { id: "extraAmount", label: "Extra principal", type: "money", example: "", hint: "Paid on top of the regular payment." },
   {
@@ -92,7 +101,7 @@ const EXTRA: FieldDef[] = [
 const FRONT: Record<Mode, FieldDef[]> = {
   purchase: [HOME_PRICE, downPaymentField("pct"), DOWN_UNIT, RATE, TERM, TAX, INSURANCE],
   refinance: [LOAN_AMOUNT, HOME_VALUE, RATE, TERM, TAX, INSURANCE],
-  payment: [PAYMENT, RATE, TERM],
+  payment: [PAYMENT, PAYMENT_DOWN, RATE, TERM],
 };
 const DETAIL: Record<Mode, FieldDef[]> = {
   purchase: [HOA, PMI, ...EXTRA],
@@ -169,6 +178,16 @@ function paymentLoan(payment: number, annualRate: number, termYears: number): nu
   return loan !== null && loan >= MIN_PAYMENT_LOAN ? loan : Number.NaN;
 }
 
+/** Payment mode's down payment as a percent: 0 when the box is empty, NaN when it is junk or outside 0 to under 100. */
+function paymentDownOf(values: Values): number {
+  if (isEmpty(values.paymentDown)) return 0;
+  const percent = typedAmount(values.paymentDown);
+  return percent >= 0 && percent < 100 ? percent : Number.NaN;
+}
+
+/** The home price a loan and a down payment percent go with, to the cent at or above, so the loan is never more than its share. */
+const priceFor = (loan: number, downPct: number): number => Math.ceil((loan / (1 - downPct / 100)) * 100 - 1e-6) / 100;
+
 /**
  * Turns what was typed into the model's input. `start` is the month of the first payment.
  * When something needed is missing or out of range the input is one the model turns down;
@@ -202,10 +221,14 @@ export function toInput(values: Values, start: { month: number; year: number }):
       monthlyPmi = 0;
     }
   } else if (mode === "payment") {
-    // The price is the loan itself, so mortgage insurance is counted as if nothing were put down.
-    // A home value left in the form by Refinance is not read.
-    homePrice = paymentLoan(n("payment"), annualRate, termYears);
-    downPayment = 0;
+    // The price is worked out from the loan and the down payment percent; with nothing down it is
+    // the loan itself. A home value left in the form by Refinance is not read.
+    const loan = paymentLoan(n("payment"), annualRate, termYears);
+    const downPct = paymentDownOf(values);
+    homePrice = priceFor(loan, downPct);
+    downPayment = roundCents(homePrice - loan);
+    // The purchase rule, decided on the percent typed and not on the cents of the worked-out price.
+    if (!(downPct < PMI_BELOW_DOWN)) monthlyPmi = 0;
   } else {
     homePrice = n("homePrice");
     downPayment = values.downUnit === "usd" ? n("downPayment") : (homePrice * n("downPayment")) / 100;
@@ -239,7 +262,8 @@ export function toInput(values: Values, start: { month: number; year: number }):
  *   - "below-loan": a home value smaller than the loan amount.
  *   - "too-small": a payment that pays off less than `MIN_PAYMENT_LOAN`.
  * The home value is optional, so its "unreadable" and "not-positive" may also be cured by emptying it.
- * The payment's "range" is `PAYMENT_LIMIT`, which it has to stay under.
+ * The payment's "range" is `PAYMENT_LIMIT`, which it has to stay under. Payment mode's down payment
+ * is "range" for junk as well: 0 to under 100, and an empty box is 0.
  */
 export type InputFault =
   | { field: FieldDef; problem: "empty" | "unreadable" | "not-positive" | "not-below-price" | "below-loan" | "too-small" }
@@ -296,6 +320,7 @@ export function inputFault(values: Values): InputFault | null {
     return (
       amountFault(PAYMENT, values) ??
       (typed >= PAYMENT_LIMIT ? { field: PAYMENT, problem: "range", min: 0, max: PAYMENT_LIMIT } : null) ??
+      (Number.isNaN(paymentDownOf(values)) ? { field: PAYMENT_DOWN, problem: "range", min: 0, max: 100 } : null) ??
       rateFault(values) ?? termFault(values) ?? tooSmall()
     );
   } else {
@@ -316,12 +341,17 @@ export function inputFault(values: Values): InputFault | null {
 export type Scenario =
   | { mode: "purchase" }
   | { mode: "refinance"; homeValueKnown: boolean }
-  | { mode: "payment"; payment: number; annualRate: number; termYears: number };
+  | { mode: "payment"; payment: number; annualRate: number; termYears: number; downPct: number; homePrice: number };
 
 export function scenarioOf(values: Values): Scenario {
   const mode = modeOf(values);
   if (mode === "refinance") return { mode, homeValueKnown: parseNumber(values.homeValue) > 0 };
-  if (mode === "payment") return { mode, payment: parseNumber(values.payment), annualRate: parseRate(values.rate), termYears: termOf(values) };
+  if (mode === "payment") {
+    return {
+      mode, payment: parseNumber(values.payment), annualRate: parseRate(values.rate), termYears: termOf(values),
+      downPct: paymentDownOf(values), homePrice: toInput(values, { month: 0, year: 0 }).homePrice,
+    };
+  }
   return { mode };
 }
 
@@ -329,6 +359,17 @@ export function scenarioOf(values: Values): Scenario {
 function purchaseLoan(values: Values): { price: number; loan: number } | null {
   const { homePrice, downPayment } = toInput({ ...values, mode: "purchase" }, { month: 0, year: 0 });
   return homePrice > 0 && downPayment >= 0 && downPayment < homePrice ? { price: homePrice, loan: roundCents(homePrice - downPayment) } : null;
+}
+
+/** The share of the price or home value that is not borrowed in the mode being left, 0 to under 1, or null when there is none to give. */
+function downShare(values: Values, from: Mode): number | null {
+  if (from === "purchase") {
+    const purchase = purchaseLoan(values);
+    return purchase ? (purchase.price - purchase.loan) / purchase.price : null;
+  }
+  const loan = parseNumber(values.loanAmount);
+  const value = parseNumber(values.homeValue);
+  return from === "refinance" && loan > 0 && value >= loan ? (value - loan) / value : null;
 }
 
 /**
@@ -340,9 +381,13 @@ function purchaseLoan(values: Values): { price: number; loan: number } | null {
  *     dashboard does on the first switch. Numbers already there are kept.
  *   - Into Refinance from Payment: an empty loan amount is filled with the loan the payment pays
  *     off, and with it an empty home value with the purchase price, when the purchase boxes hold
- *     one that covers that loan.
+ *     one that covers that loan, otherwise with the price payment mode worked out from a down payment.
  *   - Into Payment: an empty payment box is filled with the current loan's principal and interest.
  *     A payment already there is kept, like the other modes' boxes; without a loan the box stays empty.
+ *     Its down payment box, while empty or on its default 20, takes the purchase's down payment as
+ *     a percent to two decimals (from Refinance, the equity in the home value, when there is one).
+ *   - Into Purchase from Payment: while the price and down payment are both empty, the price is
+ *     filled with the worked-out price and the down payment with the percent.
  *   - Into Purchase from Refinance: while the price and down payment are both empty and there is a
  *     home value, the price is filled with it and the down payment with the equity, in the unit
  *     the visitor had: as a percent when a percent to two decimals says exactly that amount,
@@ -361,6 +406,11 @@ export function switchMode(values: Values, mode: Mode, exampleRatePct: number): 
 
   if (mode === "payment") {
     if (result && isEmpty(values.payment)) next.payment = money(result.monthlyPI);
+    // The down payment comes along as a percent while the box is empty or still on its default.
+    if (isEmpty(values.paymentDown) || values.paymentDown === PAYMENT_DOWN.example) {
+      const share = downShare(values, from);
+      if (share !== null) next.paymentDown = String(Math.round(share * 10000) / 100);
+    }
   } else if (mode === "refinance") {
     if (from === "purchase" && isEmpty(values.loanAmount) && isEmpty(values.homeValue)) {
       const purchase = purchaseLoan(values);
@@ -371,7 +421,18 @@ export function switchMode(values: Values, mode: Mode, exampleRatePct: number): 
     } else if (from === "payment" && isEmpty(values.loanAmount) && result) {
       next.loanAmount = money(result.loanAmount);
       const purchase = purchaseLoan(values);
-      if (isEmpty(values.homeValue) && purchase && purchase.price >= result.loanAmount) next.homeValue = money(purchase.price);
+      const { homePrice } = toInput(values, { month: 0, year: 0 });
+      if (isEmpty(values.homeValue)) {
+        if (purchase && purchase.price >= result.loanAmount) next.homeValue = money(purchase.price);
+        else if (homePrice > result.loanAmount) next.homeValue = money(homePrice);
+      }
+    }
+  } else if (from === "payment" && isEmpty(values.homePrice) && isEmpty(values.downPayment)) {
+    if (result) {
+      const downPct = paymentDownOf(values);
+      next.homePrice = money(toInput(values, { month: 0, year: 0 }).homePrice);
+      next.downUnit = "pct";
+      next.downPayment = downPct > 0 ? String(downPct) : "";
     }
   } else if (from === "refinance" && isEmpty(values.homePrice) && isEmpty(values.downPayment)) {
     const loan = parseNumber(values.loanAmount);
