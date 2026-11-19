@@ -87,3 +87,21 @@ describe("a read-only box", () => {
     expect(changes).toEqual([""]);
   });
 });
+
+describe("a choice whose label is hidden", () => {
+  const def: FieldDef = { id: "kind", label: "Kind of thing", type: "choice", example: "a", options: [{ value: "a", label: "A" }, { value: "b", label: "B" }] };
+
+  it("shows its legend by default", () => {
+    render(<Box def={def} />);
+    const legend = screen.getByRole("group", { name: "Kind of thing" }).querySelector("legend")!;
+    expect(legend.className).not.toContain("sr-only");
+    expect(legend.className).toContain("font-semibold");
+  });
+
+  it("keeps the legend as the group's name, for screen readers only, with hideLabel", () => {
+    render(<Box def={{ ...def, hideLabel: true }} />);
+    const legend = screen.getByRole("group", { name: "Kind of thing" }).querySelector("legend")!;
+    expect(legend.textContent).toBe("Kind of thing");
+    expect(legend.className).toBe("sr-only");
+  });
+});

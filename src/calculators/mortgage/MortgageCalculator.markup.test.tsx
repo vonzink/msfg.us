@@ -62,12 +62,13 @@ describe("mortgage calculator page", () => {
 
   it("puts the mode switch first, above the first card, on Purchase", () => {
     const html = page();
-    expect(html).toMatch(/<legend[^>]*>I want to work out<\/legend>/);
+    expect(html).toMatch(/<legend class="sr-only">Calculation type<\/legend>/);
+    expect(html).not.toContain("I want to work out");
     expect(html.split(`name="mortgage-mode"`).length - 1).toBe(3);
     for (const label of ["Purchase", "Refinance", "Payment"]) expect(html, label).toMatch(new RegExp(`<input[^>]*name="mortgage-mode"[^>]*/>${label}</label>`));
     expect(html).toMatch(/<input(?=[^>]*name="mortgage-mode")(?=[^>]*value="purchase")(?=[^>]*checked="")/);
-    expect(html.indexOf("I want to work out")).toBeGreaterThan(html.indexOf("<form"));
-    expect(html.indexOf("I want to work out")).toBeLessThan(html.indexOf("The home and the loan"));
+    expect(html.indexOf("Calculation type")).toBeGreaterThan(html.indexOf("<form"));
+    expect(html.indexOf("Calculation type")).toBeLessThan(html.indexOf("The home and the loan"));
   });
 
   it("takes the loan term as a number box with a slider from 1 to 30", () => {
@@ -202,7 +203,8 @@ describe("refinance results", () => {
 describe("payment mode results", () => {
   it("leads with the loan amount in whole dollars and the payment as typed", () => {
     const html = text(results({}, "payment"));
-    expect(html).toContain("Estimated loan amount$320,000paid off by $2,128.97 a month over 30 years at 7%");
+    expect(html).toContain("Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%. Tax and insurance are not included.");
+    expect(html).not.toContain("Full monthly payment");
     expect(html).not.toContain("Estimated monthly payment");
     expect(html).not.toContain("$320,000.30");
   });
@@ -210,7 +212,7 @@ describe("payment mode results", () => {
   it("says straight under the headline that it is not a lending amount", () => {
     const html = results({}, "payment");
     expect(html.split(NOT_A_LENDING_AMOUNT).length - 1).toBe(1);
-    expect(html.indexOf(NOT_A_LENDING_AMOUNT)).toBeGreaterThan(html.indexOf("paid off by"));
+    expect(html.indexOf(NOT_A_LENDING_AMOUNT)).toBeGreaterThan(html.indexOf("pays off over"));
     expect(html.indexOf(NOT_A_LENDING_AMOUNT)).toBeLessThan(html.indexOf("Where each payment goes"));
   });
 
@@ -219,13 +221,40 @@ describe("payment mode results", () => {
     for (const part of ["Total interest", "Paid off", "mortgage-breakdown-month", "Loan balance at the end of each year"]) expect(html, part).toContain(part);
   });
 
-  it("shows nothing about tax, insurance, a down payment or loan-to-value", () => {
-    const html = text(results({ yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "50", monthlyPmi: "150" }, "payment"));
-    expect(html).not.toMatch(/tax|insurance|HOA|down|home value/i);
+  it("says nothing about a down payment or loan-to-value, and no cost is listed while none is entered", () => {
+    const html = text(results({}, "payment"));
+    expect(html).not.toMatch(/HOA|down|home value|mortgage insurance|Property tax|Homeowners/i);
+  });
+
+  it("adds the full monthly payment straight under the not-a-lending-amount sentence when a cost is entered", () => {
+    const raw = results({ yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150" }, "payment");
+    const html = text(raw);
+    expect(html).toContain("Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%.");
+    expect(html).not.toContain("Tax and insurance are not included.");
+    expect(html).toContain("$2,929principal, interest, tax, insurance, HOA dues, mortgage insurance");
+    expect(html).toContain("Includes mortgage insurance until payment 162.");
+    expect(raw.indexOf("Full monthly payment")).toBeGreaterThan(raw.indexOf(NOT_A_LENDING_AMOUNT));
+    expect(raw.indexOf("Full monthly payment")).toBeLessThan(raw.indexOf("Where each payment goes"));
+    // The ring splits the full payment.
+    for (const part of ["Property tax $400", "Homeowners insurance $150", "HOA dues $100", "Mortgage insurance $150"]) expect(raw, part).toContain(part);
+    expect(html).not.toMatch(/down|home value/i);
+  });
+
+  it("lists only the parts present in the full monthly payment", () => {
+    expect(text(results({ yearlyTax: "4,800" }, "payment"))).toContain("$2,529principal, interest, tax");
+    expect(text(results({ yearlyTax: "4,800" }, "payment"))).not.toContain("principal, interest, tax,");
+    expect(text(results({ yearlyInsurance: "1,800", monthlyHoa: "100" }, "payment"))).toContain("$2,379principal, interest, insurance, HOA dues");
+    expect(text(results({ monthlyPmi: "150" }, "payment"))).toContain("$2,279principal, interest, mortgage insurance");
+  });
+
+  it("with mortgage insurance typed but not counted, says tax and insurance are not included", () => {
+    const html = text(results({ monthlyPmi: "150", homeValue: "500,000" }, "payment"));
+    expect(html).toContain("at 7%. Tax and insurance are not included.");
+    expect(html).not.toContain("Full monthly payment");
   });
 
   it("names a one-year term in the singular and keeps the rate as typed", () => {
-    expect(text(results({ termYears: "1", rate: "6.125" }, "payment"))).toContain("a month over 1 year at 6.125%");
+    expect(text(results({ termYears: "1", rate: "6.125" }, "payment"))).toContain("pays off over 1 year at 6.125%.");
   });
 
   it("states extra principal beside the payment", () => {
@@ -237,7 +266,7 @@ describe("payment mode results", () => {
     // loan is the one $2,128.975 pays off, whose own payment is $2,128.97 in the schedule.
     const values = { ...exampleValues(7, "payment"), payment: "2128.975" };
     expect(calculateMortgage(toInput(values, { month: 0, year: 0 }))!.monthlyPI).toBe(2128.97);
-    expect(text(results({ payment: "2128.975" }, "payment"))).toContain("paid off by $2,128.98 a month");
+    expect(text(results({ payment: "2128.975" }, "payment"))).toContain("what $2,128.98 a month of principal and interest pays off");
   });
 });
 
@@ -265,10 +294,22 @@ describe("print summary by mode", () => {
 
   it("leads with the payment and the loan amount in payment mode", () => {
     const html = text(printed({}, "payment"));
-    expect(html).toContain("The loanMonthly payment$2,128.97Interest rate7%Loan term30 years");
+    expect(html).toMatch(/^Loan amount estimateThe loanMonthly payment \(principal and interest\)\$2,128\.97Interest rate7%Loan term30 years/);
     expect(html).toContain("The estimateEstimated loan amount$320,000Total interest");
     expect(html).toContain(NOT_A_LENDING_AMOUNT);
-    expect(html).not.toMatch(/tax|insurance|HOA|Home price|Down payment|Home value/i);
+    expect(html).not.toMatch(/tax|insurance|HOA|Home price|Down payment|Home value|Mortgage payment estimate/i);
+  });
+
+  it("keeps the title for a purchase and a refinance", () => {
+    expect(text(printed({}, "purchase"))).toMatch(/^Mortgage payment estimateThe loan/);
+    expect(text(printed({}, "refinance"))).toMatch(/^Mortgage payment estimateThe loan/);
+  });
+
+  it("includes the costs entered in payment mode, as the other modes do", () => {
+    const html = text(printed({ yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150", homeValue: "400,000" }, "payment"));
+    expect(html).toContain("Monthly payment (principal and interest)$2,128.97Home value$400,000Interest rate7%Loan term30 yearsFirst paymentJan 2027Property tax$4,800 a yearHomeowners insurance$1,800 a yearHOA dues$100 a monthMortgage insurance$150 a month, until payment 29");
+    expect(html).toContain("The estimateEstimated loan amount$320,000Full monthly payment$2,929Property tax (monthly)$400Homeowners insurance (monthly)$150HOA dues (monthly)$100Mortgage insurance (monthly)$150Total interest");
+    expect(html).not.toMatch(/Home price|Down payment/);
   });
 });
 

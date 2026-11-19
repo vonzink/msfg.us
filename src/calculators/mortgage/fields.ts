@@ -12,7 +12,10 @@ import { calculateMortgage, loanAmountForPayment, RATE_LIMIT, type ExtraFrequenc
  *     is not counted, and its hint says so. A home value below the loan gives no result.
  *   - Payment: a monthly principal and interest payment in place of both. The loan is the amount
  *     that payment pays off (`loanAmountForPayment`). Property tax, homeowners insurance, HOA dues
- *     and mortgage insurance are not shown and not counted, whatever another mode left in them.
+ *     and mortgage insurance sit behind "Add detail" and are added on top: the payment typed stays
+ *     principal and interest only, and the loan amount does not move. A home value, also optional,
+ *     gives mortgage insurance the refinance rule; without one it is counted as if nothing were
+ *     put down, the price being the loan amount, since there is no value to measure against.
  *
  * Property tax and insurance are yearly dollars; HOA dues and mortgage insurance are monthly.
  * Every public calculator uses those same units. The loan term is a typed whole number of years,
@@ -29,7 +32,7 @@ const modeOf = (values: Values): Mode => (MODES.includes(values.mode as Mode) ? 
 
 /** The switch above the form. Its value lives in the form's values as `mode`. */
 export const MODE_FIELD: FieldDef = {
-  id: "mode", label: "I want to work out", type: "choice", example: "purchase",
+  id: "mode", label: "Calculation type", hideLabel: true, type: "choice", example: "purchase",
   options: [{ value: "purchase", label: "Purchase" }, { value: "refinance", label: "Refinance" }, { value: "payment", label: "Payment" }],
 };
 
@@ -63,6 +66,8 @@ const REFINANCE_PMI: FieldDef = {
   id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "",
   hintFn: (n) => (n.monthlyPmi > 0 && !(n.homeValue > 0) ? "Per month. Not counted without a home value." : "Per month."),
 };
+const PAYMENT_PMI: FieldDef = { id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month." };
+const PAYMENT_HOME_VALUE: FieldDef = { id: "homeValue", label: "Home value", type: "money", example: "", hint: "Optional. Sets when mortgage insurance ends." };
 const EXTRA: FieldDef[] = [
   { id: "extraAmount", label: "Extra principal", type: "money", example: "", hint: "Paid on top of the regular payment." },
   {
@@ -83,7 +88,7 @@ const FRONT: Record<Mode, FieldDef[]> = {
 const DETAIL: Record<Mode, FieldDef[]> = {
   purchase: [HOA, PMI, ...EXTRA],
   refinance: [HOA, REFINANCE_PMI, ...EXTRA],
-  payment: EXTRA,
+  payment: [TAX, INSURANCE, HOA, PAYMENT_PMI, PAYMENT_HOME_VALUE, ...EXTRA],
 };
 
 /** The inputs always visible in a mode, in page order. */
@@ -116,12 +121,13 @@ export const BLANK: Values = blank("purchase");
 /**
  * The worked example a mode opens with, at the tenant's example interest rate (a percent). Every
  * mode's example is the same $320,000 loan: the payment example is that loan's principal and
- * interest at the rate given. Boxes of the other modes are empty.
+ * interest at the rate given. Boxes of the other modes are empty, and so is everything behind
+ * "Add detail" in payment mode.
  */
 export function exampleValues(exampleRatePct: number, mode: Mode = "purchase"): Values {
   return {
     ...blank(mode),
-    ...Object.fromEntries(fieldsOf(mode).map((f) => [f.id, f.example])),
+    ...Object.fromEntries((mode === "payment" ? FRONT.payment : fieldsOf(mode)).map((f) => [f.id, f.example])),
     ...(mode === "payment" ? { payment: money(roundCents(monthlyPayment(EXAMPLE_LOAN, exampleRatePct, 360))) } : {}),
     rate: String(exampleRatePct),
   };
@@ -167,23 +173,25 @@ export function toInput(values: Values, start: { month: number; year: number }):
       monthlyPmi = 0;
     }
   } else if (mode === "payment") {
-    homePrice = loanAmountForPayment(n("payment"), annualRate, termYears) ?? Number.NaN;
-    downPayment = 0;
-    monthlyPmi = 0;
+    const loan = loanAmountForPayment(n("payment"), annualRate, termYears) ?? Number.NaN;
+    const value = n("homeValue");
+    // With a home value, the refinance rule. Without one the price is the loan itself, so mortgage
+    // insurance is counted as if nothing were put down.
+    homePrice = value > 0 ? value : loan;
+    downPayment = value > 0 ? roundCents(value - loan) : 0;
   } else {
     homePrice = n("homePrice");
     downPayment = values.downUnit === "usd" ? n("downPayment") : (homePrice * n("downPayment")) / 100;
   }
 
-  const payment = mode === "payment";
   return {
     homePrice,
     downPayment,
     annualRate,
     termYears,
-    yearlyTax: payment ? 0 : n("yearlyTax"),
-    yearlyInsurance: payment ? 0 : n("yearlyInsurance"),
-    monthlyHoa: payment ? 0 : n("monthlyHoa"),
+    yearlyTax: n("yearlyTax"),
+    yearlyInsurance: n("yearlyInsurance"),
+    monthlyHoa: n("monthlyHoa"),
     monthlyPmi,
     extraAmount: n("extraAmount"),
     extraFrequency: FREQUENCIES.includes(frequency) ? frequency : "monthly",
@@ -244,7 +252,8 @@ export function inputFault(values: Values): InputFault | null {
   if (mode === "refinance") {
     first = amountFault(LOAN_AMOUNT, values) ?? (input.downPayment < 0 ? { field: HOME_VALUE, problem: "below-loan" } : null);
   } else if (mode === "payment") {
-    first = amountFault(PAYMENT, values);
+    // The loan the payment pays off needs the rate and the term, so the home value is checked last.
+    return amountFault(PAYMENT, values) ?? rateFault(values) ?? termFault(values) ?? (input.downPayment < 0 ? { field: PAYMENT_HOME_VALUE, problem: "below-loan" } : null);
   } else {
     first =
       amountFault(HOME_PRICE, values) ??
@@ -263,12 +272,13 @@ export function inputFault(values: Values): InputFault | null {
 export type Scenario =
   | { mode: "purchase" }
   | { mode: "refinance"; homeValueKnown: boolean }
-  | { mode: "payment"; payment: number; annualRate: number; termYears: number };
+  | { mode: "payment"; homeValueKnown: boolean; payment: number; annualRate: number; termYears: number };
 
 export function scenarioOf(values: Values): Scenario {
   const mode = modeOf(values);
-  if (mode === "refinance") return { mode, homeValueKnown: parseNumber(values.homeValue) > 0 };
-  if (mode === "payment") return { mode, payment: parseNumber(values.payment), annualRate: parseRate(values.rate), termYears: termOf(values) };
+  const homeValueKnown = parseNumber(values.homeValue) > 0;
+  if (mode === "refinance") return { mode, homeValueKnown };
+  if (mode === "payment") return { mode, homeValueKnown, payment: parseNumber(values.payment), annualRate: parseRate(values.rate), termYears: termOf(values) };
   return { mode };
 }
 

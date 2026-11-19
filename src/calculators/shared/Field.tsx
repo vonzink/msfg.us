@@ -32,7 +32,7 @@ export function Field({ def, idPrefix, values, numbers, onChange, disabled = fal
   if (def.type === "choice") {
     return (
       <fieldset className="col-span-full m-0 flex min-w-0 flex-col gap-1.5 border-0 p-0">
-        <legend className="mb-1.5 p-0 text-[13px] font-semibold">{def.label}</legend>
+        <legend className={def.hideLabel ? "sr-only" : "mb-1.5 p-0 text-[13px] font-semibold"}>{def.label}</legend>
         <div className="grid auto-cols-fr grid-flow-col gap-[3px] rounded-md bg-paper-2 p-[3px]">
           {def.options?.map((o) => (
             <label

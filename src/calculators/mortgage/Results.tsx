@@ -46,8 +46,10 @@ const ratePercent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
  * is given as a length of time instead of a calendar month.
  *
  * `scenario` is the mode. A purchase and a refinance lead with the monthly payment; payment mode
- * leads with the loan amount the typed payment pays off. `r.ltv` only means something when there
- * is a price or a home value behind it, so the mortgage insurance prompt is left out otherwise.
+ * leads with the loan amount the typed payment pays off, and shows the full monthly payment under
+ * it once tax, insurance, HOA dues or mortgage insurance is counted. `r.ltv` only means something
+ * when there is a price or a home value behind it, so the mortgage insurance prompt is left out
+ * otherwise.
  * `fault` is what `inputFault` found, for the prompt when there is no result.
  */
 export function MortgageResults({ result: r, start, disclaimer, scenario = { mode: "purchase" }, fault = null }: {
@@ -68,7 +70,9 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
   const { first } = r;
   const hasExtra = r.extra.amount > 0;
   const hasPmi = first.pmi > 0;
-  const measured = scenario.mode === "purchase" || (scenario.mode === "refinance" && scenario.homeValueKnown);
+  const measured = scenario.mode === "purchase" || scenario.homeValueKnown;
+  // Payment mode: what is counted on top of the principal and interest typed.
+  const onTop = [first.tax > 0 && "tax", first.insurance > 0 && "insurance", first.hoa > 0 && "HOA dues", hasPmi && "mortgage insurance"].filter(Boolean);
   const needsPmiPrompt = measured && r.ltv > 80 && !hasPmi;
   const payoff = start ? `${MONTHS[r.payoff.month]} ${r.payoff.year}` : duration(r.schedule.length);
 
@@ -83,8 +87,9 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
         </p>
         {scenario.mode === "payment" ? (
           <p className="mt-1.5 text-[16px] text-on-dark-2 print:text-ink">
-            paid off by <strong className="text-white print:text-ink">{formatUSDCents(scenario.payment)}</strong> a month over{" "}
-            {scenario.termYears} {scenario.termYears === 1 ? "year" : "years"} at {ratePercent(scenario.annualRate)}
+            what <strong className="text-white print:text-ink">{formatUSDCents(scenario.payment)}</strong> a month of principal and
+            interest pays off over {scenario.termYears} {scenario.termYears === 1 ? "year" : "years"} at {ratePercent(scenario.annualRate)}.
+            {onTop.length === 0 && " Tax and insurance are not included."}
           </p>
         ) : (
           <p className="mt-1.5 text-[16px] text-on-dark-2 print:text-ink">
@@ -109,12 +114,20 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
         )}
         {needsPmiPrompt && (
           <p className="mt-1.5 text-[14px] text-on-dark-2 print:text-ink">
-            {scenario.mode === "refinance" ? "With a loan above 80% of the home value" : "With less than 20% down"}, most conventional loans add mortgage insurance. Add it under Add detail.
+            {scenario.mode === "purchase" ? "With less than 20% down" : "With a loan above 80% of the home value"}, most conventional loans add mortgage insurance. Add it under Add detail.
           </p>
         )}
       </div>
 
       {scenario.mode === "payment" && <p className="mx-1 text-[15px] font-semibold text-ink">{NOT_A_LENDING_AMOUNT}</p>}
+      {scenario.mode === "payment" && onTop.length > 0 && (
+        <Stat
+          label="Full monthly payment"
+          value={formatUSD(first.total)}
+          sub={["principal", "interest", ...onTop].join(", ")}
+          tip="The payment entered plus the amounts entered under Add detail."
+        />
+      )}
 
       <PaymentBreakdown result={r} start={start} />
 

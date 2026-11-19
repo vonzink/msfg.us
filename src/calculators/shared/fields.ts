@@ -19,6 +19,11 @@ export type FieldDef = {
   options?: { value: string; label: string }[];
   wide?: boolean;
   /**
+   * For a choice whose options say enough on their own. The label is still the group's name for a
+   * screen reader, but is not shown.
+   */
+  hideLabel?: boolean;
+  /**
    * For a money box in which 0 is an answer ("no debts", "zero down"). The box normally empties
    * itself when focus leaves it holding 0; with this set a typed 0 stays in the box as "0".
    */

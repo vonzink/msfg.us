@@ -31,6 +31,7 @@ const status = () => screen.queryByRole("status")?.textContent ?? null;
 const results = () => document.getElementById("mortgage-results")!.textContent!;
 const form = () => screen.getByRole("form", { name: "Loan details" });
 const firstCard = () => Array.from(form().querySelector("section")!.querySelectorAll("label[for], legend"), (x) => x.textContent);
+const detailLabels = () => Array.from(form().querySelector("details")!.querySelectorAll("label[for], legend"), (x) => x.textContent);
 const printed = () => document.querySelector('section[aria-label="Estimate summary"]')!.textContent!;
 const phoneBar = () => screen.getByRole("link", { name: /See results/ }).textContent!;
 const yearRows = () => document.querySelectorAll('section[aria-label="Amortization schedule"] button[aria-expanded]').length;
@@ -46,7 +47,9 @@ describe("the three modes", () => {
   it("opens on Purchase with the switch first in the form", () => {
     open();
     expect(chosen("Purchase")).toBe(true);
-    expect(form().firstElementChild!.querySelector("legend")!.textContent).toBe("I want to work out");
+    expect(form().firstElementChild!.querySelector("legend")!.textContent).toBe("Calculation type");
+    expect(form().firstElementChild!.querySelector("legend")!.className).toBe("sr-only");
+    expect(document.body.textContent).not.toContain("I want to work out");
     expect(firstCard()).toEqual(["Home price", "Down payment", "Down payment as", "Interest rate", "Loan term", "Property tax", "Homeowners insurance"]);
     expect(results()).toContain("Estimated monthly payment$2,679$2,129 principal and interest on a $320,000 loan.");
     expect(phoneBar()).toContain("Monthly payment$2,679");
@@ -74,13 +77,16 @@ describe("the three modes", () => {
     expect(chosen("Payment")).toBe(true);
     expect(firstCard()).toEqual(["Monthly payment", "Interest rate", "Loan term"]);
     expect(box("Monthly payment").value).toBe("2,128.97");
-    expect(results()).toContain(`Estimated loan amount$320,000paid off by $2,128.97 a month over 30 years at 7%${NOT_A_LENDING_AMOUNT}`);
+    expect(results()).toContain(`Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%. Tax and insurance are not included.${NOT_A_LENDING_AMOUNT}Where each payment goes`);
     expect(phoneBar()).toContain("Estimated loan amount$320,000");
-    for (const label of ["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Home price", "Down payment", "Home value", "Loan amount"]) expect(hasBox(label), label).toBe(false);
-    for (const label of ["Extra principal"]) expect(hasBox(label), label).toBe(true);
+    for (const label of ["Home price", "Down payment", "Loan amount"]) expect(hasBox(label), label).toBe(false);
+    expect(detailLabels()).toEqual(["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Home value", "Extra principal", "Pay the extra", "First payment"]);
+    for (const label of ["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Home value", "Extra principal"]) expect(box(label).value, label).toBe("");
+    expect(form().textContent).toContain("Optional. Sets when mortgage insurance ends.");
     expect(screen.getByLabelText("First payment month")).toBeTruthy();
-    expect(document.body.textContent).not.toMatch(/tax|insurance|HOA|down payment|home value|home price/i);
-    expect(printed()).toContain("Monthly payment$2,128.97Interest rate7%Loan term30 yearsFirst paymentDec 2026");
+    expect(`${results()}${printed()}`).not.toMatch(/Property tax|Homeowners|HOA|mortgage insurance|down payment|home value|home price|Full monthly payment/i);
+    expect(printed()).toContain("Monthly payment (principal and interest)$2,128.97Interest rate7%Loan term30 yearsFirst paymentDec 2026");
+    expect(printed()).toMatch(/^Loan amount estimate/);
     expect(printed()).toContain("Estimated loan amount$320,000Total interest");
     expect(document.body.textContent!.split(NOT_A_LENDING_AMOUNT).length - 1).toBe(2); // on screen and in print
     expect(yearRows()).toBe(30);
@@ -101,8 +107,61 @@ describe("the three modes", () => {
       }
       for (const radio of form().querySelectorAll('input[type="radio"]')) expect(radio.closest("fieldset")!.querySelector("legend"), name).not.toBeNull();
       for (const range of form().querySelectorAll('input[type="range"]')) expect(range.getAttribute("aria-label"), name).toBeTruthy();
-      expect(screen.getByRole("group", { name: "I want to work out" })).toBeTruthy();
+      expect(screen.getByRole("group", { name: "Calculation type" })).toBeTruthy();
     }
+  });
+});
+
+describe("costs added on top in Payment mode", () => {
+  it("adds them to a full monthly payment and leaves the loan amount alone", () => {
+    open();
+    mode("Payment");
+    type("Property tax", "4800");
+    expect(results()).toContain("Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%.");
+    expect(results()).not.toContain("Tax and insurance are not included.");
+    expect(results()).toContain(`${NOT_A_LENDING_AMOUNT}Full monthly payment`);
+    expect(results()).toContain("$2,529principal, interest, tax");
+    type("Homeowners insurance", "1800");
+    type("HOA dues", "100");
+    type("Mortgage insurance", "150");
+    expect(results()).toContain("$2,929principal, interest, tax, insurance, HOA dues, mortgage insurance");
+    expect(results()).toContain("Includes mortgage insurance until payment 162.");
+    expect(results()).toContain("Estimated loan amount$320,000");
+    expect(phoneBar()).toContain("Estimated loan amount$320,000");
+    expect(printed()).toContain("Full monthly payment$2,929");
+    expect(printed()).toContain("Mortgage insurance$150 a month, until payment 162");
+    expect(printed()).not.toContain("Home value");
+    press("Show every payment");
+    const first = within(screen.getByRole("table")).getByText("Payment 1").closest("tr")!.textContent!;
+    expect(first).toContain("$150.00"); // the mortgage insurance column
+    expect(first).toContain("$2,928.97");
+    type("Home value", "400000");
+    expect(results()).toContain("Includes mortgage insurance until payment 29.");
+    expect(results()).toContain("Estimated loan amount$320,000");
+    expect(printed()).toContain("Home value$400,000");
+    type("Home value", "500000");
+    expect(results()).not.toContain("Includes mortgage insurance");
+    expect(results()).toContain("$2,779principal, interest, tax, insurance, HOA dues");
+    clean();
+  });
+
+  it("keeps them, and the home value, on the way to Refinance and back", () => {
+    open();
+    mode("Payment");
+    type("Property tax", "5000");
+    type("HOA dues", "75");
+    type("Home value", "450000");
+    mode("Refinance");
+    expect(box("Property tax").value).toBe("5,000");
+    expect(box("HOA dues").value).toBe("75");
+    expect(box("Home value").value).toBe("450,000");
+    type("Home value", "460000");
+    mode("Payment");
+    expect(box("Home value").value).toBe("460,000");
+    expect(box("Property tax").value).toBe("5,000");
+    mode("Purchase");
+    expect(box("Property tax").value).toBe("5,000");
+    expect(box("HOA dues").value).toBe("75");
   });
 });
 
@@ -174,7 +233,10 @@ describe("switching modes keeps what carries over", () => {
     expect(box("Monthly payment").value).toBe("2,661.21"); // $400,000 at 7% for 30 years
     expect(box("Interest rate").value).toBe("7");
     expect(box("Loan term").value).toBe("30");
-    expect(results()).toContain("Estimated loan amount$400,000paid off by $2,661.21 a month over 30 years at 7%");
+    expect(results()).toContain("Estimated loan amount$400,000what $2,661.21 a month of principal and interest pays off over 30 years at 7%.");
+    // The tax and insurance of the purchase come along, on top of the payment.
+    expect(results()).toContain("Full monthly payment");
+    expect(results()).toContain("$3,211principal, interest, tax, insurance");
     expect(results()).not.toContain("Estimated monthly payment");
     mode("Purchase");
     expect(box("Home price").value).toBe("500,000");

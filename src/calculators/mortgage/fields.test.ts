@@ -120,7 +120,7 @@ describe("the loan term is any whole number of years from 1 to 30", () => {
 describe("the three modes", () => {
   it("has a switch with a legend", () => {
     expect(MODE_FIELD).toEqual({
-      id: "mode", label: "I want to work out", type: "choice", example: "purchase",
+      id: "mode", label: "Calculation type", hideLabel: true, type: "choice", example: "purchase",
       options: [{ value: "purchase", label: "Purchase" }, { value: "refinance", label: "Refinance" }, { value: "payment", label: "Payment" }],
     });
   });
@@ -131,7 +131,16 @@ describe("the three modes", () => {
     expect(frontFields("refinance").map((f) => f.id)).toEqual(["loanAmount", "homeValue", "rate", "termYears", "yearlyTax", "yearlyInsurance"]);
     expect(detailFields("refinance").map((f) => f.id)).toEqual(["monthlyHoa", "monthlyPmi", "extraAmount", "extraFrequency"]);
     expect(frontFields("payment").map((f) => f.id)).toEqual(["payment", "rate", "termYears"]);
-    expect(detailFields("payment").map((f) => f.id)).toEqual(["extraAmount", "extraFrequency"]);
+    expect(detailFields("payment").map((f) => f.id)).toEqual(["yearlyTax", "yearlyInsurance", "monthlyHoa", "monthlyPmi", "homeValue", "extraAmount", "extraFrequency"]);
+  });
+
+  it("gives payment mode the same tax, insurance and HOA boxes behind Add detail, and an optional home value", () => {
+    const byId = Object.fromEntries(detailFields("payment").map((f) => [f.id, f]));
+    for (const id of ["yearlyTax", "yearlyInsurance"]) expect(byId[id], id).toBe(frontFields("refinance").find((f) => f.id === id));
+    expect(byId.monthlyHoa).toBe(detailFields("refinance").find((f) => f.id === "monthlyHoa"));
+    expect(byId.monthlyPmi).toMatchObject({ label: "Mortgage insurance", type: "money", example: "" });
+    expect(byId.homeValue).toMatchObject({ label: "Home value", type: "money", hint: "Optional. Sets when mortgage insurance ends." });
+    expect(exampleValues(7, "payment")).toMatchObject({ yearlyTax: "", yearlyInsurance: "", monthlyHoa: "", monthlyPmi: "", homeValue: "" });
   });
 
   it("labels the new boxes", () => {
@@ -239,12 +248,62 @@ describe("payment", () => {
     expect(inputFault(pay)).toBeNull();
   });
 
-  it("leaves out tax, homeowners insurance, HOA dues and mortgage insurance, even when the other modes left them filled in", () => {
-    const values = { ...pay, yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150" };
-    expect(toInput(values, start)).toMatchObject({ yearlyTax: 0, yearlyInsurance: 0, monthlyHoa: 0, monthlyPmi: 0 });
+  it("counts nothing on top while the detail boxes are empty", () => {
+    expect(toInput(pay, start)).toMatchObject({ yearlyTax: 0, yearlyInsurance: 0, monthlyHoa: 0, monthlyPmi: 0 });
+    expect(calc(pay)!.first).toEqual({ principalAndInterest: 2128.97, tax: 0, insurance: 0, hoa: 0, pmi: 0, total: 2128.97 });
+  });
+
+  const costs = { yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150" };
+
+  it("adds tax, insurance, HOA dues and mortgage insurance on top: the payment typed stays principal and interest and the loan does not move", () => {
+    const values = { ...pay, ...costs };
+    expect(toInput(values, start)).toMatchObject({ yearlyTax: 4800, yearlyInsurance: 1800, monthlyHoa: 100, monthlyPmi: 150 });
     const r = calc(values)!;
-    expect(r.first).toEqual({ principalAndInterest: 2128.97, tax: 0, insurance: 0, hoa: 0, pmi: 0, total: 2128.97 });
-    expect(r.schedule.every((row) => row.pmi === 0)).toBe(true);
+    expect(r.loanAmount).toBe(calc(pay)!.loanAmount);
+    expect(r.monthlyPI).toBe(2128.97);
+    // 2,128.97 + 400 tax + 150 insurance + 100 HOA + 150 mortgage insurance
+    expect(r.first).toEqual({ principalAndInterest: 2128.97, tax: 400, insurance: 150, hoa: 100, pmi: 150, total: 2928.97 });
+    expect(r.totalInterest).toBe(calc(pay)!.totalInterest);
+    expect(inputFault(values)).toBeNull();
+  });
+
+  // Hand-checked with a separate month-by-month script in exact decimals: on the $320,000.30 loan
+  // at 7% for 30 years the balance first reaches 78% of the loan ($249,600.23) with payment 162,
+  // and 78% of a $400,000 home ($312,000) with payment 29. Insurance is charged on the payments
+  // before that one, as in the other modes.
+  it("without a home value, counts mortgage insurance as if nothing were put down", () => {
+    const values = { ...pay, monthlyPmi: "150" };
+    expect(toInput(values, start)).toMatchObject({ homePrice: 320000.3, downPayment: 0, monthlyPmi: 150 });
+    const r = calc(values)!;
+    expect(r.pmiEndPayment).toBe(162);
+    expect(r.schedule.filter((row) => row.pmi > 0)).toHaveLength(161);
+    expect(r.schedule[160].pmi).toBe(150);
+    expect(r.schedule[161].pmi).toBe(0);
+    expect(r.schedule[160].balance).toBeGreaterThan(249600.23);
+    expect(r.schedule[161].balance).toBeLessThanOrEqual(249600.23);
+    expect(r.totalCost).toBe(Math.round((calc(pay)!.totalCost + 161 * 150) * 100) / 100);
+  });
+
+  it("with a home value, follows the refinance rule: counted above 80% of the value, until 78% of it", () => {
+    const values = { ...pay, monthlyPmi: "150", homeValue: "400,000" };
+    expect(toInput(values, start)).toMatchObject({ homePrice: 400000, downPayment: 79999.7, monthlyPmi: 150 });
+    const r = calc(values)!;
+    expect(r.loanAmount).toBe(320000.3); // thirty cents above 80% of the value, so it is counted
+    expect(r.pmiEndPayment).toBe(29);
+    expect(r.schedule.filter((row) => row.pmi > 0)).toHaveLength(28);
+    expect(r.schedule[27].balance).toBeGreaterThan(312000);
+    expect(r.schedule[28].balance).toBeLessThanOrEqual(312000);
+    // At or under 80% of the value none is counted.
+    const under = calc({ ...values, homeValue: "500,000" })!;
+    expect(under.first.pmi).toBe(0);
+    expect(under.first.total).toBe(2128.97);
+    expect(under.loanAmount).toBe(320000.3);
+  });
+
+  it("gives no result for a home value below the loan the payment pays off, and names the home value", () => {
+    const values = { ...pay, homeValue: "300,000" };
+    expect(calc(values)).toBeNull();
+    expect(inputFault(values)).toMatchObject({ field: { id: "homeValue" }, problem: "below-loan" });
   });
 
   it("keeps extra principal and the start month", () => {
@@ -365,6 +424,16 @@ describe("switching modes keeps what carries over", () => {
     expect(switchMode({ ...refi, loanAmount: "300,000", homeValue: "" }, "purchase", 7)).toMatchObject({ homePrice: "", downPayment: "", downUnit: "pct" });
   });
 
+  it("carries tax, insurance, HOA dues and mortgage insurance into payment mode and back, and the home value between refinance and payment", () => {
+    const typed = { ...refi, loanAmount: "360,000", yearlyTax: "5,000", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150" };
+    const inPayment = switchMode(typed, "payment", 7);
+    expect(inPayment).toMatchObject({ mode: "payment", yearlyTax: "5,000", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150", homeValue: "400,000" });
+    expect(calc(inPayment)!.first).toEqual(calc(typed)!.first);
+    const changed = { ...inPayment, homeValue: "450,000", yearlyTax: "5,500" };
+    expect(switchMode(changed, "refinance", 7)).toMatchObject({ mode: "refinance", loanAmount: "360,000", homeValue: "450,000", yearlyTax: "5,500", monthlyHoa: "75", monthlyPmi: "150" });
+    expect(switchMode(changed, "purchase", 7)).toMatchObject({ mode: "purchase", yearlyTax: "5,500", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150" });
+  });
+
   it("an untouched example becomes the other mode's example", () => {
     for (const from of MODES) for (const to of MODES) {
       expect(switchMode(exampleValues(7, from), to, 7), `${from} to ${to}`).toEqual(exampleValues(7, to));
@@ -391,7 +460,8 @@ describe("what the results are told about the mode", () => {
   });
 
   it("carries the payment as typed, with the rate and the term, in payment mode", () => {
-    expect(scenarioOf(exampleValues(7, "payment"))).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30 });
+    expect(scenarioOf(exampleValues(7, "payment"))).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30, homeValueKnown: false });
+    expect(scenarioOf({ ...exampleValues(7, "payment"), homeValue: "400,000" })).toMatchObject({ homeValueKnown: true });
     expect(scenarioOf({ ...exampleValues(7, "payment"), payment: "1,500", termYears: "7" })).toMatchObject({ payment: 1500, termYears: 7 });
   });
 });
