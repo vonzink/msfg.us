@@ -40,7 +40,7 @@ export function AprPrintSummary({ input, result: r }: { input: AprInput; result:
 
 /**
  * The rest of the printed page, under the summary: the gap in words, the fees the APR counts line
- * by line, what the estimate assumes, the sentence on where the official APR is, and the
+ * by line, what the estimate assumes, the sentence on where the APR for the loan is, and the
  * disclaimer. Hidden on screen.
  */
 export function AprPrintDetails({ input, result, disclaimer, lenderFeesEmpty = false }: {

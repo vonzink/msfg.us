@@ -36,8 +36,12 @@
  * Decisions that differ from, or narrow, the dashboard (numbered as in the plan)
  *   1. Lender fees are one total and all of it is counted in the APR. The dashboard decides fee
  *      by fee through a catalog; the golden cases type the total into its origination fee, which
- *      the catalog counts. Third-party costs that are not finance charges (appraisal, title,
- *      recording) are not to be entered.
+ *      the catalog counts. The total is to hold what that catalog counts for a conventional
+ *      loan: the lender's and broker's own charges (origination, underwriting, processing,
+ *      administration, rate lock, technology, courier) and the lender's title insurance. What
+ *      the catalog leaves out is not to be entered: the appraisal, the owner's title insurance,
+ *      the title search and examination, the settlement fee, the credit report, the flood
+ *      determination, the tax service fee and recording.
  *   2. A lender credit comes off the lender fees and prepaid interest, never below zero, and does
  *      not come off points. This is the dashboard's rule.
  *   3. Mortgage insurance needs a home value. With no property value the dashboard charges the
@@ -53,8 +57,8 @@
  *      amount entered. The loan is a conventional fixed-rate loan with level payments.
  *
  * Also not modelled, as on the dashboard
- *   - Odd first periods and the Regulation Z tolerances. This is an estimate; the official APR is
- *     the one on the Loan Estimate.
+ *   - Odd first periods and the Regulation Z tolerances. This is an estimate; the APR for a loan
+ *     is the one on its Loan Estimate.
  *
  * More differences from the dashboard
  *   - The solver's range ends at 100%, so on the dashboard an APR above that comes back as 100%.

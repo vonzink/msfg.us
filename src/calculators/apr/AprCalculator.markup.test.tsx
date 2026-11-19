@@ -56,7 +56,7 @@ const ZERO_RATE: Values = { loanAmount: "200,000", rate: "0", lenderFees: "2,000
 const STATES: Values[] = [{}, NO_FEES, CREDIT_LARGER, WITH_MI, MI_NOT_NEEDED, ZERO_RATE, { points: "1" }, { points: "2.5", lenderCredit: "1,500" }, { prepaidInterest: "1,800" }];
 
 const BAD_OUTPUT = /NaN|Infinity|undefined|-\$0|-0\.0+%/;
-const BAD_WORDS = /qualif|approved|eligible|your rate|your APR|should/i;
+const BAD_WORDS = /qualif|approved|eligible|your rate|your APR|should|official/i;
 const FOLDER = path.join(process.cwd(), "src", "calculators", "apr");
 /** The files that make the page: everything but the tests and the recorded golden cases. */
 const SOURCES = fs.readdirSync(FOLDER).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
@@ -81,7 +81,9 @@ describe("APR calculator page", () => {
   });
 
   it("pins the sentences that keep the figure from reading as an offer", () => {
-    expect(LOAN_ESTIMATE_LINE).toBe("This is an estimate. The official APR is the one on your Loan Estimate.");
+    expect(LOAN_ESTIMATE_LINE).toBe("This is an estimate. The APR for your loan is the one on your Loan Estimate.");
+    expect(page()).not.toMatch(/official/i);
+    expect(print()).not.toMatch(/official/i);
     expect(WHAT_APR_IS).toBe(
       "APR stands for annual percentage rate. It is a yearly rate that counts certain fees along with the interest, so loans with different rates and fees can be compared. It does not change the monthly payment.",
     );
@@ -125,6 +127,13 @@ describe("APR calculator page", () => {
     const panel = html.slice(html.indexOf("<details data-calc-panel"), html.indexOf("</details>"));
     for (const f of DETAIL_FIELDS) expect(panel, f.id).toContain(`id="apr-${f.id}"`);
     for (const f of FRONT_FIELDS.filter((x) => x.type !== "choice")) expect(panel, f.id).not.toContain(`id="apr-${f.id}"`);
+  });
+
+  it("E1: the lender fees hint counts the lender's title insurance and leaves out the owner's", () => {
+    const hint = page().match(/<span id="apr-lenderFees-hint"[^>]*>([^<]*)<\/span>/)![1].replace(/&#x27;/g, "'");
+    expect(hint).toBe(
+      "Everything the lender or a mortgage broker charges for the loan, as one total: origination, underwriting, processing, administration, rate lock, technology and courier fees, and the lender's title insurance. Leave out the appraisal, the owner's title insurance, title search and recording costs.",
+    );
   });
 
   it("puts the tenant's note under the interest rate, tied to the box", () => {

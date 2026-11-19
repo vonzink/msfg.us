@@ -13,7 +13,7 @@ export const usd = (x: number) => formatUSD(Math.round(x) === 0 ? 0 : x);
 /** "139 months", "1 month". */
 export const monthsText = (n: number) => `${n} month${n === 1 ? "" : "s"}`;
 
-export const LOAN_ESTIMATE_LINE = "This is an estimate. The official APR is the one on your Loan Estimate.";
+export const LOAN_ESTIMATE_LINE = "This is an estimate. The APR for your loan is the one on your Loan Estimate.";
 export const WHAT_APR_IS =
   "APR stands for annual percentage rate. It is a yearly rate that counts certain fees along with the interest, so loans with different rates and fees can be compared. It does not change the monthly payment.";
 export const MI_NOT_COUNTED = `Mortgage insurance is not counted: the loan is already at or under ${plainPercent(MI_END_LTV)} of the home value.`;
@@ -152,7 +152,7 @@ const card = "rounded-xl border border-line bg-white p-5 shadow-card max-[600px]
  * The results column of the APR calculator. `result` is null until the model has what it needs;
  * until then one sentence names what is missing or out of range. The APR is worked out from the
  * numbers typed on this page. It is an estimate, and the line under the cards says where the
- * official figure is.
+ * APR for the loan is.
  */
 export function AprResults({ input, result: r, disclaimer, faults = NO_FAULTS, lenderFeesEmpty = false }: {
   input: AprInput;

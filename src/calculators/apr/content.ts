@@ -7,12 +7,12 @@
  */
 export const HOW_IT_WORKS: string[] = [
   "The interest rate sets the monthly payment. The APR starts from the same loan and spreads certain up-front costs over its life, as if they were interest. That is why the APR is at or above the interest rate, and why it does not change the payment.",
-  "The costs counted here are the lender fees you enter, any discount points, prepaid interest and mortgage insurance. Lender fees are all that the lender or a mortgage broker charges for the loan, such as origination, underwriting, processing, administration and a rate lock. Costs paid to others that are not charges for the loan itself, such as the appraisal, title work and recording, are left out, so leave them out of the lender fees. The amount financed is the loan amount less the fees counted. The finance charge is the interest, the fees counted and any mortgage insurance over the whole loan.",
+  "The costs counted here are the lender fees you enter, any discount points, prepaid interest and mortgage insurance. Lender fees are all that the lender or a mortgage broker charges for the loan, such as origination, underwriting, processing, administration, a rate lock, and technology and courier fees, along with the lender's title insurance. Costs that are not charges for the loan itself, such as the appraisal, the owner's title insurance, the title search and recording, are left out, so leave them out of the lender fees. The amount financed is the loan amount less the fees counted. The finance charge is the interest, the fees counted and any mortgage insurance over the whole loan.",
   "The loan is assumed to be a conventional fixed-rate loan with the same payment every month.",
   "Mortgage insurance is counted when you enter a monthly amount and the home value. It is counted until the scheduled balance reaches 78% of the home value. A loan that starts at or under 78% has none counted.",
   "Prepaid interest is the interest from the closing date to the end of that month. When the box is left empty the page uses 15 days of interest, and the amount is shown in the list of fees.",
   "A lender credit lowers the lender fees and prepaid interest that are counted, never below zero. It does not come off discount points.",
-  "The result is an estimate based on the numbers you entered. The official APR is the one on your Loan Estimate.",
+  "The result is an estimate based on the numbers you entered. The APR for your loan is the one on your Loan Estimate.",
 ];
 
 export const QUESTIONS: { q: string; a: string }[] = [
@@ -26,10 +26,10 @@ export const QUESTIONS: { q: string; a: string }[] = [
   },
   {
     q: "What is a Loan Estimate?",
-    a: "A Loan Estimate is a three-page form a lender sends within three business days of receiving a loan application. It lists the interest rate, the monthly payment, the closing costs and the APR for that loan. The APR on it is the official figure.",
+    a: "A Loan Estimate is a three-page form a lender sends within three business days of receiving a loan application. It lists the interest rate, the monthly payment, the closing costs and the APR for that loan. The APR on it is the one for that loan.",
   },
   {
     q: "Why can the APR here differ from a lender's?",
-    a: "This page counts one total of lender fees, and a lender works through every fee one by one under federal rules. The closing date changes the prepaid interest, and loans other than conventional fixed-rate loans have costs this page does not model. This figure is an estimate, and the Loan Estimate has the official one.",
+    a: "This page counts one total of lender fees, and a lender works through every fee one by one under federal rules. The closing date changes the prepaid interest, and loans other than conventional fixed-rate loans have costs this page does not model. This figure is an estimate, and the Loan Estimate has the APR for the loan.",
   },
 ];

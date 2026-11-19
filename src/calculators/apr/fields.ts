@@ -26,7 +26,7 @@ export const FRONT_FIELDS: FieldDef[] = [
   },
   {
     id: "lenderFees", label: "Lender fees", type: "money", example: "4,000", keepZero: true,
-    hint: "Everything the lender or a mortgage broker charges for the loan, as one total: origination, underwriting, processing, administration, rate lock and similar fees. Leave out the appraisal, title and recording costs.",
+    hint: "Everything the lender or a mortgage broker charges for the loan, as one total: origination, underwriting, processing, administration, rate lock, technology and courier fees, and the lender's title insurance. Leave out the appraisal, the owner's title insurance, title search and recording costs.",
   },
 ];
 

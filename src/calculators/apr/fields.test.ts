@@ -32,7 +32,7 @@ describe("APR fields", () => {
       ["lenderFees", "money", "Lender fees"],
     ]);
     expect(field("lenderFees").hint).toBe(
-      "Everything the lender or a mortgage broker charges for the loan, as one total: origination, underwriting, processing, administration, rate lock and similar fees. Leave out the appraisal, title and recording costs.",
+      "Everything the lender or a mortgage broker charges for the loan, as one total: origination, underwriting, processing, administration, rate lock, technology and courier fees, and the lender's title insurance. Leave out the appraisal, the owner's title insurance, title search and recording costs.",
     );
   });
 

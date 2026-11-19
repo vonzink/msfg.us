@@ -17,7 +17,7 @@ describe("APR page text", () => {
   });
 
   it("has no word that reads as a loan decision, an offer or advice", () => {
-    for (const t of text) expect(t, t).not.toMatch(/qualif|approved|eligible|your rate|your APR|should|quote|offer|recommend/i);
+    for (const t of text) expect(t, t).not.toMatch(/qualif|approved|eligible|your rate|your APR|should|quote|offer|recommend|official/i);
   });
 
   it("is plain text: no formulas and no dashes used as punctuation", () => {
@@ -32,12 +32,20 @@ describe("APR page text", () => {
 
   it("says which costs are counted and which are left out", () => {
     expect(how).toContain("The costs counted here are the lender fees you enter, any discount points, prepaid interest and mortgage insurance.");
-    expect(how).toMatch(/appraisal, title work and recording, are left out/);
+    expect(HOW_IT_WORKS[1]).toContain("such as the appraisal, the owner's title insurance, the title search and recording, are left out");
+    expect(how).not.toContain("title work");
   });
 
   it("A2: says lender fees are everything the lender or a mortgage broker charges for the loan", () => {
     expect(HOW_IT_WORKS[1]).toContain("Lender fees are all that the lender or a mortgage broker charges for the loan");
     for (const fee of ["origination", "underwriting", "processing", "administration", "rate lock"]) expect(HOW_IT_WORKS[1], fee).toContain(fee);
+  });
+
+  it("E1: counts the technology and courier fees and the lender's title insurance in the lender fees, as the dashboard's catalog does", () => {
+    const counted = HOW_IT_WORKS[1].slice(0, HOW_IT_WORKS[1].indexOf("are left out"));
+    expect(counted).toContain("technology and courier fees");
+    expect(counted).toContain("along with the lender's title insurance.");
+    expect(counted.indexOf("lender's title insurance")).toBeLessThan(counted.indexOf("owner's title insurance"));
   });
 
   it("A6: says what the amount financed and the finance charge are, in a sentence each", () => {
@@ -61,9 +69,11 @@ describe("APR page text", () => {
     expect(how).toContain("It does not come off discount points.");
   });
 
-  it("names the Loan Estimate as the place of the official APR, in the words of the result", () => {
-    expect(HOW_IT_WORKS[HOW_IT_WORKS.length - 1]).toContain("The official APR is the one on your Loan Estimate.");
-    expect(LOAN_ESTIMATE_LINE).toContain("The official APR is the one on your Loan Estimate.");
+  it("E2: names the Loan Estimate as the place of the APR for the loan, in the words of the result", () => {
+    expect(HOW_IT_WORKS[HOW_IT_WORKS.length - 1]).toBe("The result is an estimate based on the numbers you entered. The APR for your loan is the one on your Loan Estimate.");
+    expect(LOAN_ESTIMATE_LINE).toContain("The APR for your loan is the one on your Loan Estimate.");
+    expect(answer("What is a Loan Estimate?")).toContain("The APR on it is the one for that loan.");
+    expect(answer("Why can the APR here differ from a lender's?")).toContain("This figure is an estimate, and the Loan Estimate has the APR for the loan.");
     expect(answer("What is a Loan Estimate?")).toContain("Loan Estimate");
   });
 
