@@ -4,7 +4,7 @@
  * decision or a rate offer.
  */
 export const HOW_IT_WORKS: string[] = [
-  "Purchase starts from a home price and a down payment. Refinance starts from a loan amount and, if you enter one, the home value. Payment starts from a monthly principal and interest payment and gives the loan amount that payment pays off at the rate and term entered, and the home price that goes with the down payment entered. Tax, insurance and other costs can be added under Add detail to see the full payment. This is arithmetic on the payment entered. It is not the amount a lender would lend.",
+  "Purchase starts from a home price and a down payment. Refinance starts from a loan amount and, if you enter one, the home value. Payment starts from a whole monthly payment. Tax, insurance and other costs entered under Add detail come off it, and what is left pays off the loan amount shown at the rate and term entered, with the home price that goes with the down payment entered. This is arithmetic on the payment entered. It is not the amount a lender would lend.",
   "The payment has two parts. Principal and interest is what you pay the lender, and it stays the same every month on a fixed-rate loan. Property tax and homeowners insurance are added on top, using the yearly amounts you typed, spread over twelve months.",
   "This calculator assumes a conventional loan. FHA, VA and USDA loans have their own insurance and fees, so their payments will differ from what you see here.",
   "With less than 20% down, a conventional loan usually adds mortgage insurance. If you enter a monthly amount under Add detail, the calculator includes it until your balance is scheduled to reach 78% of the home price or home value, then drops it.",

@@ -33,6 +33,8 @@ export function promptText(fault: InputFault | null): string {
       return "Enter a down payment smaller than the home price.";
     case "too-small":
       return "Enter a larger monthly payment.";
+    case "costs-too-large":
+      return "The costs under Add detail take up the whole payment. Enter a larger monthly payment or lower the costs.";
     case "below-loan":
       return "The home value is below the loan amount.";
     case "not-positive":
@@ -53,8 +55,8 @@ const ratePercent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
  * is given as a length of time instead of a calendar month.
  *
  * `scenario` is the mode. A purchase and a refinance lead with the monthly payment; payment mode
- * leads with the loan amount the typed payment pays off, and shows the full monthly payment under
- * it once tax, insurance, HOA dues or mortgage insurance is counted. `r.ltv` only means something
+ * leads with the loan amount the typed payment pays off once the costs behind "Add detail" have
+ * come off it. `r.ltv` only means something
  * when there is a price or a home value behind it, so the mortgage insurance prompt is left out
  * otherwise.
  * `fault` is what `inputFault` found, for the prompt when there is no result.
@@ -80,7 +82,7 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
   const measured = scenario.mode === "purchase" || (scenario.mode === "refinance" && scenario.homeValueKnown);
   // Payment mode goes by the percent typed, as the model's input does, not the cents of the worked-out price.
   const lowDown = scenario.mode === "payment" ? scenario.downPct < 20 : measured && r.ltv > 80;
-  // Payment mode: what is counted on top of the principal and interest typed.
+  // Payment mode: what comes off the payment typed before the principal and interest.
   const onTop = [first.tax > 0 && "tax", first.insurance > 0 && "insurance", first.hoa > 0 && "HOA dues", hasPmi && "mortgage insurance"].filter(Boolean);
   const needsPmiPrompt = lowDown && !hasPmi;
   const payoff = start ? `${MONTHS[r.payoff.month]} ${r.payoff.year}` : duration(r.schedule.length);
@@ -96,9 +98,15 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
         </p>
         {scenario.mode === "payment" ? (
           <p className="mt-1.5 text-[16px] text-on-dark-2 print:text-ink">
-            what <strong className="text-white print:text-ink">{formatUSDCents(scenario.payment)}</strong> a month of principal and
-            interest pays off over {scenario.termYears} {scenario.termYears === 1 ? "year" : "years"} at {ratePercent(scenario.annualRate)}.
-            {onTop.length === 0 && " Tax and insurance are not included."}
+            what{" "}
+            <strong className="text-white print:text-ink">
+              {formatUSDCents(onTop.length > 0 ? scenario.principalAndInterest : scenario.payment)}
+            </strong>{" "}
+            a month{onTop.length > 0 && " of principal and interest"} pays off over {scenario.termYears}{" "}
+            {scenario.termYears === 1 ? "year" : "years"} at {ratePercent(scenario.annualRate)}
+            {onTop.length > 0
+              ? `, after ${formatUSDCents(scenario.payment - scenario.principalAndInterest)} a month of ${onTop.join(", ")} comes off the ${formatUSDCents(scenario.payment)} payment.`
+              : ". No tax or insurance is taken off."}
           </p>
         ) : null}
         {scenario.mode === "payment" ? (
@@ -136,14 +144,6 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
       </div>
 
       {scenario.mode === "payment" && <p className="mx-1 text-[15px] font-semibold text-ink">{NOT_A_LENDING_AMOUNT}</p>}
-      {scenario.mode === "payment" && onTop.length > 0 && (
-        <Stat
-          label="Full monthly payment"
-          value={formatUSD(first.total)}
-          sub={["principal", "interest", ...onTop].join(", ")}
-          tip="The payment entered plus the amounts entered under Add detail."
-        />
-      )}
 
       <PaymentBreakdown result={r} start={start} />
 

@@ -10,10 +10,11 @@ import { calculateMortgage, loanAmountForPayment, RATE_LIMIT, type ExtraFrequenc
  *   - Refinance: loan amount and home value in place of price and down payment. The home value is
  *     only used for mortgage insurance and may be left empty; mortgage insurance typed without one
  *     is not counted, and its hint says so. A home value below the loan gives no result.
- *   - Payment: a monthly principal and interest payment in place of both. The loan is the amount
- *     that payment pays off (`loanAmountForPayment`). Property tax, homeowners insurance, HOA dues
- *     and mortgage insurance sit behind "Add detail" and are added on top: the payment typed stays
- *     principal and interest only, and the loan amount does not move. A down payment percent of
+ *   - Payment: a whole monthly payment in place of both. Property tax, homeowners insurance, HOA
+ *     dues and mortgage insurance sit behind "Add detail" and come off it first, each rounded to
+ *     cents as the model rounds it; what is left is the principal and interest, and the loan is
+ *     the amount that pays off (`loanAmountForPayment`). So every cost added lowers the loan, and
+ *     the first payment of the schedule is the payment typed. A down payment percent of
  *     its own (`paymentDown`, not the purchase boxes, so switching never rewrites a purchase)
  *     gives the home price: the loan divided by one minus the down payment. An empty box is
  *     nothing down. Mortgage insurance then follows the purchase rule on that price: counted only
@@ -68,7 +69,7 @@ const HOME_PRICE: FieldDef = { id: "homePrice", label: "Home price", type: "mone
 const LOAN_AMOUNT: FieldDef = { id: "loanAmount", label: "Loan amount", type: "money", example: "320,000" };
 const HOME_VALUE: FieldDef = { id: "homeValue", label: "Home value", type: "money", example: "400,000" };
 // The example shown here is for a 7% rate; exampleValues works it out at the tenant's rate.
-const PAYMENT: FieldDef = { id: "payment", label: "Monthly payment", type: "money", example: "2,128.97", hint: "Principal and interest only." };
+const PAYMENT: FieldDef = { id: "payment", label: "Monthly payment", type: "money", example: "2,128.97", hint: "The whole monthly payment. Costs under Add detail come off it." };
 
 const HOA: FieldDef = { id: "monthlyHoa", label: "HOA dues", type: "money", example: "", hint: "Per month." };
 const PMI: FieldDef = { id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month. Common with less than 20% down." };
@@ -171,10 +172,28 @@ function homeValueOf(values: Values): { value: number; problem: "unreadable" | "
   return { value: Number.NaN, problem: Number.isNaN(typedAmount(text)) ? "unreadable" : "not-positive" };
 }
 
-/** The loan a payment-mode payment pays off, or NaN when the payment is outside what the page takes. */
-function paymentLoan(payment: number, annualRate: number, termYears: number): number {
+/** A cost as the model counts it: junk or a negative is nothing, the rest is rounded to cents. */
+const cost = (x: number): number => (Number.isFinite(x) && x > 0 ? roundCents(x) : 0);
+
+/**
+ * Payment mode's whole payment taken apart: the monthly costs that come off it, rounded exactly as
+ * the model rounds them, and the principal and interest left. What is left is cut to the cent
+ * below, never rounded up, so the first payment of the schedule cannot exceed the payment typed.
+ * Mortgage insurance is a cost only when it counts, which is under 20% down.
+ */
+function paymentParts(values: Values): { payment: number; costs: number; principalAndInterest: number; monthlyPmi: number } {
+  const n = (id: string) => parseNumber(values[id]);
+  const payment = n("payment");
+  const monthlyPmi = paymentDownOf(values) < PMI_BELOW_DOWN ? cost(n("monthlyPmi")) : 0;
+  const costs = roundCents(cost(n("yearlyTax") / 12) + cost(n("yearlyInsurance") / 12) + cost(n("monthlyHoa")) + monthlyPmi);
+  return { payment, costs, monthlyPmi, principalAndInterest: Math.floor((payment - costs) * 100 + 1e-6) / 100 };
+}
+
+/** The loan a payment-mode payment pays off once its costs are off, or NaN when it is outside what the page takes. */
+function paymentLoan(values: Values, annualRate: number, termYears: number): number {
+  const { payment, principalAndInterest } = paymentParts(values);
   if (!(payment < PAYMENT_LIMIT)) return Number.NaN;
-  const loan = loanAmountForPayment(payment, annualRate, termYears);
+  const loan = loanAmountForPayment(principalAndInterest, annualRate, termYears);
   return loan !== null && loan >= MIN_PAYMENT_LOAN ? loan : Number.NaN;
 }
 
@@ -223,12 +242,11 @@ export function toInput(values: Values, start: { month: number; year: number }):
   } else if (mode === "payment") {
     // The price is worked out from the loan and the down payment percent; with nothing down it is
     // the loan itself. A home value left in the form by Refinance is not read.
-    const loan = paymentLoan(n("payment"), annualRate, termYears);
-    const downPct = paymentDownOf(values);
-    homePrice = priceFor(loan, downPct);
+    const loan = paymentLoan(values, annualRate, termYears);
+    homePrice = priceFor(loan, paymentDownOf(values));
     downPayment = roundCents(homePrice - loan);
     // The purchase rule, decided on the percent typed and not on the cents of the worked-out price.
-    if (!(downPct < PMI_BELOW_DOWN)) monthlyPmi = 0;
+    monthlyPmi = paymentParts(values).monthlyPmi;
   } else {
     homePrice = n("homePrice");
     downPayment = values.downUnit === "usd" ? n("downPayment") : (homePrice * n("downPayment")) / 100;
@@ -261,12 +279,13 @@ export function toInput(values: Values, start: { month: number; year: number }):
  *   - "not-below-price": a down payment that is negative, or not smaller than the home price.
  *   - "below-loan": a home value smaller than the loan amount.
  *   - "too-small": a payment that pays off less than `MIN_PAYMENT_LOAN`.
+ *   - "costs-too-large": the same, because the costs behind "Add detail" leave too little of it.
  * The home value is optional, so its "unreadable" and "not-positive" may also be cured by emptying it.
  * The payment's "range" is `PAYMENT_LIMIT`, which it has to stay under. Payment mode's down payment
  * is "range" for junk as well: 0 to under 100, and an empty box is 0.
  */
 export type InputFault =
-  | { field: FieldDef; problem: "empty" | "unreadable" | "not-positive" | "not-below-price" | "below-loan" | "too-small" }
+  | { field: FieldDef; problem: "empty" | "unreadable" | "not-positive" | "not-below-price" | "below-loan" | "too-small" | "costs-too-large" }
   | { field: FieldDef; problem: "range"; min: number; max: number };
 
 /** A money box that has to hold an amount above zero, read the way `toInput` reads it. */
@@ -311,10 +330,11 @@ export function inputFault(values: Values): InputFault | null {
   if (mode === "refinance") {
     first = amountFault(LOAN_AMOUNT, values) ?? homeValueFault(HOME_VALUE, values, input);
   } else if (mode === "payment") {
-    const typed = parseNumber(values.payment);
+    const { payment: typed, costs, principalAndInterest } = paymentParts(values);
     const tooSmall = (): InputFault | null => {
-      const loan = loanAmountForPayment(typed, input.annualRate, input.termYears);
-      return loan !== null && loan < MIN_PAYMENT_LOAN ? { field: PAYMENT, problem: "too-small" } : null;
+      const loan = principalAndInterest > 0 ? loanAmountForPayment(principalAndInterest, input.annualRate, input.termYears) : 0;
+      if (loan === null || loan >= MIN_PAYMENT_LOAN) return null;
+      return { field: PAYMENT, problem: costs > 0 ? "costs-too-large" : "too-small" };
     };
     // The loan the payment pays off needs the rate and the term, so its size comes after them.
     return (
@@ -335,20 +355,20 @@ export function inputFault(values: Values): InputFault | null {
  * What the results and the printout need to know about the mode, beyond the model's own figures.
  *   - A refinance without a home value hands the model a price equal to the loan, so its
  *     loan-to-value reads 100. `homeValueKnown` says whether that figure means anything.
- *   - Payment mode does the same, and its headline quotes the payment as typed with the rate and
- *     the term, none of which are in the model's result.
+ *   - Payment mode's headline quotes the payment as typed, the principal and interest left once
+ *     the costs are off it, the rate, the term, the down payment and the worked-out price.
  */
 export type Scenario =
   | { mode: "purchase" }
   | { mode: "refinance"; homeValueKnown: boolean }
-  | { mode: "payment"; payment: number; annualRate: number; termYears: number; downPct: number; homePrice: number };
+  | { mode: "payment"; payment: number; principalAndInterest: number; annualRate: number; termYears: number; downPct: number; homePrice: number };
 
 export function scenarioOf(values: Values): Scenario {
   const mode = modeOf(values);
   if (mode === "refinance") return { mode, homeValueKnown: parseNumber(values.homeValue) > 0 };
   if (mode === "payment") {
     return {
-      mode, payment: parseNumber(values.payment), annualRate: parseRate(values.rate), termYears: termOf(values),
+      mode, payment: parseNumber(values.payment), principalAndInterest: paymentParts(values).principalAndInterest, annualRate: parseRate(values.rate), termYears: termOf(values),
       downPct: paymentDownOf(values), homePrice: toInput(values, { month: 0, year: 0 }).homePrice,
     };
   }
@@ -382,7 +402,8 @@ function downShare(values: Values, from: Mode): number | null {
  *   - Into Refinance from Payment: an empty loan amount is filled with the loan the payment pays
  *     off, and with it an empty home value with the purchase price, when the purchase boxes hold
  *     one that covers that loan, otherwise with the price payment mode worked out from a down payment.
- *   - Into Payment: an empty payment box is filled with the current loan's principal and interest.
+ *   - Into Payment: an empty payment box is filled with the current loan's whole first payment:
+ *     principal and interest plus the tax, insurance, HOA dues and mortgage insurance that carry over.
  *     A payment already there is kept, like the other modes' boxes; without a loan the box stays empty.
  *     Its down payment box, while empty or on its default 20, takes the purchase's down payment as
  *     a percent to two decimals (from Refinance, the equity in the home value, when there is one).
@@ -405,12 +426,14 @@ export function switchMode(values: Values, mode: Mode, exampleRatePct: number): 
   const result = calculateMortgage(toInput(values, { month: 0, year: 0 }));
 
   if (mode === "payment") {
-    if (result && isEmpty(values.payment)) next.payment = money(result.monthlyPI);
     // The down payment comes along as a percent while the box is empty or still on its default.
     if (isEmpty(values.paymentDown) || values.paymentDown === PAYMENT_DOWN.example) {
       const share = downShare(values, from);
       if (share !== null) next.paymentDown = String(Math.round(share * 10000) / 100);
     }
+    // The whole payment: the loan's principal and interest plus the costs as payment mode will
+    // take them off again, so the loan it shows is the loan just on screen.
+    if (result && isEmpty(values.payment)) next.payment = money(roundCents(result.monthlyPI + paymentParts(next).costs));
   } else if (mode === "refinance") {
     if (from === "purchase" && isEmpty(values.loanAmount) && isEmpty(values.homeValue)) {
       const purchase = purchaseLoan(values);

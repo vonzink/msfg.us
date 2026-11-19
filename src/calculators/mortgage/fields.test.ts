@@ -148,7 +148,7 @@ describe("the three modes", () => {
     const byId = (mode: Mode, id: string) => frontFields(mode).find((f) => f.id === id)!;
     expect(byId("refinance", "loanAmount")).toMatchObject({ label: "Loan amount", type: "money" });
     expect(byId("refinance", "homeValue")).toMatchObject({ label: "Home value", type: "money" });
-    expect(byId("payment", "payment")).toEqual({ id: "payment", label: "Monthly payment", type: "money", example: "2,128.97", hint: "Principal and interest only." });
+    expect(byId("payment", "payment")).toEqual({ id: "payment", label: "Monthly payment", type: "money", example: "2,128.97", hint: "The whole monthly payment. Costs under Add detail come off it." });
   });
 
   it("opens each mode on its example and keeps the mode", () => {
@@ -260,13 +260,13 @@ describe("payment", () => {
   // Under 20% down, so the mortgage insurance is counted.
   const costs = { paymentDown: "10", yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150" };
 
-  it("adds tax, insurance, HOA dues and mortgage insurance on top: the payment typed stays principal and interest and the loan does not move", () => {
-    const values = { ...pay, ...costs };
+  it("takes tax, insurance, HOA dues and mortgage insurance off the payment typed: 2,928.97 leaves the example's 2,128.97", () => {
+    const values = { ...pay, payment: "2,928.97", ...costs };
     expect(toInput(values, start)).toMatchObject({ yearlyTax: 4800, yearlyInsurance: 1800, monthlyHoa: 100, monthlyPmi: 150 });
     const r = calc(values)!;
     expect(r.loanAmount).toBe(calc(pay)!.loanAmount);
     expect(r.monthlyPI).toBe(2128.97);
-    // 2,128.97 + 400 tax + 150 insurance + 100 HOA + 150 mortgage insurance
+    // 2,928.97 less 400 tax, 150 insurance, 100 HOA and 150 mortgage insurance
     expect(r.first).toEqual({ principalAndInterest: 2128.97, tax: 400, insurance: 150, hoa: 100, pmi: 150, total: 2928.97 });
     expect(r.totalInterest).toBe(calc(pay)!.totalInterest);
     expect(inputFault(values)).toBeNull();
@@ -276,7 +276,7 @@ describe("payment", () => {
   // at 7% for 30 years the balance first reaches 78% of the loan ($249,600.23) with payment 162,
   // Insurance is charged on the payments before that one, as in the other modes.
   it("with nothing down, counts mortgage insurance against the loan itself", () => {
-    const values = { ...pay, paymentDown: "", monthlyPmi: "150" };
+    const values = { ...pay, payment: "2,278.97", paymentDown: "", monthlyPmi: "150" };
     expect(toInput(values, start)).toMatchObject({ homePrice: 320000.3, downPayment: 0, monthlyPmi: 150 });
     const r = calc(values)!;
     expect(r.pmiEndPayment).toBe(162);
@@ -289,13 +289,13 @@ describe("payment", () => {
   });
 
   it.each(["", "400,000", "500,000", "300,000", "abc", "0"])("ends the example's mortgage insurance, with nothing down, at payment 162 whatever home value (%s) Refinance left behind", (homeValue) => {
-    const values = { ...pay, paymentDown: "0", monthlyPmi: "150", homeValue };
+    const values = { ...pay, payment: "2,278.97", paymentDown: "0", monthlyPmi: "150", homeValue };
     expect(inputFault(values)).toBeNull();
     expect(toInput(values, start)).toMatchObject({ homePrice: 320000.3, downPayment: 0, monthlyPmi: 150 });
     const r = calc(values)!;
     expect(r.pmiEndPayment).toBe(162);
     expect(r.first.pmi).toBe(150);
-    expect(r).toEqual(calc({ ...pay, paymentDown: "0", monthlyPmi: "150" }));
+    expect(r).toEqual(calc({ ...pay, payment: "2,278.97", paymentDown: "0", monthlyPmi: "150" }));
   });
 
   it("keeps extra principal and the start month", () => {
@@ -381,15 +381,15 @@ describe("switching modes keeps what carries over", () => {
     expect(switchMode({ ...edited, downPayment: "120" }, "refinance", 7)).toMatchObject({ loanAmount: "", homeValue: "" });
   });
 
-  it("entering payment fills the payment with the current loan's principal and interest", () => {
+  it("entering payment fills the payment with the current loan's whole first payment", () => {
     const fromPurchase = switchMode(edited, "payment", 7);
     const pi = calc(edited)!.monthlyPI;
     expect(fromPurchase).toMatchObject({ mode: "payment", ...kept });
-    expect(Number(fromPurchase.payment.replace(/,/g, ""))).toBe(pi);
+    expect(Number(fromPurchase.payment.replace(/,/g, ""))).toBe(calc(edited)!.first.total);
     expect(calc(fromPurchase)!.monthlyPI).toBe(pi);
 
     const fromRefi = switchMode({ ...refi, loanAmount: "250,000" }, "payment", 7);
-    expect(fromRefi.payment).toBe("1,663.26"); // $250,000 at 7% for 30 years
+    expect(fromRefi.payment).toBe("2,213.26"); // $1,663.26 on $250,000 at 7% for 30 years, plus $400 tax and $150 insurance
     // A payment typed earlier is kept: the box is filled only when it is empty, like the other modes' boxes.
     expect(switchMode({ ...refi, yearlyTax: "5,000", payment: "9,999" }, "payment", 7).payment).toBe("9,999");
     const there = { ...switchMode({ ...example, homePrice: "500,000" }, "payment", 7), payment: "1,800" };
@@ -577,7 +577,7 @@ describe("payment mode's down payment and the home price worked out from it", ()
     // $320,000.30 / 0.8 = $400,000.375
     expect(toInput(pay, start)).toMatchObject({ homePrice: 400000.38, downPayment: 80000.08 });
     expect(calc(pay)!.loanAmount).toBe(320000.3);
-    expect(scenarioOf(pay)).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30, downPct: 20, homePrice: 400000.38 });
+    expect(scenarioOf(pay)).toMatchObject({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30, downPct: 20, homePrice: 400000.38 });
     // $320,000.30 / 0.9 = $355,555.888...
     expect(toInput({ ...pay, paymentDown: "10" }, start)).toMatchObject({ homePrice: 355555.89, downPayment: 35555.59 });
     expect(toInput({ ...pay, paymentDown: "3.5" }, start).homePrice).toBe(331606.53);
@@ -606,14 +606,14 @@ describe("payment mode's down payment and the home price worked out from it", ()
   // at 7% for 30 years, with 10% down the price is $355,555.89, 78% of it is $277,333.59, and the
   // balance first reaches that with payment 115. With nothing down it is payment 162, as before.
   it("counts mortgage insurance only under 20% down, until the balance reaches 78% of the worked-out price", () => {
-    const ten = calc({ ...pay, paymentDown: "10", monthlyPmi: "150", yearlyTax: "4,800", yearlyInsurance: "1,800" })!;
+    const ten = calc({ ...pay, payment: "2,828.97", paymentDown: "10", monthlyPmi: "150", yearlyTax: "4,800", yearlyInsurance: "1,800" })!;
     expect(ten.pmiEndPayment).toBe(115);
     expect(ten.schedule.filter((row) => row.pmi > 0)).toHaveLength(114);
     expect(ten.schedule[113].balance).toBeGreaterThan(277333.59);
     expect(ten.schedule[114].balance).toBeLessThanOrEqual(277333.59);
-    // 2,128.97 + 400 tax + 150 insurance + 150 mortgage insurance
+    // 2,828.97 less 400 tax, 150 insurance and 150 mortgage insurance
     expect(ten.first).toEqual({ principalAndInterest: 2128.97, tax: 400, insurance: 150, hoa: 0, pmi: 150, total: 2828.97 });
-    expect(calc({ ...pay, paymentDown: "", monthlyPmi: "150" })!.pmiEndPayment).toBe(162);
+    expect(calc({ ...pay, payment: "2,278.97", paymentDown: "", monthlyPmi: "150" })!.pmiEndPayment).toBe(162);
     expect(calc({ ...pay, paymentDown: "19.99", monthlyPmi: "150" })!.first.pmi).toBe(150);
   });
 
@@ -682,5 +682,145 @@ describe("switching modes and payment mode's down payment", () => {
     const usd = { ...purchase, downUnit: "usd", downPayment: "50,000" };
     const back = switchMode({ ...switchMode(usd, "payment", 7), paymentDown: "33" }, "purchase", 7);
     expect(back).toMatchObject({ homePrice: "500,000", downUnit: "usd", downPayment: "50,000", paymentDown: "33" });
+  });
+});
+
+describe("payment mode: the payment typed is the whole payment, and costs come off it", () => {
+  const whole = { ...pay, payment: "2,679", yearlyTax: "4,800", yearlyInsurance: "1,800" };
+  const all = { ...pay, payment: "2,829", yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150", paymentDown: "10" };
+
+  it("says so under the payment box", () => {
+    expect(frontFields("payment")[0]).toMatchObject({ id: "payment", label: "Monthly payment", hint: "The whole monthly payment. Costs under Add detail come off it." });
+  });
+
+  it("with no costs, is exactly as before", () => {
+    expect(calc(pay)!.loanAmount).toBe(320000.3);
+    expect(calc(pay)!.first).toEqual({ principalAndInterest: 2128.97, tax: 0, insurance: 0, hoa: 0, pmi: 0, total: 2128.97 });
+    expect(scenarioOf(pay)).toEqual({ mode: "payment", payment: 2128.97, principalAndInterest: 2128.97, annualRate: 0.07, termYears: 30, downPct: 20, homePrice: 400000.38 });
+  });
+
+  // Both hand-checked with a separate month-by-month script in exact decimals.
+  it("2,679 with tax 4,800 and insurance 1,800 at 20% down leaves 2,129.00 of principal and interest", () => {
+    const r = calc(whole)!;
+    expect(r.first).toEqual({ principalAndInterest: 2129, tax: 400, insurance: 150, hoa: 0, pmi: 0, total: 2679 });
+    expect(r.loanAmount).toBe(320004.81);
+    expect(toInput(whole, start).homePrice).toBe(400006.02);
+    expect(r.schedule[0].totalMonthly).toBe(2679);
+    expect(scenarioOf(whole)).toMatchObject({ payment: 2679, principalAndInterest: 2129, homePrice: 400006.02 });
+    expect(inputFault(whole)).toBeNull();
+  });
+
+  it("2,829 with all four costs at 10% down leaves 2,029.00, and insurance ends at payment 115", () => {
+    const r = calc(all)!;
+    expect(r.first).toEqual({ principalAndInterest: 2029, tax: 400, insurance: 150, hoa: 100, pmi: 150, total: 2829 });
+    expect(r.loanAmount).toBe(304974.05);
+    expect(toInput(all, start).homePrice).toBe(338860.06);
+    expect(r.pmiEndPayment).toBe(115);
+    expect(r.schedule[113].balance).toBeGreaterThan(264310.85); // 78% of the price
+    expect(r.schedule[114].balance).toBeLessThanOrEqual(264310.85);
+    // When the insurance ends the scheduled payment drops, as in the other modes.
+    expect(r.schedule[113].totalMonthly).toBe(2829);
+    expect(r.schedule[114].totalMonthly).toBe(2679);
+  });
+
+  it("does not take off mortgage insurance that is not counted, at 20% down", () => {
+    const r = calc({ ...all, paymentDown: "20" })!;
+    expect(r.first).toEqual({ principalAndInterest: 2179, tax: 400, insurance: 150, hoa: 100, pmi: 0, total: 2829 });
+    expect(r.loanAmount).toBe(327520.19);
+  });
+
+  it("every cost added lowers the loan amount", () => {
+    let last = calc(pay)!.loanAmount;
+    let values: Record<string, string> = { ...pay, paymentDown: "5" };
+    for (const [id, amount] of [["yearlyTax", "3,000"], ["yearlyInsurance", "1,200"], ["monthlyHoa", "50"], ["monthlyPmi", "90"]]) {
+      values = { ...values, [id]: amount };
+      const loan = calc(values)!.loanAmount;
+      expect(loan, id).toBeLessThan(last);
+      last = loan;
+    }
+  });
+
+  it("the first payment of the schedule never exceeds the payment typed, over a grid", () => {
+    let largest = 0;
+    const costSets: Record<string, string>[] = [{}, { yearlyTax: "4,801" }, { yearlyTax: "5,000", yearlyInsurance: "1,234.56" }, { yearlyTax: "3,333.33", monthlyHoa: "87.65", monthlyPmi: "41.23" }];
+    for (const payment of ["900", "1,234.56", "2,128.97", "2,679", "3,333.33", "5,000.01", "12,345.67"])
+      for (const rate of ["0", "3.125", "6.5", "7", "11.99"])
+        for (const termYears of ["1", "7", "15", "29", "30"])
+          for (const costs of costSets)
+            for (const paymentDown of ["", "3.5", "10", "20"]) {
+              const values = { ...pay, payment, rate, termYears, paymentDown, ...costs };
+              const r = calc(values);
+              const typed = Number(payment.replace(/,/g, ""));
+              if (!r) {
+                expect(inputFault(values), JSON.stringify(values)).not.toBeNull();
+                continue;
+              }
+              const gap = Math.round((typed - r.schedule[0].totalMonthly) * 100) / 100;
+              const first = Math.round((typed - r.first.total) * 100) / 100;
+              expect(gap, JSON.stringify(values)).toBeGreaterThanOrEqual(0);
+              expect(first, JSON.stringify(values)).toBeGreaterThanOrEqual(0);
+              largest = Math.max(largest, gap, first);
+            }
+    // Whole-cent payments and costs leave no gap at all.
+    expect(largest).toBe(0);
+  });
+
+  it("a fraction of a cent typed is never rounded up into the loan", () => {
+    const r = calc({ ...whole, payment: "2678.996" })!;
+    expect(r.first.total).toBeLessThanOrEqual(2678.996);
+    expect(r.first.principalAndInterest).toBe(2128.99);
+  });
+
+  it("when the costs take up the whole payment, says so", () => {
+    for (const payment of ["550", "500", "555", "556.65"]) {
+      expect(calc({ ...whole, payment }), payment).toBeNull();
+      expect(inputFault({ ...whole, payment }), payment).toMatchObject({ field: { id: "payment" }, problem: "costs-too-large" });
+    }
+    expect(calc({ ...whole, payment: "556.66" })!.loanAmount).toBeGreaterThanOrEqual(1000);
+    // With no costs a small payment is asked for as before.
+    expect(inputFault({ ...pay, payment: "5" })).toMatchObject({ field: { id: "payment" }, problem: "too-small" });
+    // Mortgage insurance that is not counted is no cost.
+    expect(inputFault({ ...pay, payment: "100", monthlyPmi: "150" })).toBeNull();
+    expect(inputFault({ ...pay, payment: "100", monthlyPmi: "150", paymentDown: "10" })).toMatchObject({ problem: "costs-too-large" });
+  });
+});
+
+describe("entering payment mode fills the whole first payment of the loan on screen", () => {
+  it("from a purchase with tax, insurance, HOA dues and counted mortgage insurance", () => {
+    const purchase = { ...example, homePrice: "500,000", downPayment: "10", monthlyHoa: "75", monthlyPmi: "150" };
+    const r = calc(purchase)!;
+    const next = switchMode(purchase, "payment", 7);
+    expect(Number(next.payment.replace(/,/g, ""))).toBe(r.first.total);
+    expect(r.first.total).toBe(Math.round((r.monthlyPI + 400 + 150 + 75 + 150) * 100) / 100);
+    expect(next.paymentDown).toBe("10");
+    expect(calc(next)!.first).toEqual(r.first);
+    expect(Math.abs(calc(next)!.loanAmount - 450000)).toBeLessThan(1);
+  });
+
+  it("from a purchase with 20% down, where typed mortgage insurance is not counted in either mode", () => {
+    const purchase = { ...example, homePrice: "500,000", monthlyPmi: "150" };
+    const next = switchMode(purchase, "payment", 7);
+    expect(Number(next.payment.replace(/,/g, ""))).toBe(calc(purchase)!.first.total);
+    expect(calc(next)!.first).toEqual(calc(purchase)!.first);
+    expect(Math.abs(calc(next)!.loanAmount - 400000)).toBeLessThan(1);
+  });
+
+  it("from a refinance, and from one with no home value where payment mode will count the insurance", () => {
+    const refinance = { ...refi, loanAmount: "360,000", monthlyPmi: "150" };
+    const next = switchMode(refinance, "payment", 7);
+    expect(Number(next.payment.replace(/,/g, ""))).toBe(calc(refinance)!.first.total);
+    expect(Math.abs(calc(next)!.loanAmount - 360000)).toBeLessThan(1);
+    // No home value: Refinance does not count the insurance, payment mode with nothing down does.
+    // The box is filled so that the loan still comes out the same.
+    const bare = switchMode({ ...refinance, homeValue: "" }, "payment", 7);
+    expect(bare.paymentDown).toBe("");
+    expect(Math.abs(calc(bare)!.loanAmount - 360000)).toBeLessThan(1);
+    expect(Number(bare.payment.replace(/,/g, ""))).toBe(Math.round((calc({ ...refinance, homeValue: "" })!.first.total + 150) * 100) / 100);
+  });
+
+  it("keeps a payment already typed, and the example stays the example", () => {
+    expect(switchMode({ ...example, homePrice: "500,000", payment: "1,800" }, "payment", 7).payment).toBe("1,800");
+    expect(switchMode(example, "payment", 7)).toEqual(pay);
+    expect(pay).toMatchObject({ payment: "2,128.97", yearlyTax: "", yearlyInsurance: "", monthlyHoa: "", monthlyPmi: "" });
   });
 });

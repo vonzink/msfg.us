@@ -12,9 +12,9 @@ type Rows = PrintColumn["rows"];
 /**
  * The top of the Mortgage calculator's printed page. The amortization schedule prints under it.
  * A purchase states the price and the down payment; a refinance the loan amount and, when one was
- * entered, the home value; payment mode leads with the payment typed and the loan amount it pays
- * off, has tax and insurance rows only once something is counted on top of the payment, and
- * repeats that the amount is not a lending amount.
+ * entered, the home value; payment mode leads with the whole payment typed, the costs that come
+ * off it and the principal and interest left, then the loan amount and the home price worked out,
+ * and repeats that the amount is not a lending amount.
  */
 export function PrintSummary({ input, result: r, start, scenario = { mode: "purchase" } }: {
   input: MortgageInput;
@@ -23,40 +23,51 @@ export function PrintSummary({ input, result: r, start, scenario = { mode: "purc
   scenario?: Scenario;
 }) {
   const payment = scenario.mode === "payment";
-  // Payment mode shows the cost rows only when one of them is counted.
+  // Payment mode shows a cost only when it is counted.
   const costs = !payment || r.first.total > r.first.principalAndInterest;
   const downPct = (input.downPayment / input.homePrice) * 100;
-  const borrowed: Rows =
-    scenario.mode === "payment"
-      ? [
-          { label: "Monthly payment (principal and interest)", value: formatUSDCents(scenario.payment) },
-          { label: "Down payment", value: `${trim(scenario.downPct, 3)}%` },
-        ]
-      : scenario.mode === "refinance"
-        ? [
-            { label: "Loan amount", value: formatUSD(r.loanAmount) },
-            ...(scenario.homeValueKnown ? [{ label: "Home value", value: formatUSD(input.homePrice) }] : []),
-          ]
-        : [
-            { label: "Home price", value: formatUSD(input.homePrice) },
-            { label: "Down payment", value: `${formatUSD(input.downPayment)} (${trim(downPct, 2)}%)` },
-            { label: "Loan amount", value: formatUSD(r.loanAmount) },
-          ];
-  const loan: Rows = [
-    ...borrowed,
+  const taxRow: Rows = [{ label: "Property tax", value: `${formatUSD(r.first.tax * 12)} a year` }];
+  const insuranceRow: Rows = [{ label: "Homeowners insurance", value: `${formatUSD(r.first.insurance * 12)} a year` }];
+  const hoaRow: Rows = r.first.hoa > 0 ? [{ label: "HOA dues", value: `${formatUSD(r.first.hoa)} a month` }] : [];
+  const pmiRow: Rows = r.first.pmi > 0 ? [{ label: "Mortgage insurance", value: `${formatUSD(r.first.pmi)} a month, until payment ${r.pmiEndPayment}` }] : [];
+  const extraRow: Rows = r.extra.amount > 0 ? [{ label: "Extra principal", value: `${formatUSD(r.extra.amount)} ${EXTRA[r.extra.frequency]}` }] : [];
+  const terms: Rows = [
     { label: "Interest rate", value: `${trim(input.annualRate * 100, 3)}%` },
     { label: "Loan term", value: duration(input.termYears * 12) },
     ...(start ? [{ label: "First payment", value: `${MONTHS[start.month]} ${start.year}` }] : []),
-    ...(costs
-      ? [
-          { label: "Property tax", value: `${formatUSD(r.first.tax * 12)} a year` },
-          { label: "Homeowners insurance", value: `${formatUSD(r.first.insurance * 12)} a year` },
-        ]
-      : []),
-    ...(r.first.hoa > 0 ? [{ label: "HOA dues", value: `${formatUSD(r.first.hoa)} a month` }] : []),
-    ...(r.first.pmi > 0 ? [{ label: "Mortgage insurance", value: `${formatUSD(r.first.pmi)} a month, until payment ${r.pmiEndPayment}` }] : []),
-    ...(r.extra.amount > 0 ? [{ label: "Extra principal", value: `${formatUSD(r.extra.amount)} ${EXTRA[r.extra.frequency]}` }] : []),
   ];
+  const loan: Rows =
+    scenario.mode === "payment"
+      ? [
+          // The whole payment, what comes off it, and what is left to pay off the loan.
+          { label: "Monthly payment", value: formatUSDCents(scenario.payment) },
+          ...(r.first.tax > 0 ? taxRow : []),
+          ...(r.first.insurance > 0 ? insuranceRow : []),
+          ...hoaRow,
+          ...pmiRow,
+          { label: "Principal and interest", value: formatUSDCents(scenario.principalAndInterest) },
+          { label: "Down payment", value: `${trim(scenario.downPct, 3)}%` },
+          ...terms,
+          ...extraRow,
+        ]
+      : [
+          ...(scenario.mode === "refinance"
+            ? [
+                { label: "Loan amount", value: formatUSD(r.loanAmount) },
+                ...(scenario.homeValueKnown ? [{ label: "Home value", value: formatUSD(input.homePrice) }] : []),
+              ]
+            : [
+                { label: "Home price", value: formatUSD(input.homePrice) },
+                { label: "Down payment", value: `${formatUSD(input.downPayment)} (${trim(downPct, 2)}%)` },
+                { label: "Loan amount", value: formatUSD(r.loanAmount) },
+              ]),
+          ...terms,
+          ...taxRow,
+          ...insuranceRow,
+          ...hoaRow,
+          ...pmiRow,
+          ...extraRow,
+        ];
   const estimate: Rows = [
     ...(payment
       ? [
@@ -66,9 +77,13 @@ export function PrintSummary({ input, result: r, start, scenario = { mode: "purc
       : []),
     ...(costs
       ? [
-          { label: payment ? "Full monthly payment" : "Monthly payment", value: formatUSD(r.first.total) },
-          // In payment mode principal and interest is the payment typed, in the other column.
-          ...(payment ? [] : [{ label: "Principal and interest", value: formatUSD(r.first.principalAndInterest) }]),
+          // In payment mode the payment and the principal and interest left are in the other column.
+          ...(payment
+            ? []
+            : [
+                { label: "Monthly payment", value: formatUSD(r.first.total) },
+                { label: "Principal and interest", value: formatUSD(r.first.principalAndInterest) },
+              ]),
           { label: "Property tax (monthly)", value: formatUSD(r.first.tax) },
           { label: "Homeowners insurance (monthly)", value: formatUSD(r.first.insurance) },
         ]

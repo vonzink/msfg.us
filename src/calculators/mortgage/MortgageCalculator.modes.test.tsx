@@ -77,7 +77,7 @@ describe("the three modes", () => {
     expect(chosen("Payment")).toBe(true);
     expect(firstCard()).toEqual(["Monthly payment", "Down payment", "Interest rate", "Loan term"]);
     expect(box("Monthly payment").value).toBe("2,128.97");
-    expect(results()).toContain(`Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%. Tax and insurance are not included.With 20% down, that is a home price of $400,000.${NOT_A_LENDING_AMOUNT}Where each payment goes`);
+    expect(results()).toContain(`Estimated loan amount$320,000what $2,128.97 a month pays off over 30 years at 7%. No tax or insurance is taken off.With 20% down, that is a home price of $400,000.${NOT_A_LENDING_AMOUNT}Where each payment goes`);
     expect(phoneBar()).toContain("Estimated loan amount$320,000");
     for (const label of ["Home price", "Loan amount"]) expect(hasBox(label), label).toBe(false);
     expect(detailLabels()).toEqual(["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Extra principal", "Pay the extra", "First payment"]);
@@ -86,7 +86,7 @@ describe("the three modes", () => {
     expect(form().textContent).not.toMatch(/home value/i);
     expect(screen.getByLabelText("First payment month")).toBeTruthy();
     expect(`${results()}${printed()}`).not.toMatch(/Property tax|Homeowners|HOA|mortgage insurance|home value|Full monthly payment/i);
-    expect(printed()).toContain("Monthly payment (principal and interest)$2,128.97Down payment20%Interest rate7%Loan term30 yearsFirst paymentDec 2026");
+    expect(printed()).toContain("Monthly payment$2,128.97Principal and interest$2,128.97Down payment20%Interest rate7%Loan term30 yearsFirst paymentDec 2026");
     expect(printed()).toMatch(/^Loan amount estimate/);
     expect(printed()).toContain("Estimated loan amount$320,000Home price$400,000Total interest");
     expect(document.body.textContent!.split(NOT_A_LENDING_AMOUNT).length - 1).toBe(2); // on screen and in print
@@ -113,34 +113,7 @@ describe("the three modes", () => {
   });
 });
 
-describe("costs added on top in Payment mode", () => {
-  it("adds them to a full monthly payment and leaves the loan amount alone", () => {
-    open();
-    mode("Payment");
-    type("Down payment", "0");
-    type("Property tax", "4800");
-    expect(results()).toContain("Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%.");
-    expect(results()).not.toContain("Tax and insurance are not included.");
-    expect(results()).toContain(`${NOT_A_LENDING_AMOUNT}Full monthly payment`);
-    expect(results()).toContain("$2,529principal, interest, tax");
-    type("Homeowners insurance", "1800");
-    type("HOA dues", "100");
-    type("Mortgage insurance", "150");
-    expect(results()).toContain("$2,929principal, interest, tax, insurance, HOA dues, mortgage insurance");
-    expect(results()).toContain("Includes mortgage insurance until payment 162.");
-    expect(results()).toContain("Estimated loan amount$320,000");
-    expect(phoneBar()).toContain("Estimated loan amount$320,000");
-    expect(printed()).toContain("Full monthly payment$2,929");
-    expect(printed()).toContain("Mortgage insurance$150 a month, until payment 162");
-    expect(printed()).not.toContain("Home value");
-    press("Show every payment");
-    const first = within(screen.getByRole("table")).getByText("Payment 1").closest("tr")!.textContent!;
-    expect(first).toContain("$150.00"); // the mortgage insurance column
-    expect(first).toContain("$2,928.97");
-    expect(document.body.textContent).not.toMatch(/home value/i);
-    clean();
-  });
-
+describe("costs in Payment mode and the other modes", () => {
   it("a home value typed in Refinance stays out of Payment mode and is there again on the way back", () => {
     open();
     mode("Refinance");
@@ -245,18 +218,17 @@ describe("switching modes keeps what carries over", () => {
     expect(results()).toContain("principal and interest on a $400,000 loan.");
   });
 
-  it("entering Payment fills the payment with the current loan's principal and interest, and the way back keeps every number", () => {
+  it("entering Payment fills the payment with the current loan's whole payment, and the way back keeps every number", () => {
     open();
     type("Home price", "500000");
     const purchase = results();
     mode("Payment");
-    expect(box("Monthly payment").value).toBe("2,661.21"); // $400,000 at 7% for 30 years
+    expect(box("Monthly payment").value).toBe("3,211.21"); // $2,661.21 on $400,000 at 7% for 30 years, plus $550 of tax and insurance
     expect(box("Interest rate").value).toBe("7");
     expect(box("Loan term").value).toBe("30");
-    expect(results()).toContain("Estimated loan amount$400,000what $2,661.21 a month of principal and interest pays off over 30 years at 7%.");
-    // The tax and insurance of the purchase come along, on top of the payment.
-    expect(results()).toContain("Full monthly payment");
-    expect(results()).toContain("$3,211principal, interest, tax, insurance");
+    // The tax and insurance of the purchase come along, and come off the payment again.
+    expect(results()).toContain("Estimated loan amount$400,000what $2,661.21 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax, insurance comes off the $3,211.21 payment.");
+    expect(results()).not.toContain("Full monthly payment");
     expect(results()).not.toContain("Estimated monthly payment");
     mode("Purchase");
     expect(box("Home price").value).toBe("500,000");
@@ -270,13 +242,13 @@ describe("switching modes keeps what carries over", () => {
     open();
     type("Home price", "500000");
     mode("Payment");
-    expect(box("Monthly payment").value).toBe("2,661.21");
+    expect(box("Monthly payment").value).toBe("3,211.21");
     type("Monthly payment", "1800");
     mode("Purchase");
     expect(box("Home price").value).toBe("500,000");
     mode("Payment");
     expect(box("Monthly payment").value).toBe("1,800");
-    expect(results()).toContain("what $1,800.00 a month of principal and interest pays off");
+    expect(results()).toContain("comes off the $1,800.00 payment.");
   });
 
   it("an absurd price switched to Payment does not hang, and the payment is asked for", () => {
@@ -287,12 +259,16 @@ describe("switching modes keeps what carries over", () => {
     expect(status()).toBe("Enter a payment under $1,000,000.");
     type("Monthly payment", "600000000000");
     expect(status()).toBe("Enter a payment under $1,000,000.");
+    // The purchase's tax and insurance came along, so a small payment is all costs.
+    type("Monthly payment", "5");
+    expect(status()).toBe("The costs under Add detail take up the whole payment. Enter a larger monthly payment or lower the costs.");
+    type("Property tax", "");
+    type("Homeowners insurance", "");
+    expect(status()).toBe("Enter a larger monthly payment.");
     // While it is being typed. On leaving the box a tenth of a cent becomes 0, which is asked for as a payment of 0 is.
     fireEvent.change(box("Monthly payment"), { target: { value: "0.001" } });
     expect(status()).toBe("Enter a larger monthly payment.");
     expect(results()).not.toContain("$0");
-    type("Monthly payment", "5");
-    expect(status()).toBe("Enter a larger monthly payment.");
     expect(document.querySelector("table")).toBeNull();
     type("Monthly payment", "2128.97");
     expect(status()).toBeNull();
@@ -423,7 +399,7 @@ describe("Payment mode's down payment", () => {
     expect(box("Down payment").value).toBe("20");
     expect(form().textContent).toContain("Of the home price.");
     expect(screen.queryByRole("radio", { name: "Dollars" })).toBeNull();
-    expect(results()).toContain("Tax and insurance are not included.With 20% down, that is a home price of $400,000.");
+    expect(results()).toContain("No tax or insurance is taken off.With 20% down, that is a home price of $400,000.");
     expect(printed()).toContain("Down payment20%");
     expect(printed()).toContain("Home price$400,000");
     clean();
@@ -466,15 +442,18 @@ describe("Payment mode's down payment", () => {
     type("Mortgage insurance", "150");
     expect(form().textContent).toContain("Not counted with 20% or more down.");
     expect(results()).not.toMatch(/Includes mortgage insurance|Full monthly payment/);
-    expect(results()).toContain("Tax and insurance are not included.");
+    expect(results()).toContain("Estimated loan amount$320,000what $2,128.97 a month pays off over 30 years at 7%. No tax or insurance is taken off.");
     type("Down payment", "10");
     expect(form().textContent).not.toContain("Not counted with 20% or more down.");
-    expect(results()).toContain("With 10% down, that is a home price of $355,556.");
+    // Now it is counted, so it comes off the payment and the loan is smaller.
+    expect(results()).toContain("what $1,978.97 a month of principal and interest pays off over 30 years at 7%, after $150.00 a month of mortgage insurance comes off the $2,128.97 payment.");
+    expect(results()).not.toContain("Estimated loan amount$320,000");
     expect(results()).toContain("Includes mortgage insurance until payment 115.");
+    type("Monthly payment", "2828.97");
     type("Property tax", "4800");
     type("Homeowners insurance", "1800");
-    expect(results()).toContain("$2,829principal, interest, tax, insurance, mortgage insurance");
     expect(results()).toContain("Estimated loan amount$320,000");
+    expect(results()).toContain("With 10% down, that is a home price of $355,556.");
     type("Mortgage insurance", "");
     expect(results()).toContain("With less than 20% down, most conventional loans add mortgage insurance. Add it under Add detail.");
     clean();
@@ -506,5 +485,54 @@ describe("Payment mode's down payment", () => {
     expect(chosen("Percent of price")).toBe(true);
     expect(box("Home price").value).toBe("442,081.08"); // $375,768.91 / 0.85, to the cent above
     expect(results()).toContain("principal and interest on a $375,769 loan.");
+  });
+});
+
+describe("Payment mode: costs come off the payment", () => {
+  it("each cost typed lowers the loan amount, and the first payment stays the payment typed", () => {
+    open();
+    mode("Payment");
+    expect(form().textContent).toContain("The whole monthly payment. Costs under Add detail come off it.");
+    expect(results()).toContain("what $2,128.97 a month pays off over 30 years at 7%. No tax or insurance is taken off.");
+    type("Monthly payment", "2679");
+    type("Property tax", "4800");
+    type("Homeowners insurance", "1800");
+    expect(results()).toContain("Estimated loan amount$320,005what $2,129.00 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax, insurance comes off the $2,679.00 payment.With 20% down, that is a home price of $400,006.");
+    expect(results()).not.toContain("Full monthly payment");
+    expect(phoneBar()).toContain("Estimated loan amount$320,005");
+    type("Monthly payment", "2829");
+    type("HOA dues", "100");
+    type("Mortgage insurance", "150");
+    expect(form().textContent).toContain("Not counted with 20% or more down.");
+    expect(results()).toContain("Estimated loan amount$327,520");
+    type("Down payment", "10");
+    expect(results()).toContain("Estimated loan amount$304,974");
+    expect(results()).toContain("Includes mortgage insurance until payment 115.");
+    press("Show every payment");
+    const rows = screen.getByRole("table").querySelectorAll("tr");
+    expect(within(screen.getByRole("table")).getByText("Payment 1").closest("tr")!.textContent).toContain("$2,829.00");
+    expect(Array.from(rows).find((row) => row.textContent!.startsWith("Payment 115"))!.textContent).toContain("$2,679.00");
+    expect(printed()).toContain("Monthly payment$2,829.00Property tax$4,800 a year");
+    expect(printed()).toContain("Principal and interest$2,029.00Down payment10%");
+    type("Monthly payment", "700");
+    expect(status()).toBe("The costs under Add detail take up the whole payment. Enter a larger monthly payment or lower the costs.");
+    clean();
+  });
+
+  it("entering from a touched purchase fills the whole payment, and the loan on screen stays", () => {
+    open();
+    type("Home price", "500000");
+    expect(results()).toContain("Estimated monthly payment$3,211$2,661 principal and interest on a $400,000 loan.");
+    mode("Payment");
+    expect(box("Monthly payment").value).toBe("3,211.21");
+    expect(results()).toContain("Estimated loan amount$400,000what $2,661.21 a month of principal and interest pays off over 30 years at 7%, after $550.00 a month of tax, insurance comes off the $3,211.21 payment.With 20% down, that is a home price of $500,000.");
+  });
+
+  it("the untouched purchase example opens Payment on its own example", () => {
+    open();
+    mode("Payment");
+    expect(box("Monthly payment").value).toBe("2,128.97");
+    for (const label of ["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance"]) expect(box(label).value, label).toBe("");
+    expect(results()).toContain("Estimated loan amount$320,000what $2,128.97 a month pays off over 30 years at 7%. No tax or insurance is taken off.With 20% down, that is a home price of $400,000.");
   });
 });
