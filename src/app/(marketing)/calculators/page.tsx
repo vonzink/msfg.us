@@ -34,7 +34,7 @@ export default async function CalculatorsPage() {
           <Breadcrumb items={[{ label: "Home", href: "/" }, { label: "Calculators" }]} />
           <h1 className="mt-4 text-[clamp(32px,4.2vw,48px)] font-extrabold tracking-[-0.03em]">Mortgage calculators</h1>
           <p className="mt-3 max-w-[60ch] text-[18px] text-muted">
-            Run the numbers yourself. Every result is an estimate, and nothing you type is saved or sent.
+            Run the numbers yourself. Every result is an estimate.
           </p>
 
           <ul className="m-0 mt-10 grid list-none grid-cols-3 gap-5 p-0 max-[900px]:grid-cols-2 max-[600px]:grid-cols-1">
