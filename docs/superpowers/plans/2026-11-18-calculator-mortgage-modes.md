@@ -93,3 +93,21 @@ Behaviour:
 - [ ] **Step 2: Run** (FAIL). **Step 3: Implement.** **Step 4: Run** (PASS), `npm run check`, `npm run build`. **Step 5: Commit:** `feat(calculators): purchase, refinance and payment modes on the mortgage calculator`.
 - [ ] **Step 6: Verify on a local production build:** desktop screenshot of each mode and a print PDF, all read.
 - [ ] **Step 7:** Final review by a fresh reviewer, one fix pass, then deploy to staging with `scripts/deploy-ec2.sh` (no arguments) for Zachary's test.
+
+---
+
+## Amendment 1: Zachary's changes and the review fixes (2026-11-18)
+
+**Asked for by Zachary after testing on staging** (commit `68e644f`):
+
+- The words "I want to work out" above the switch are removed. The group keeps a name for screen readers, "Calculation type" (`hideLabel` on the shared `FieldDef`, opt-in).
+- **Payment mode takes tax, insurance, HOA dues and mortgage insurance under "Add detail", added on top.** This replaces decision 2's "hidden in this mode". The typed payment stays principal and interest and the loan amount does not change; a "Full monthly payment" figure shows when any of them counts. An optional home value sets when mortgage insurance ends; without one, insurance is counted as if nothing were put down. Hand-checked: on the example loan, insurance ends at payment 162 with no home value and at payment 29 with a $400,000 value.
+- The neutral call to action is now the shared default on every calculator (commit `5a63879`).
+
+**From the final review** (commit `edbbf58`). Purchase was unchanged across 30 scenarios; the loan from a payment matched an independent formula on 84,420 combinations; Refinance matched the dashboard's refinance mode on 2,592.
+
+- `loanAmountForPayment` no longer hangs on a huge payment: it is bounded, and the payment box stops under $1,000,000.
+- Entering Payment fills the payment only when the box is empty, so a typed payment survives switching away and back. The sentence reads "This is arithmetic on the payment entered. It is not the amount a lender would lend."
+- A payment that pays off less than $1,000 gives a prompt; no balance chart under two years; clearer prompts for the down payment and the home value; Refinance back to Purchase keeps the percent unit; Payment to Refinance fills the home value from the price.
+
+**Deferred minors:** carrying a rounded payment between modes can show a loan $1 off the one just on screen; the example payment gives $320,000.30, so with a $400,000 home value typed in Payment mode it sits thirty cents above 80% and mortgage insurance counts; chart x labels may overlap at some terms and the term slider sits at an end while the box holds invalid text (both shared); the call to action's button goes to the purchase application in every mode; with extra principal the sub line says "over N years" while "Paid off" shows the earlier date.
