@@ -1,4 +1,4 @@
-# Public calculators: handoff after six of eight
+# Public calculators: handoff after seven of eight
 
 Date: 2026-11-18. Written at the end of a long session so the next one can start from files, not memory.
 
@@ -20,8 +20,8 @@ Date: 2026-11-18. Written at the end of a long session so the next one can start
 | 4 | Refinance breakeven, `/calculators/refinance-breakeven` | Done, on `main` |
 | 5 | Rent vs buy, `/calculators/rent-vs-buy` | Done, on `main` |
 | 6 | Home budget, `/calculators/budget` | Done, on `main` |
-| 7 | APR, `/calculators/apr` | **Next** |
-| 8 | Investment retrofit | Not started |
+| 7 | APR, `/calculators/apr` | Done, on `main` |
+| 8 | Investment retrofit | **Next** |
 
 `main`, GitHub and staging (https://staging.msfg.us) hold the same code. Production (`msfg.us`) is still the old site and is not touched by any of this.
 
@@ -67,11 +67,12 @@ One calculator at a time, each on its own branch from `main`:
 - **An empty box shows a grey "0", and Zachary reads that as zero** (Home budget). There, an empty tax rate, debts or living costs box counts as 0 and the page calculates; only income and housing are required. Decide per calculator which empty boxes may count as 0, and never do it where it leans the answer (Rent vs buy keeps its rule). Junk text is never 0.
 - **Zachary cut explanatory text and extras on Home budget:** the band ranges sentence under the gauges and the "Where the income goes" bar. He asked for the dashboard's residual and cash flow cards as speedometers with tables. Expect him to prefer the dashboard's cards over new summaries.
 - **Shared kit options added for Home budget, all opt-in:** `keepZero` and `readOnly` on `Field`, `mirror`, `edgeLabels`, `twoZone` and `centerLabel` on `GaugeDial`, `ctaTitle` on `CalculatorPage`.
-- **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block; Rent vs buy stops mortgage payments at the end of the loan, fixes cost inflation at 3%, and adds closing costs, mortgage insurance, HOA dues, the full monthly payment and an optional interest deduction; Home budget uses one income figure for everything and decides bands on the share rounded to a hundredth of a percent.
+- **APR wording:** never "official". The line is "This is an estimate. The APR for your loan is the one on your Loan Estimate." Lender fees include the lender's title insurance, as the dashboard's catalog counts it.
+- **Comparing APR with the dashboard:** the dashboard pre-fills about twenty catalog fees. Clear them there first, or the two will not match.
+- **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block; Rent vs buy stops mortgage payments at the end of the loan, fixes cost inflation at 3%, and adds closing costs, mortgage insurance, HOA dues, the full monthly payment and an optional interest deduction; Home budget uses one income figure for everything and decides bands on the share rounded to a hundredth of a percent; APR takes one fee total, shows the rate itself when nothing is counted, needs a home value for mortgage insurance, solves from 0 and takes loans of $1,000 and up.
 
 ## Notes for the remaining calculators
 
-- **APR.** Source: `apr.ejs`, `apr.js` (913 lines). Conventional loan assumed; mortgage insurance ends at 78% of a home value field in detail; prepaid interest defaults to 15 days and is shown in the breakdown. The result must say the official APR is the one on the Loan Estimate.
 - **Investment retrofit.** Move growth and sale, income taxes and opportunity cost behind "Add detail"; put the page on `CalculatorPage`; add the config disclaimer and example-rate note. Its markup snapshot test will need a deliberate update.
 
 ## Deferred minors, by calculator
@@ -90,7 +91,7 @@ None block anything. Zachary has seen all of them.
 
 - **The word "Comfortable"** on Home budget can sit beside a month that falls short (income 5,000, tax 22%, housing 1,600, debts 750, living 1,700). A line under the gauges says so. Neutral words were offered; he has not chosen.
 - **The chat widget and the privacy line.** The root layout loads the LeadConnector chat widget on every page when `NEXT_PUBLIC_GHL_CHAT_WIDGET_ID` is set. Staging does not load it; the current production site does. Home budget says nothing typed is saved or sent. Settle this before production cutover.
-- **The call to action** reads "Like these numbers? Start your application" on every calculator but Home budget, including under results that are not good news.
+- **The call to action** reads "Like these numbers? Start your application" on every calculator but Home budget and APR, including under results that are not good news.
 
 ## Not verified by any session
 

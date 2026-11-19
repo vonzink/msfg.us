@@ -166,3 +166,8 @@ From the final review, each fixed test-first (commit `5f96136`). The reviewer's 
 **Open with Zachary:** whether lender's title insurance (and the courier and technology fees) belong in the lender fees, as the dashboard's catalog counts them for a conventional loan; and the required sentence "The official APR is the one on your Loan Estimate", given that the Loan Estimate's APR is an estimate and the Closing Disclosure carries the final figure.
 
 **Deferred minors:** the shared money box turns "4k" into "4" on blur; the switch between prompt and result may not be announced; the opening example is not marked as an example beyond the rate note.
+
+## Amendment 2: Zachary's decisions (2026-11-18)
+
+- **Lender's title insurance is counted** in the lender fees, with technology and courier fees, following the dashboard's catalog (commit `fabee17`). The hint was checked line by line against `apr-fee-catalog.js`. Three lender charges the catalog leaves out (MERS registration, AUS and verification of employment fees) are covered by the hint's "everything the lender charges"; a small difference in the visitor's favour of a higher APR.
+- **"Official" is removed** everywhere. The result line reads "This is an estimate. The APR for your loan is the one on your Loan Estimate." The word is in the calculator's banned-word scan.
