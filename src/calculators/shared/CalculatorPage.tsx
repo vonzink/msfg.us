@@ -10,7 +10,7 @@ import { PrintLetterhead } from "./PrintLetterhead";
  * officer through a plain link. It never opens the booking pop-up, so a calculator page collects
  * nothing from the visitor.
  */
-export function CalculatorCta({ entry, title = "Like these numbers?" }: { entry: CalculatorEntry; title?: string }) {
+export function CalculatorCta({ entry, title = "Want to go through your numbers with someone?" }: { entry: CalculatorEntry; title?: string }) {
   return (
     <div className="print:hidden">
       <CtaBand
@@ -38,7 +38,7 @@ export function CalculatorPage({ entry, intro, howItWorks, questions, ctaTitle, 
   /** Plain-language paragraphs. No formulas. */
   howItWorks: string[];
   questions: { q: string; a: string }[];
-  /** The question over the call to action, for a page where "Like these numbers?" does not fit. */
+  /** The question over the call to action, when a page needs its own. The default is neutral on every calculator. */
   ctaTitle?: string;
   children: ReactNode;
 }) {

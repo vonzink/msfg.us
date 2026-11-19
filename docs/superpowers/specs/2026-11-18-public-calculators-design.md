@@ -68,6 +68,7 @@ The goal is to bring seven of those calculators to the public site, restyled to 
 - **Totals or itemized, never both.** Where the front has one total (closing costs, housing, debts, living costs) and the detail section has the itemized lines, opening the lines replaces the total with their sum.
 - **Results are labeled estimates.** Disclaimer wording comes from tenant config.
 - **Page structure:** heading phrased as the visitor's question, an optional one or two sentence intro (Mortgage has none), the calculator, a short "How this works" in plain language with no formulas, three or four common questions specific to that calculator, then the call to action. Claude drafts the text; Zachary approves it on staging.
+- **Call to action wording** (Zachary, 2026-11-18): every calculator asks "Want to go through your numbers with someone?". The first wording, "Like these numbers?", read badly under a result that was not good news, and close to an offer under a rate or a return.
 - **Call to action** under the results using the existing `CtaBand`: a link to the matching apply path plus a plain link to `/loan-officers`. On calculator pages the second button must not open the booking calendar pop-up that `CtaBand` uses elsewhere (`ScheduleCallButton`); add a variant for this and leave other pages as they are. Mortgage, Rent vs buy, Rate buydown, APR, Home budget and Investment link to `/apply/buy`. Refinance breakeven and Blended rate link to `/apply/refi`.
 - **Buttons:** Load example, Clear, Print, as on the investment calculator.
 

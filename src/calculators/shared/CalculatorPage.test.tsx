@@ -16,9 +16,9 @@ const pageCta = (ctaTitle?: string) => {
 };
 
 describe("the call to action under a calculator", () => {
-  it("asks 'Like these numbers?' unless the page says otherwise", () => {
-    expect(bandTitle(CalculatorCta({ entry }))).toBe("Like these numbers?");
-    expect(bandTitle(pageCta())).toBe("Like these numbers?");
+  it("asks a neutral question on every calculator unless the page says otherwise, and never 'Like these numbers?'", () => {
+    expect(bandTitle(CalculatorCta({ entry }))).toBe("Want to go through your numbers with someone?");
+    expect(bandTitle(pageCta())).toBe("Want to go through your numbers with someone?");
   });
 
   it("takes a title from the page", () => {

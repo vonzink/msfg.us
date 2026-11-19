@@ -94,7 +94,6 @@ None block anything. Zachary has seen all of them.
 
 - **The word "Comfortable"** on Home budget can sit beside a month that falls short (income 5,000, tax 22%, housing 1,600, debts 750, living 1,700). A line under the gauges says so. Neutral words were offered; he has not chosen.
 - **The chat widget and the privacy line.** The root layout loads the LeadConnector chat widget on every page when `NEXT_PUBLIC_GHL_CHAT_WIDGET_ID` is set. Staging does not load it; the current production site does. Home budget says nothing typed is saved or sent. Settle this before production cutover.
-- **The call to action** reads "Like these numbers? Start your application" on every calculator but Home budget and APR, including under results that are not good news.
 
 ## Not verified by any session
 
