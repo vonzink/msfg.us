@@ -2,7 +2,7 @@ import { formatUSD, formatUSDCents, roundCents } from "@/lib/finance";
 import { cn } from "@/lib/cn";
 import type { FieldDef } from "../shared/fields";
 import { DETAIL_FIELDS, FRONT_FIELDS, type EntryFaults } from "./fields";
-import { MI_END_LTV, POINTS_LIMIT, PREPAID_INTEREST_DAYS, RATE_LIMIT, type AprInput, type AprResult } from "./math";
+import { MI_END_LTV, MIN_LOAN_AMOUNT, POINTS_LIMIT, PREPAID_INTEREST_DAYS, RATE_LIMIT, type AprInput, type AprResult } from "./math";
 
 /** A rate without trailing zeros, for a limit or the points entered: 0.3 is "30%". */
 const plainPercent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
@@ -15,13 +15,18 @@ export const monthsText = (n: number) => `${n} month${n === 1 ? "" : "s"}`;
 
 export const LOAN_ESTIMATE_LINE = "This is an estimate. The official APR is the one on your Loan Estimate.";
 export const WHAT_APR_IS =
-  "APR is the yearly cost of a loan with certain fees counted in, not only the interest. It lets you compare loans that have different rates and fees. It does not change the monthly payment.";
+  "APR stands for annual percentage rate. It is a yearly rate that counts certain fees along with the interest, so loans with different rates and fees can be compared. It does not change the monthly payment.";
 export const MI_NOT_COUNTED = `Mortgage insurance is not counted: the loan is already at or under ${plainPercent(MI_END_LTV)} of the home value.`;
 export const FEES_HEADING = "Fees the APR counts";
-const UNUSED_CREDIT = "of the lender credit is not used here. A credit lowers these fees to zero at most.";
+const UNUSED_CREDIT = "of the lender credit is not used here. A credit lowers the lender fees and prepaid interest to zero at most.";
+const CREDIT_AND_POINTS = "It does not come off discount points.";
+/** After the gap sentence while the lender fees box is empty. */
+export const NO_LENDER_FEES = "No lender fees are entered.";
+export const LOAN_ABOVE_VALUE = "The loan amount is larger than the home value entered.";
 
 const GENERAL_PROMPT = "Enter the loan amount and the interest rate to see the estimated APR.";
 const HOME_VALUE_PROMPT = "Enter the home value to count mortgage insurance. It decides when the insurance ends.";
+const MINIMUM_PROMPT = `Enter a loan amount of ${formatUSD(MIN_LOAN_AMOUNT)} or more.`;
 const FEES_PROMPT = "The fees are too large for this loan amount to estimate an APR.";
 const RATE_PROMPT = `Interest rate must be from ${plainPercent(RATE_LIMIT.low)} to under ${plainPercent(RATE_LIMIT.high)}.`;
 const POINTS_PROMPT = `Discount points must be between ${plainPercent(POINTS_LIMIT.low)} and ${plainPercent(POINTS_LIMIT.high)}.`;
@@ -37,12 +42,14 @@ const OPTIONAL = [...FRONT_FIELDS, ...DETAIL_FIELDS].filter((f) => f.type !== "c
  */
 export function promptText(input: AprInput, faults: EntryFaults = NO_FAULTS): string {
   const junk = (id: string) => faults.unreadable?.id === id;
-  // Not entered: empty, or a loan amount of 0. Junk in either box is named below.
-  if ((Number.isNaN(input.loanAmount) && !junk("loanAmount")) || input.loanAmount === 0 || (Number.isNaN(input.rate) && !junk("rate"))) return GENERAL_PROMPT;
+  // Not entered: an empty box. Junk in either box is named below.
+  if ((Number.isNaN(input.loanAmount) && !junk("loanAmount")) || (Number.isNaN(input.rate) && !junk("rate"))) return GENERAL_PROMPT;
   if (faults.unreadable) {
     const { id, label } = faults.unreadable;
     return `Enter a number for ${label.toLowerCase()}${REQUIRED.includes(id) ? "" : ", or leave it empty"}.`;
   }
+  // A loan amount of zero or below is asked for in the same words as one that is too small.
+  if (input.loanAmount < MIN_LOAN_AMOUNT) return MINIMUM_PROMPT;
   if (faults.negative) return `${faults.negative.label} must be ${faults.negative.type === "pct" ? "0%" : "$0"} or more.`;
   if (!(input.rate >= RATE_LIMIT.low && input.rate < RATE_LIMIT.high)) return RATE_PROMPT;
   if (input.points > POINTS_LIMIT.high) return POINTS_PROMPT;
@@ -52,7 +59,7 @@ export function promptText(input: AprInput, faults: EntryFaults = NO_FAULTS): st
     const figure = input[f.id as keyof AprInput];
     return f.id === "prepaidInterest" ? Number.isNaN(figure) || (Number.isFinite(figure) && figure >= 0) : Number.isFinite(figure) && figure >= 0;
   };
-  return input.loanAmount > 0 && OPTIONAL.every(usable) ? FEES_PROMPT : GENERAL_PROMPT;
+  return input.loanAmount >= MIN_LOAN_AMOUNT && OPTIONAL.every(usable) ? FEES_PROMPT : GENERAL_PROMPT;
 }
 
 /**
@@ -72,6 +79,10 @@ export function gapSentence(r: AprResult): string {
 /** The gap between the APR and the interest rate in percentage points, to three decimals. */
 export const gapText = (r: AprResult) => (r.spread * 100).toFixed(3);
 
+/** The gap sentence, followed by a note while the lender fees box is empty: an empty box counts as $0. */
+export const gapLine = (r: AprResult, lenderFeesEmpty: boolean) => (lenderFeesEmpty ? `${gapSentence(r)} ${NO_LENDER_FEES}` : gapSentence(r));
+/** True when mortgage insurance is counted on a loan larger than the home value entered. */
+export const loanAboveValue = (input: AprInput, r: AprResult) => r.miMonths > 0 && input.loanAmount > input.homeValue;
 /** True when mortgage insurance was entered and no payment carries it. */
 export const mortgageInsuranceNotCounted = (input: AprInput, r: AprResult) => input.monthlyMi > 0 && r.miMonths === 0;
 /** "$160 a month for 139 months". */
@@ -128,7 +139,9 @@ export function FeesCounted({ input, result, className }: { input: AprInput; res
     <section className={className}>
       <h2 className="text-[15px] font-bold">{FEES_HEADING}</h2>
       <Rows rows={feeRows(input, result)} />
-      {unused > 0 && <p className="mt-2 text-[13px] text-ink">{formatUSDCents(unused)} {UNUSED_CREDIT}</p>}
+      {unused > 0 && (
+        <p className="mt-2 text-[13px] text-ink">{`${formatUSDCents(unused)} ${UNUSED_CREDIT}${result.fees.pointsAmount > 0 ? ` ${CREDIT_AND_POINTS}` : ""}`}</p>
+      )}
     </section>
   );
 }
@@ -141,12 +154,14 @@ const card = "rounded-xl border border-line bg-white p-5 shadow-card max-[600px]
  * numbers typed on this page. It is an estimate, and the line under the cards says where the
  * official figure is.
  */
-export function AprResults({ input, result: r, disclaimer, faults = NO_FAULTS }: {
+export function AprResults({ input, result: r, disclaimer, faults = NO_FAULTS, lenderFeesEmpty = false }: {
   input: AprInput;
   result: AprResult | null;
   disclaimer: string;
   /** From `entryFaults`: the box holding junk or a negative number, for the prompt to name. */
   faults?: EntryFaults;
+  /** True while the lender fees box is empty, which the input number cannot say: empty and a typed 0 are both 0. */
+  lenderFeesEmpty?: boolean;
 }) {
   if (!r) {
     return (
@@ -164,7 +179,7 @@ export function AprResults({ input, result: r, disclaimer, faults = NO_FAULTS }:
         <p className="mt-1.5 text-[16px] tabular-nums text-on-dark-2">Interest rate {percentText(input.rate)}</p>
       </div>
 
-      <p className="mx-1 text-[16px] text-ink">{gapSentence(r)}</p>
+      <p className="mx-1 text-[16px] text-ink">{gapLine(r, lenderFeesEmpty)}</p>
       {mortgageInsuranceNotCounted(input, r) && <p className="mx-1 text-[14px] text-ink">{MI_NOT_COUNTED}</p>}
 
       <FeesCounted input={input} result={r} className={card} />
@@ -172,6 +187,7 @@ export function AprResults({ input, result: r, disclaimer, faults = NO_FAULTS }:
       <section className={card}>
         <h2 className="text-[15px] font-bold">The loan in numbers</h2>
         <Rows rows={loanRows(input, r)} />
+        {loanAboveValue(input, r) && <p className="mt-2 text-[13px] text-ink">{LOAN_ABOVE_VALUE}</p>}
       </section>
 
       <section className={card}>

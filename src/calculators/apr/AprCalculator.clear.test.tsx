@@ -23,6 +23,8 @@ describe("Clear, then the two boxes that have to be entered", () => {
     open();
     expect(status()).toBeNull();
     expect(results()).toContain("Estimated APR7.154%");
+    expect(results()).not.toContain("No lender fees are entered.");
+    expect(screen.getByRole("link", { name: /See results/ }).textContent).toContain("Estimated APR7.154%");
     expect(box("Loan amount").value).toBe("320,000");
     expect(box("Interest rate").value).toBe("7");
     expect(box("Lender fees").value).toBe("4,000");
@@ -44,7 +46,12 @@ describe("Clear, then the two boxes that have to be entered", () => {
     expect(results()).toContain("Prepaid interest (15 days)$920.55");
     expect(results()).toContain("Fees counted$920.55");
     expect(results()).toContain("Interest rate 7.000%");
-    expect(results()).toContain("The APR is 0.029 percentage points above the interest rate, because it counts $921 in fees.");
+    // A3: the box was left empty, and the page says so beside the figure and on the phone bar.
+    expect(results()).toContain("The APR is 0.029 percentage points above the interest rate, because it counts $921 in fees. No lender fees are entered.");
+    expect(screen.getByRole("link", { name: /See results/ }).textContent).toContain("Estimated APR, no lender fees entered7.029%");
+    type("Lender fees", "0");
+    expect(results()).not.toContain("No lender fees are entered.");
+    expect(screen.getByRole("link", { name: /See results/ }).textContent).toContain("Estimated APR7.029%");
     expect(document.body.textContent).not.toMatch(/NaN|Infinity|undefined|-\$0/);
   });
 

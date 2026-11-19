@@ -7,7 +7,7 @@
  */
 export const HOW_IT_WORKS: string[] = [
   "The interest rate sets the monthly payment. The APR starts from the same loan and spreads certain up-front costs over its life, as if they were interest. That is why the APR is at or above the interest rate, and why it does not change the payment.",
-  "The costs counted here are the lender fees you enter, any discount points, prepaid interest and mortgage insurance. Costs paid to others that are not charges for the loan itself, such as the appraisal, title work and recording, are left out, so leave them out of the lender fees.",
+  "The costs counted here are the lender fees you enter, any discount points, prepaid interest and mortgage insurance. Lender fees are all that the lender or a mortgage broker charges for the loan, such as origination, underwriting, processing, administration and a rate lock. Costs paid to others that are not charges for the loan itself, such as the appraisal, title work and recording, are left out, so leave them out of the lender fees. The amount financed is the loan amount less the fees counted. The finance charge is the interest, the fees counted and any mortgage insurance over the whole loan.",
   "The loan is assumed to be a conventional fixed-rate loan with the same payment every month.",
   "Mortgage insurance is counted when you enter a monthly amount and the home value. It is counted until the scheduled balance reaches 78% of the home value. A loan that starts at or under 78% has none counted.",
   "Prepaid interest is the interest from the closing date to the end of that month. When the box is left empty the page uses 15 days of interest, and the amount is shown in the list of fees.",

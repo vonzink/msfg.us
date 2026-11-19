@@ -5,7 +5,7 @@ import { AddDetail } from "../shared/AddDetail";
 import { CalculatorShell } from "../shared/CalculatorShell";
 import { Field } from "../shared/Field";
 import type { FieldDef, Values } from "../shared/fields";
-import { BLANK, DETAIL_FIELDS, entryFaults, exampleValues, FRONT_FIELDS, toInput } from "./fields";
+import { BLANK, DETAIL_FIELDS, entryFaults, exampleValues, FRONT_FIELDS, lenderFeesEmpty, toInput } from "./fields";
 import { calculateApr } from "./math";
 import { AprPrintDetails, AprPrintSummary } from "./PrintSummary";
 import { AprResults, percentText } from "./Results";
@@ -35,6 +35,8 @@ export function AprCalculator({ exampleRatePct, exampleRateNote, disclaimer }: {
   const input = useMemo(() => toInput(values), [values]);
   const faults = useMemo(() => entryFaults(values), [values]);
   const result = useMemo(() => calculateApr(input), [input]);
+  // Empty lender fees count as $0, the same as a typed 0. Only what is in the box says which it is.
+  const noLenderFees = lenderFeesEmpty(values);
 
   const front: FieldDef[] = FRONT_FIELDS.map((f) => (f.id === "rate" ? { ...f, hint: exampleRateNote } : f));
   const field = (def: FieldDef) => (
@@ -64,13 +66,13 @@ export function AprCalculator({ exampleRatePct, exampleRateNote, disclaimer }: {
           </AddDetail>
         </div>
       }
-      results={<AprResults input={input} result={result} disclaimer={disclaimer} faults={faults} />}
+      results={<AprResults input={input} result={result} disclaimer={disclaimer} faults={faults} lenderFeesEmpty={noLenderFees} />}
       below={
         result && (
           <>
             {/* The printed page: the loan beside the estimate, then the fees, the Loan Estimate sentence and the disclaimer. */}
             <AprPrintSummary input={input} result={result} />
-            <AprPrintDetails input={input} result={result} disclaimer={disclaimer} />
+            <AprPrintDetails input={input} result={result} disclaimer={disclaimer} lenderFeesEmpty={noLenderFees} />
 
             {/* Phone: the headline pinned to the bottom of the screen, linking up to the results. */}
             <a
@@ -78,7 +80,7 @@ export function AprCalculator({ exampleRatePct, exampleRateNote, disclaimer }: {
               className="fixed inset-x-3 bottom-3 z-10 hidden items-center gap-[18px] rounded-lg bg-green-900 px-3.5 py-2.5 text-white shadow-pop max-[980px]:flex print:hidden"
             >
               <span className="flex min-w-0 flex-col">
-                <span className="text-[11px] text-on-dark-2">Estimated APR</span>
+                <span className="text-[11px] text-on-dark-2">{noLenderFees ? "Estimated APR, no lender fees entered" : "Estimated APR"}</span>
                 <strong className="text-[17px] tabular-nums">{percentText(result.apr)}</strong>
               </span>
               <span className="ml-auto whitespace-nowrap text-[13px] font-bold text-mint">See results</span>

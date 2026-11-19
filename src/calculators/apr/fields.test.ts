@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BLANK, DETAIL_FIELDS, entryFaults, exampleValues, FRONT_FIELDS, toInput } from "./fields";
+import { BLANK, DETAIL_FIELDS, entryFaults, exampleValues, FRONT_FIELDS, lenderFeesEmpty, toInput } from "./fields";
 import golden from "./golden.json";
 import { calculateApr } from "./math";
 
@@ -13,6 +13,16 @@ const pct3 = (rate: number) => Number((rate * 100).toFixed(3));
 /** Every box that is typed into, in page order. */
 const TYPED = ["loanAmount", "rate", "lenderFees", "points", "lenderCredit", "monthlyMi", "homeValue", "prepaidInterest"];
 
+describe("A3: an empty lender fees box", () => {
+  it("is told apart from a typed 0, which the input number cannot do", () => {
+    expect(lenderFeesEmpty(BLANK)).toBe(true);
+    expect(lenderFeesEmpty({ ...exampleValues(7), lenderFees: "  " })).toBe(true);
+    expect(lenderFeesEmpty({ ...exampleValues(7), lenderFees: "0" })).toBe(false);
+    expect(lenderFeesEmpty(exampleValues(7))).toBe(false);
+    expect(toInput({ ...exampleValues(7), lenderFees: "" }).lenderFees).toBe(toInput({ ...exampleValues(7), lenderFees: "0" }).lenderFees);
+  });
+});
+
 describe("APR fields", () => {
   it("has four inputs up front", () => {
     expect(FRONT_FIELDS.map((f) => [f.id, f.type, f.label])).toEqual([
@@ -22,7 +32,7 @@ describe("APR fields", () => {
       ["lenderFees", "money", "Lender fees"],
     ]);
     expect(field("lenderFees").hint).toBe(
-      "Fees charged by the lender to make the loan, such as origination, underwriting and processing, as one total. Leave out the appraisal, title and recording costs.",
+      "Everything the lender or a mortgage broker charges for the loan, as one total: origination, underwriting, processing, administration, rate lock and similar fees. Leave out the appraisal, title and recording costs.",
     );
   });
 

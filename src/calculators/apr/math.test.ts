@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import golden from "./golden.json";
-import { calculateApr, MI_END_LTV, POINTS_LIMIT, PREPAID_INTEREST_DAYS, RATE_LIMIT, type AprInput } from "./math";
+import { calculateApr, MI_END_LTV, MIN_LOAN_AMOUNT, POINTS_LIMIT, PREPAID_INTEREST_DAYS, RATE_LIMIT, type AprInput } from "./math";
 
 /** The golden file writes the automatic prepaid interest as null; the model takes NaN. */
 const toInput = (input: (typeof golden.cases)[number]["input"]): AprInput => ({ ...input, prepaidInterest: input.prepaidInterest ?? Number.NaN });
@@ -61,6 +61,65 @@ describe("matches the dashboard (golden cases from msfg-calc)", () => {
       expect(Math.round(sum * 100), name).toBe(Math.round(fees.total * 100));
       expect(fees.total, name).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+describe("A1: the fee lines add up to the cent as shown", () => {
+  const sumOfRows = (r: NonNullable<ReturnType<typeof calculateApr>>) =>
+    Math.round(r.fees.lenderFees * 100) + Math.round(r.fees.pointsAmount * 100) + Math.round(r.fees.prepaidInterest * 100) - Math.round(r.fees.lenderCreditApplied * 100);
+
+  it("the reviewer's case: 1,295.00 + 62.51 + 136.14 - 500.00 is the total, 993.65", () => {
+    // 50,004 x 0.125% = 62.505, shown as 62.51. 50,004 x 6.625% x 15 / 365 = 136.141, shown as 136.14.
+    const r = calculateApr({ ...example, loanAmount: 50004, rate: 0.06625, lenderFees: 1295, points: 0.00125, lenderCredit: 500 })!;
+    expect(r.fees).toEqual({ lenderFees: 1295, pointsAmount: 62.51, prepaidInterest: 136.14, prepaidInterestIsAutomatic: true, lenderCreditApplied: 500, total: 993.65 });
+    expect(sumOfRows(r)).toBe(99365);
+    expect(r.amountFinanced).toBe(49010.35); // 50,004 - 993.65
+  });
+
+  it("the reviewer's second case: points of 0.75% on 50,002 are 375.02", () => {
+    // 50,002 x 0.75% = 375.015. 50,002 x 7% x 15 / 365 = 143.84. With 4,000 of fees: 4,518.86.
+    const r = calculateApr({ ...example, loanAmount: 50002, points: 0.0075 })!;
+    expect(r.fees).toMatchObject({ lenderFees: 4000, pointsAmount: 375.02, prepaidInterest: 143.84, total: 4518.86 });
+    expect(sumOfRows(r)).toBe(451886);
+    expect(r.amountFinanced).toBe(45483.14);
+  });
+
+  it("holds for typed amounts with parts of a cent, and odd points on odd loans", () => {
+    for (const loanAmount of [50001, 50002, 50003, 50004, 123457, 333333]) {
+      for (const points of [0, 0.00125, 0.00375, 0.0075, 0.01125]) {
+        for (const [lenderFees, lenderCredit, prepaidInterest] of [[1295, 500, Number.NaN], [1000.005, 0.004, 10.015], [0.005, 0, 0.005], [400, 9000, Number.NaN]]) {
+          const r = calculateApr({ ...example, loanAmount, points, lenderFees, lenderCredit, prepaidInterest })!;
+          const at = JSON.stringify({ loanAmount, points, lenderFees, lenderCredit });
+          expect(sumOfRows(r), at).toBe(Math.round(r.fees.total * 100));
+          expect(Math.round(r.amountFinanced * 100), at).toBe(Math.round(loanAmount * 100) - Math.round(r.fees.total * 100));
+        }
+      }
+    }
+  });
+});
+
+describe("A7: a 0% loan with small fees", () => {
+  it("shows its own APR, below the dashboard's floor of 0.010%", () => {
+    // 50,000 at 0% over 360 months with 50 of fees: 49,950 financed, repaid as 138.89 a month.
+    const r = calculateApr({ ...example, loanAmount: 50000, rate: 0, lenderFees: 50 })!;
+    expect(r.fees.total).toBe(50);
+    expect(pct3(r.apr)).toBe(0.007);
+    expect(pct3(r.spread)).toBe(0.007);
+  });
+
+  it("leaves the dashboard's 0% case where it was", () => {
+    expect(pct3(calculateApr(named("zero-rate").input)!.apr)).toBe(0.067);
+  });
+});
+
+describe("A8: the smallest loan taken", () => {
+  it("is 1,000", () => {
+    expect(MIN_LOAN_AMOUNT).toBe(1000);
+    expect(calc({ loanAmount: 999.99, lenderFees: 0 })).toBeNull();
+    expect(calc({ loanAmount: 999, lenderFees: 0, prepaidInterest: 0 })).toBeNull();
+    expect(calc({ loanAmount: 1, lenderFees: 0, prepaidInterest: 0 })).toBeNull();
+    expect(calc({ loanAmount: 1000, lenderFees: 0 })).not.toBeNull();
+    expect(calc({ loanAmount: 1000, lenderFees: 0, prepaidInterest: 0 })!.apr).toBe(0.07);
   });
 });
 

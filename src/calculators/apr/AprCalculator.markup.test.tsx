@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { Values } from "../shared/fields";
 import { AprCalculator } from "./AprCalculator";
-import { BLANK, DETAIL_FIELDS, entryFaults, exampleValues, FRONT_FIELDS, toInput } from "./fields";
+import { BLANK, DETAIL_FIELDS, entryFaults, exampleValues, FRONT_FIELDS, lenderFeesEmpty, toInput } from "./fields";
 import { calculateApr } from "./math";
 import { AprPrintDetails, AprPrintSummary } from "./PrintSummary";
 import { AprResults, gapSentence, LOAN_ESTIMATE_LINE, MI_NOT_COUNTED, promptText, WHAT_APR_IS } from "./Results";
@@ -16,15 +16,16 @@ const typed = (changes: Values = {}): Values => ({ ...exampleValues(7), ...chang
 const results = (changes: Values = {}, from: Values = typed()) => {
   const values = { ...from, ...changes };
   const input = toInput(values);
-  return renderToStaticMarkup(<AprResults input={input} result={calculateApr(input)} disclaimer={DISCLAIMER} faults={entryFaults(values)} />);
+  return renderToStaticMarkup(<AprResults input={input} result={calculateApr(input)} disclaimer={DISCLAIMER} faults={entryFaults(values)} lenderFeesEmpty={lenderFeesEmpty(values)} />);
 };
 const print = (changes: Values = {}) => {
-  const input = toInput(typed(changes));
+  const values = typed(changes);
+  const input = toInput(values);
   const result = calculateApr(input)!;
   return renderToStaticMarkup(
     <>
       <AprPrintSummary input={input} result={result} />
-      <AprPrintDetails input={input} result={result} disclaimer={DISCLAIMER} />
+      <AprPrintDetails input={input} result={result} disclaimer={DISCLAIMER} lenderFeesEmpty={lenderFeesEmpty(values)} />
     </>,
   );
 };
@@ -82,7 +83,7 @@ describe("APR calculator page", () => {
   it("pins the sentences that keep the figure from reading as an offer", () => {
     expect(LOAN_ESTIMATE_LINE).toBe("This is an estimate. The official APR is the one on your Loan Estimate.");
     expect(WHAT_APR_IS).toBe(
-      "APR is the yearly cost of a loan with certain fees counted in, not only the interest. It lets you compare loans that have different rates and fees. It does not change the monthly payment.",
+      "APR stands for annual percentage rate. It is a yearly rate that counts certain fees along with the interest, so loans with different rates and fees can be compared. It does not change the monthly payment.",
     );
     // Beside the result, in semibold, in every state that has a result.
     for (const state of STATES) expect(results(state)).toMatch(new RegExp(`<p class="[^"]*font-semibold[^"]*">${LOAN_ESTIMATE_LINE}</p>`));
@@ -239,9 +240,13 @@ describe("the fees the APR counts", () => {
       ["Lender credit", "-$4,920.55"],
       ["Fees counted", "$0.00"],
     ]);
-    const sentence = "$4,079.45 of the lender credit is not used here. A credit lowers these fees to zero at most.";
-    expect(results(CREDIT_LARGER)).toContain(sentence);
-    expect(print(CREDIT_LARGER)).toContain(sentence);
+    const sentence = "$4,079.45 of the lender credit is not used here. A credit lowers the lender fees and prepaid interest to zero at most.";
+    const POINTS = " It does not come off discount points.";
+    expect(results(CREDIT_LARGER)).toContain(`${sentence}</p>`);
+    expect(print(CREDIT_LARGER)).toContain(`${sentence}</p>`);
+    // A4: with points in the table, it says the credit leaves them alone.
+    expect(results({ ...CREDIT_LARGER, points: "1" })).toContain(`${sentence}${POINTS}</p>`);
+    expect(print({ ...CREDIT_LARGER, points: "1" })).toContain(`${sentence}${POINTS}</p>`);
     // A credit does not come off points.
     expect(feeRows({ ...CREDIT_LARGER, points: "1" })).toEqual([
       ["Lender fees", "$4,000.00"],
@@ -302,6 +307,60 @@ describe("mortgage insurance on a loan already at or under 78% of the home value
   });
 });
 
+describe("A3: an empty lender fees box", () => {
+  const NONE = "No lender fees are entered.";
+
+  it("is said after the gap sentence, on screen and in print", () => {
+    const empty = { lenderFees: "" };
+    const sentence = `${gap(empty)} ${NONE}`;
+    expect(sentence).toBe(`The APR is 0.029 percentage points above the interest rate, because it counts $921 in fees. ${NONE}`);
+    expect(results(empty)).toContain(`${sentence}</p>`);
+    expect(print(empty)).toContain(`${sentence}</p>`);
+  });
+
+  it("is not said for a typed 0 or an amount", () => {
+    for (const state of [{}, { lenderFees: "0" }, NO_FEES, { lenderFees: "4,000" }]) {
+      expect(results(state)).not.toContain(NONE);
+      expect(print(state)).not.toContain(NONE);
+    }
+    expect(page()).not.toContain("no lender fees entered");
+  });
+});
+
+describe("A9: mortgage insurance counted on a loan larger than the home value", () => {
+  const LINE = "The loan amount is larger than the home value entered.";
+
+  it("says so under the loan table, on screen and in print", () => {
+    const above = { ...WITH_MI, homeValue: "350,000" };
+    const html = results(above);
+    expect(html).toMatch(new RegExp(`The loan in numbers</h2><dl.*?</dl><p[^>]*>${LINE}</p>`));
+    expect(print(above)).toContain(LINE);
+  });
+
+  it("says nothing otherwise", () => {
+    // Under the home value; equal to it; above it with no insurance entered; insurance entered and not counted.
+    for (const state of [{}, WITH_MI, { ...WITH_MI, homeValue: "380,000" }, { homeValue: "300,000" }, MI_NOT_NEEDED]) {
+      expect(results(state), JSON.stringify(state)).not.toContain(LINE);
+      expect(print(state), JSON.stringify(state)).not.toContain(LINE);
+    }
+  });
+});
+
+describe("A10: what the printed estimate assumes", () => {
+  const LOAN = "Assumes a conventional fixed-rate loan.";
+  const INSURANCE = "Mortgage insurance is counted until the balance reaches 78% of the home value.";
+
+  it("is one line above the Loan Estimate sentence", () => {
+    expect(print()).toMatch(new RegExp(`<p[^>]*>${LOAN}</p><p[^>]*>${LOAN_ESTIMATE_LINE}</p>`));
+    expect(print()).not.toContain(INSURANCE);
+    expect(print(MI_NOT_NEEDED)).not.toContain(INSURANCE);
+  });
+
+  it("adds how long mortgage insurance is counted, when it is", () => {
+    expect(print(WITH_MI)).toMatch(new RegExp(`<p[^>]*>${LOAN} ${INSURANCE}</p><p[^>]*>${LOAN_ESTIMATE_LINE}</p>`));
+  });
+});
+
 describe("no result", () => {
   const GENERAL = "Enter the loan amount and the interest rate to see the estimated APR.";
   const FEES = "The fees are too large for this loan amount to estimate an APR.";
@@ -315,7 +374,6 @@ describe("no result", () => {
     expect(prompt({}, BLANK)).toBe(GENERAL);
     expect(prompt({ loanAmount: "" })).toBe(GENERAL);
     expect(prompt({ rate: "" })).toBe(GENERAL);
-    expect(prompt({ loanAmount: "0" })).toBe(GENERAL);
     // A missing box comes before junk in another.
     expect(prompt({ loanAmount: "", points: "abc" })).toBe(GENERAL);
   });
@@ -333,7 +391,6 @@ describe("no result", () => {
   });
 
   it("names a box that holds a negative number", () => {
-    expect(prompt({ loanAmount: "-5" })).toBe("Loan amount must be $0 or more.");
     expect(prompt({ lenderFees: "-1" })).toBe("Lender fees must be $0 or more.");
     expect(prompt({ lenderCredit: "-1" })).toBe("Lender credit must be $0 or more.");
     expect(prompt({ monthlyMi: "-160", homeValue: "400,000" })).toBe("Mortgage insurance must be $0 or more.");
@@ -343,6 +400,17 @@ describe("no result", () => {
     expect(prompt({ points: "-1" })).toBe("Discount points must be 0% or more.");
     // Junk is named before a negative.
     expect(prompt({ lenderFees: "-1", prepaidInterest: "abc" })).toBe("Enter a number for prepaid interest, or leave it empty.");
+  });
+
+  it("A8: asks for a loan amount of $1,000 or more, for a zero or a negative amount too", () => {
+    const MINIMUM = "Enter a loan amount of $1,000 or more.";
+    for (const loanAmount of ["0", "-5", "-320,000", "1", "999", "999.99"]) expect(prompt({ loanAmount }), loanAmount).toBe(MINIMUM);
+    expect(results({ loanAmount: "999" })).toContain(`role="status"`);
+    expect(results({ loanAmount: "1,000", lenderFees: "25" })).not.toContain(`role="status"`);
+    for (const loanAmount of ["0", "-5"]) expect(results({ loanAmount })).not.toContain("must be $0 or more");
+    // Junk in another box is named first; an empty loan amount is still "not entered".
+    expect(prompt({ loanAmount: "5", points: "abc" })).toBe("Enter a number for discount points, or leave it empty.");
+    expect(prompt({ loanAmount: "" })).toBe(GENERAL);
   });
 
   it("names the range of the rate and of the points", () => {

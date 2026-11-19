@@ -26,7 +26,7 @@ export const FRONT_FIELDS: FieldDef[] = [
   },
   {
     id: "lenderFees", label: "Lender fees", type: "money", example: "4,000", keepZero: true,
-    hint: "Fees charged by the lender to make the loan, such as origination, underwriting and processing, as one total. Leave out the appraisal, title and recording costs.",
+    hint: "Everything the lender or a mortgage broker charges for the loan, as one total: origination, underwriting, processing, administration, rate lock and similar fees. Leave out the appraisal, title and recording costs.",
   },
 ];
 
@@ -49,6 +49,11 @@ export function exampleValues(exampleRatePct: number): Values {
 export const BLANK: Values = Object.fromEntries(ALL.map((f) => [f.id, f.type === "choice" ? f.example : ""]));
 
 const isEmpty = (text: string | undefined): boolean => String(text ?? "").trim() === "";
+/**
+ * True while the lender fees box is empty. Empty counts as $0 in the math, the same as a typed 0,
+ * so the page asks here when it wants to say that nothing was entered.
+ */
+export const lenderFeesEmpty = (values: Values): boolean => isEmpty(values.lenderFees);
 /** A box that may be left out: empty is 0, a number is itself, anything else is NaN. */
 const optionalAmount = (text: string | undefined): number => (isEmpty(text) ? 0 : typedAmount(text));
 /** What a typed box holds as a number, whatever its unit. NaN when empty or unreadable. */

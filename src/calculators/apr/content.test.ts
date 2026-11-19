@@ -35,6 +35,17 @@ describe("APR page text", () => {
     expect(how).toMatch(/appraisal, title work and recording, are left out/);
   });
 
+  it("A2: says lender fees are everything the lender or a mortgage broker charges for the loan", () => {
+    expect(HOW_IT_WORKS[1]).toContain("Lender fees are all that the lender or a mortgage broker charges for the loan");
+    for (const fee of ["origination", "underwriting", "processing", "administration", "rate lock"]) expect(HOW_IT_WORKS[1], fee).toContain(fee);
+  });
+
+  it("A6: says what the amount financed and the finance charge are, in a sentence each", () => {
+    expect(how).toContain("The amount financed is the loan amount less the fees counted.");
+    expect(how).toContain("The finance charge is the interest, the fees counted and any mortgage insurance over the whole loan.");
+    expect(HOW_IT_WORKS).toHaveLength(7);
+  });
+
   it("says the loan is assumed to be a conventional fixed-rate loan", () => {
     expect(how).toContain("The loan is assumed to be a conventional fixed-rate loan");
   });

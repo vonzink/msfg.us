@@ -23,7 +23,7 @@ export default async function AprCalculatorPage() {
   const config = await getTenantConfig();
   if (!isCalculatorEnabled(ENTRY.slug, config.calculators)) notFound();
   return (
-    <CalculatorPage entry={ENTRY} howItWorks={HOW_IT_WORKS} questions={QUESTIONS}>
+    <CalculatorPage entry={ENTRY} howItWorks={HOW_IT_WORKS} questions={QUESTIONS} ctaTitle="Want to go through your numbers with someone?">
       <AprCalculator
         exampleRatePct={config.calculators.exampleRatePct}
         exampleRateNote={config.legal.exampleRateNote}
