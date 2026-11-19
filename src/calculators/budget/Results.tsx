@@ -164,11 +164,17 @@ function ShareCard({ label, secondary, ratio, band, bands }: { label: string; se
 }
 
 /**
- * The scale of the shared two-zone dial for a dollar figure. There are no bands for dollars, only
- * above or below zero, so the dial has one line, $0 at the top centre. The needle is placed by the
- * figure as a share of gross income and pinned at half of the income either way.
+ * The scales of the shared two-zone dial for the two dollar figures. There are no bands for
+ * dollars, only above or below zero, so each dial has one line, $0 at the top centre, and the
+ * needle is placed by the figure as a share of gross income.
+ *
+ * The residual dial runs to the whole income either way. Housing and debts are all that comes off,
+ * so the residual is often more than half of the income, and a dial of half the income would hold
+ * the needle against its end. It is pinned only when housing and debts pass twice the income.
  */
-export const MONEY_SCALE: Scale = { min: -0.5, fair: 0, good: 0, max: 0.5 };
+export const RESIDUAL_SCALE: Scale = { min: -1, fair: 0, good: 0, max: 1 };
+/** The cash flow dial runs to half of the income either way and is pinned past that: what is left after everything is a smaller share. */
+export const CASH_FLOW_SCALE: Scale = { min: -0.5, fair: 0, good: 0, max: 0.5 };
 
 type Side = "above" | "zero" | "below";
 const SIDE_DOT: Record<Side, string> = { above: "bg-chart-3", zero: "bg-chart-axis", below: "bg-loss" };
@@ -193,11 +199,13 @@ type MoneyRow = { label: string; value: string; note?: string; total?: boolean }
  * A dollar figure as a gauge card: the two-zone dial, the figure, which side of zero it is on in
  * words with a dot, and a small table of how it is reached.
  */
-function MoneyCard({ label, secondary, amount, income, status, rows }: {
+function MoneyCard({ label, secondary, amount, income, scale, status, rows }: {
   label: string;
   secondary: string;
   amount: number;
   income: number;
+  /** How far the dial runs either side of $0, as a share of the income. */
+  scale: Scale;
   status: Record<Side, string>;
   rows: MoneyRow[];
 }) {
@@ -207,7 +215,7 @@ function MoneyCard({ label, secondary, amount, income, status, rows }: {
       <h2 className="text-[14px] font-bold">{label}</h2>
       <span className="text-[12px] text-muted">{secondary}</span>
       <div className="mt-2 flex w-full justify-center">
-        <GaugeDial value={side === "zero" ? 0 : amount / income} scale={MONEY_SCALE} twoZone centerLabel="$0" />
+        <GaugeDial value={side === "zero" ? 0 : amount / income} scale={scale} twoZone centerLabel="$0" />
       </div>
       <span className={cn("mt-1 text-[22px] font-extrabold tabular-nums tracking-[-0.01em]", side === "below" && "text-loss")}>{usd(amount)}</span>
       <span data-status={side} className="inline-flex items-center gap-1.5 text-[13px] font-bold">
@@ -290,11 +298,11 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
         <ShareCard label="Housing and debts as a share of income" secondary="back-end ratio" ratio={r.backRatio} band={r.backBand} bands={BACK_BANDS} />
         <MoneyCard
           label="Left after housing and debts" secondary="monthly residual"
-          amount={r.residual} income={input.grossIncome} status={RESIDUAL_STATUS} rows={residualRows(input, r)}
+          amount={r.residual} income={input.grossIncome} scale={RESIDUAL_SCALE} status={RESIDUAL_STATUS} rows={residualRows(input, r)}
         />
         <MoneyCard
           label="Monthly cash flow" secondary="after tax, savings and all costs"
-          amount={r.cashFlow} income={input.grossIncome} status={CASH_FLOW_STATUS} rows={cashFlowRows(input, r)}
+          amount={r.cashFlow} income={input.grossIncome} scale={CASH_FLOW_SCALE} status={CASH_FLOW_STATUS} rows={cashFlowRows(input, r)}
         />
       </div>
 

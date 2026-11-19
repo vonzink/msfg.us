@@ -8,7 +8,7 @@ import { BLANK, exampleValues, toInput } from "./fields";
 import golden from "./golden.json";
 import { calculateBudget, FRONT_BANDS, type BudgetInput } from "./math";
 import { BudgetPrintDetails, BudgetPrintSummary } from "./PrintSummary";
-import { BudgetResults, dialScale, headlineText, PRIVACY_LINE, promptText, RATIO_NOTE, shareText, usd, type FormState } from "./Results";
+import { BudgetResults, CASH_FLOW_SCALE, dialScale, headlineText, PRIVACY_LINE, promptText, RATIO_NOTE, RESIDUAL_SCALE, shareText, usd, type FormState } from "./Results";
 import { blankRows } from "./rows";
 
 const DISCLAIMER = "This is an estimate based on the numbers you entered.";
@@ -345,19 +345,26 @@ describe("D: the residual and the cash flow as gauge cards with tables", () => {
     expect(rows(residualCard(results(typed({ debts: "" }))))[2]).toEqual(["Debt payments", "$0"]);
   });
 
-  it("D3: two-zone dials with $0 at the top centre, the needle placed by the figure as a share of income and pinned at 50%", () => {
+  it("D3: two-zone dials with $0 at the top centre, the needle placed by the figure as a share of income", () => {
     const html = results(goldenInput("example"));
     const dials = html.split("<svg").slice(1).map((s) => s.slice(0, s.indexOf("</svg>")));
     for (const dial of dials.slice(2)) {
       expect([...dial.matchAll(/stroke-(chart-3|chart-4|loss)/g)].map((m) => m[1])).toEqual(["loss", "chart-3"]);
       expect([...dial.matchAll(/<text[^>]*>([^<]+)<\/text>/g)].map((m) => m[1])).toEqual(["$0"]);
     }
-    // 5,700 of 9,000 is past 50%: pinned at the right. 1,220 of 9,000 is 13.56%: 24.4 degrees right of centre.
-    expect(angles(html)[2]).toBe(90);
+    // The residual dial runs to the whole income either way: 5,700 of 9,000 is 63.33%, which is 0.6333 x 90 = 57 degrees right of centre.
+    expect(angles(html)[2]).toBeCloseTo(57, 5);
+    // The cash flow dial runs to half the income: 1,220 of 9,000 is 13.56%, which is 0.1356 x 180 = 24.4 degrees right of centre.
     expect(angles(html)[3]).toBeCloseTo(24.4, 1);
-    // 2,650 of 5,000 is pinned; -150 of 5,000 is 3% left of centre: 5.4 degrees.
-    expect(angles(results(SECOND))[2]).toBe(90);
+    // 2,650 of 5,000 is 53%: 47.7 degrees right. -150 of 5,000 is 3% left of centre on the cash flow dial: 5.4 degrees.
+    expect(angles(results(SECOND))[2]).toBeCloseTo(47.7, 5);
     expect(angles(results(SECOND))[3]).toBeCloseTo(-5.4, 1);
+    // The residual is pinned only past the whole income: -700 of 5,000 is 12.6 degrees left; housing of twice the income is at the far left.
+    expect(angles(results({ ...goldenInput("high"), debts: 3100 }))[2]).toBeCloseTo(-12.6, 5);
+    expect(angles(results({ ...goldenInput("example"), housing: 18000, debts: 600 }))[2]).toBe(-90);
+    expect(angles(results({ ...goldenInput("example"), housing: 0, debts: 0 }))[2]).toBe(90);
+    expect(RESIDUAL_SCALE).toEqual({ min: -1, fair: 0, good: 0, max: 1 });
+    expect(CASH_FLOW_SCALE).toEqual({ min: -0.5, fair: 0, good: 0, max: 0.5 });
     expect(angles(results(goldenInput("expenses-over-income")))[3]).toBe(-90);
   });
 
