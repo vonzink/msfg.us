@@ -1,4 +1,4 @@
-# Public calculators: handoff after seven of eight
+# Public calculators: handoff after all eight
 
 Date: 2026-11-18. Written at the end of a long session so the next one can start from files, not memory.
 
@@ -21,7 +21,8 @@ Date: 2026-11-18. Written at the end of a long session so the next one can start
 | 5 | Rent vs buy, `/calculators/rent-vs-buy` | Done, on `main` |
 | 6 | Home budget, `/calculators/budget` | Done, on `main` |
 | 7 | APR, `/calculators/apr` | Done, on `main` |
-| 8 | Investment retrofit | **Next** |
+| 8 | Investment retrofit | Done, on `main` |
+| 9 | Mortgage: Purchase / Refinance / Payment modes and any term to 30 years (added by Zachary) | **In progress**, branch `feat/mortgage-modes`, plan `2026-11-18-calculator-mortgage-modes.md` |
 
 `main`, GitHub and staging (https://staging.msfg.us) hold the same code. Production (`msfg.us`) is still the old site and is not touched by any of this.
 
@@ -69,11 +70,12 @@ One calculator at a time, each on its own branch from `main`:
 - **Shared kit options added for Home budget, all opt-in:** `keepZero` and `readOnly` on `Field`, `mirror`, `edgeLabels`, `twoZone` and `centerLabel` on `GaugeDial`, `ctaTitle` on `CalculatorPage`.
 - **APR wording:** never "official". The line is "This is an estimate. The APR for your loan is the one on your Loan Estimate." Lender fees include the lender's title insurance, as the dashboard's catalog counts it.
 - **Comparing APR with the dashboard:** the dashboard pre-fills about twenty catalog fees. Clear them there first, or the two will not match.
+- **Investment wording Zachary set:** the verdict starts "On these assumptions,"; the gauges read Higher / Middle / Lower, never Good / Fair / Poor; the tips do not say what lenders want. A line under the closed "Add detail" panel repeats the summaries of the panels inside it.
 - **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block; Rent vs buy stops mortgage payments at the end of the loan, fixes cost inflation at 3%, and adds closing costs, mortgage insurance, HOA dues, the full monthly payment and an optional interest deduction; Home budget uses one income figure for everything and decides bands on the share rounded to a hundredth of a percent; APR takes one fee total, shows the rate itself when nothing is counted, needs a home value for mortgage insurance, solves from 0 and takes loans of $1,000 and up.
 
 ## Notes for the remaining calculators
 
-- **Investment retrofit.** Move growth and sale, income taxes and opportunity cost behind "Add detail"; put the page on `CalculatorPage`; add the config disclaimer and example-rate note. Its markup snapshot test will need a deliberate update.
+All eight are built. What remains is the Mortgage modes work above, the open items below, and the production cutover with its compliance review.
 
 ## Deferred minors, by calculator
 
@@ -86,6 +88,7 @@ None block anything. Zachary has seen all of them.
 - **Refinance breakeven:** an example rate of 0 in tenant config opens the page on the prompt; the printout does not say when monthly savings include debt payments or mortgage insurance.
 - **Rent vs buy:** the chart's two lines differ only by colour and a stay over 12 years has no keyboard route to the yearly figures; rent and price read "2.400" as $2.40; the mortgage insurance cutoff uses the unrounded balance and could differ from the Mortgage calculator by one payment; the call to action reads "Like these numbers?" under a result where renting is ahead (shared band, every calculator).
 - **Home budget:** the first result may not be announced by screen readers; an unreadable balance mid-typing hides the reserves card without a message; the band edges reach a screen reader only through "How this works".
+- **Investment:** with the panels open the printout runs to seven pages and breaks awkwardly; if a browser does not fire its print event the three moved panels print as the words "Add detail"; the page's own caution and the tenant disclaimer overlap; a screen reader still hears "Rating: Higher".
 
 ## Open with Zachary
 
