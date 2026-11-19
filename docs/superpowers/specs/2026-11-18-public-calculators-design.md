@@ -154,6 +154,7 @@ Purpose: "After my house payment and bills, what is left each month?" Not an aff
 - **Prepaid interest** defaults to the dashboard's automatic 15 days. The amount is shown in the result's fee breakdown so it is never a hidden assumption.
 - **Results:** APR headline beside the note rate, with the gap stated in words; the dollar amount of fees the APR accounts for; a short explanation of what APR is.
 - **Required wording:** the result is an estimate and the official APR is the one on the borrower's Loan Estimate.
+- **As built (2026-11-18):** only the loan amount (at least $1,000) and the interest rate must be entered; empty fees, points, credit and mortgage insurance count as 0, and the page says when no lender fees are entered. Lender fees are one total covering what the lender or a mortgage broker charges; appraisal, title and recording are left out. A lender credit lowers the fees and prepaid interest to zero at most and does not come off points. Mortgage insurance needs a home value. With nothing counted, the APR is the interest rate. The fees the APR counts are always listed line by line, to the cent.
 
 ### Investment (retrofit only)
 

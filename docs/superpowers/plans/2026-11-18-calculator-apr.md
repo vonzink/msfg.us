@@ -148,3 +148,21 @@ Pinned values:
 - [ ] **Step 5: Verify on a local production build:** the page returns 200 with the headline; the landing page has eight cards; desktop screenshot and print PDF with headless Chrome, both read. HTTP checks use `ctx_execute` with `fetch`, not `curl`.
 - [ ] **Step 6: Commit:** `feat(calculators): APR page and registry entry`.
 - [ ] **Step 7:** Final review by a fresh reviewer, one fix pass, then deploy to staging with `scripts/deploy-ec2.sh` (no arguments) for Zachary's test.
+
+---
+
+## Amendment 1: review fixes (2026-11-18)
+
+From the final review, each fixed test-first (commit `5f96136`). The reviewer's own solver agreed with `calculateApr` to the third decimal on about a million cases for loans of $5,000 and up.
+
+- The fees table adds up to the cent as shown: every row is rounded to cents and the total is built from the rounded rows.
+- The lender fees hint now covers a mortgage broker's fees, administration, rate lock and similar fees.
+- With the lender fees box empty the page says "No lender fees are entered." beside the result, in the phone bar and in print.
+- The call to action reads "Want to go through your numbers with someone?" on this page.
+- The unused-credit sentence says the credit does not come off discount points.
+- "What APR is" spells out annual percentage rate; "How this works" says what the amount financed and the finance charge are.
+- The solver starts from 0, so a 0% loan with small fees shows its true APR; the smallest loan taken is $1,000; a note shows when the loan is larger than the home value; the printout says a conventional fixed-rate loan is assumed.
+
+**Open with Zachary:** whether lender's title insurance (and the courier and technology fees) belong in the lender fees, as the dashboard's catalog counts them for a conventional loan; and the required sentence "The official APR is the one on your Loan Estimate", given that the Loan Estimate's APR is an estimate and the Closing Disclosure carries the final figure.
+
+**Deferred minors:** the shared money box turns "4k" into "4" on blur; the switch between prompt and result may not be announced; the opening example is not marked as an example beyond the rate note.
