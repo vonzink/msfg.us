@@ -16,7 +16,7 @@ import { calculateMortgage, loanAmountForPayment, RATE_LIMIT, type ExtraFrequenc
  *
  * Property tax and insurance are yearly dollars; HOA dues and mortgage insurance are monthly.
  * Every public calculator uses those same units. The loan term is a typed whole number of years,
- * 1 to 30, in every mode. The model takes up to 40; the field stops at 30.
+ * 1 to 30, in every mode. The model takes up to 40; the field stops at 30. Clear leaves it at 30.
  *
  * The form's values hold every mode's boxes at once, plus `mode`, so a number typed in one mode is
  * still there on the way back. `toInput` reads only the boxes of the current mode.
@@ -102,9 +102,12 @@ const EVERY: FieldDef[] = [...new Map(MODES.flatMap(fieldsOf).map((f) => [f.id, 
 /** What a money box shows for an amount, as it would after focus leaves it. */
 const money = (x: number): string => x.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
-/** Cleared form in a mode. The mode and the other choices keep their setting. */
+/**
+ * Cleared form in a mode. The mode and the other choices keep their setting, and the term stays at
+ * its 30 years: it is a typed box, but an empty term is never what a visitor means.
+ */
 export function blank(mode: Mode): Values {
-  return { ...Object.fromEntries(EVERY.map((f) => [f.id, f.type === "choice" ? f.example : ""])), mode };
+  return { ...Object.fromEntries(EVERY.map((f) => [f.id, f.type === "choice" || f.id === TERM.id ? f.example : ""])), mode };
 }
 
 /** Cleared form in purchase mode. */
@@ -248,6 +251,25 @@ export function inputFault(values: Values): InputFault | null {
       (input.downPayment < 0 || input.downPayment >= input.homePrice ? { field: downPaymentField(values.downUnit), problem: "not-below-price" } : null);
   }
   return first ?? rateFault(values) ?? termFault(values);
+}
+
+/**
+ * What the results and the printout need to know about the mode, beyond the model's own figures.
+ *   - A refinance without a home value hands the model a price equal to the loan, so its
+ *     loan-to-value reads 100. `homeValueKnown` says whether that figure means anything.
+ *   - Payment mode does the same, and its headline quotes the payment as typed with the rate and
+ *     the term, none of which are in the model's result.
+ */
+export type Scenario =
+  | { mode: "purchase" }
+  | { mode: "refinance"; homeValueKnown: boolean }
+  | { mode: "payment"; payment: number; annualRate: number; termYears: number };
+
+export function scenarioOf(values: Values): Scenario {
+  const mode = modeOf(values);
+  if (mode === "refinance") return { mode, homeValueKnown: parseNumber(values.homeValue) > 0 };
+  if (mode === "payment") return { mode, payment: parseNumber(values.payment), annualRate: parseRate(values.rate), termYears: termOf(values) };
+  return { mode };
 }
 
 /** The purchase boxes as a loan, when they make one. */

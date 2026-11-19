@@ -1,24 +1,66 @@
-import { formatUSD } from "@/lib/finance";
+import { formatUSD, formatUSDCents } from "@/lib/finance";
 import { SeriesChart } from "../shared/Charts";
 import { Stat } from "../shared/Stat";
+import type { InputFault, Scenario } from "./fields";
 import type { MortgageResult } from "./math";
 import { duration, MONTHS } from "./dates";
 import { PaymentBreakdown } from "./PaymentBreakdown";
+
+/** Payment mode says this straight under its headline, and again in print. */
+export const NOT_A_LENDING_AMOUNT = "This is arithmetic on the payment you typed. It is not the amount a lender would lend.";
+
+const GENERAL_PROMPT = "Enter the numbers above to see the estimate.";
+
+/**
+ * What to say when there is no result: the box `inputFault` found, and what is wrong with it. The
+ * ranges are the fault's own, so a message cannot drift from the check behind it.
+ */
+export function promptText(fault: InputFault | null): string {
+  if (!fault) return GENERAL_PROMPT;
+  const label = fault.field.label.toLowerCase();
+  switch (fault.problem) {
+    case "unreadable":
+      return `Enter a number for ${label}.`;
+    case "range":
+      return fault.field.id === "rate"
+        ? `Enter an interest rate from ${fault.min}% to ${fault.max}%.`
+        : `Enter a loan term from ${fault.min} to ${fault.max} years.`;
+    case "not-below-price":
+      return "The down payment is more than the home price.";
+    case "below-loan":
+      return "The home value is below the loan amount.";
+    case "not-positive":
+      // A price or a loan amount of 0 is asked for like an empty one.
+      return fault.field.id === "payment" ? "Enter a payment large enough to pay off a loan at this rate." : `Enter the ${label}.`;
+    case "empty":
+      return `Enter the ${label}.`;
+  }
+}
+
+/** A rate as typed, without trailing zeros: 0.07 is "7%". */
+const ratePercent = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 
 /**
  * The results column of the Mortgage calculator. The schedule sits below it at page width. `result` is null when the inputs do not make a
  * loan yet. `start` is null until the browser has supplied today's date, and until then the payoff
  * is given as a length of time instead of a calendar month.
+ *
+ * `scenario` is the mode. A purchase and a refinance lead with the monthly payment; payment mode
+ * leads with the loan amount the typed payment pays off. `r.ltv` only means something when there
+ * is a price or a home value behind it, so the mortgage insurance prompt is left out otherwise.
+ * `fault` is what `inputFault` found, for the prompt when there is no result.
  */
-export function MortgageResults({ result: r, start, disclaimer }: {
+export function MortgageResults({ result: r, start, disclaimer, scenario = { mode: "purchase" }, fault = null }: {
   result: MortgageResult | null;
   start: { month: number; year: number } | null;
   disclaimer: string;
+  scenario?: Scenario;
+  fault?: InputFault | null;
 }) {
   if (!r) {
     return (
       <div role="status" className="rounded-xl border border-line bg-white p-6 text-[16px] text-muted shadow-card">
-        Enter a home price, a down payment smaller than the price, a rate and a term to see your payment.
+        {promptText(fault)}
       </div>
     );
   }
@@ -26,22 +68,30 @@ export function MortgageResults({ result: r, start, disclaimer }: {
   const { first } = r;
   const hasExtra = r.extra.amount > 0;
   const hasPmi = first.pmi > 0;
-  const needsPmiPrompt = r.ltv > 80 && !hasPmi;
+  const measured = scenario.mode === "purchase" || (scenario.mode === "refinance" && scenario.homeValueKnown);
+  const needsPmiPrompt = measured && r.ltv > 80 && !hasPmi;
   const payoff = start ? `${MONTHS[r.payoff.month]} ${r.payoff.year}` : duration(r.schedule.length);
 
   return (
     <>
       <div className="rounded-xl bg-green-800 p-6 text-on-dark shadow-card print:border print:border-ink print:bg-transparent print:text-ink print:shadow-none">
         <p className="text-[13px] font-semibold uppercase tracking-[0.08em] text-mint print:text-muted">
-          Estimated monthly payment
+          {scenario.mode === "payment" ? "Estimated loan amount" : "Estimated monthly payment"}
         </p>
         <p aria-live="polite" className="mt-1 text-[clamp(40px,5vw,58px)] font-extrabold leading-[1.05] tracking-[-0.02em] tabular-nums text-white print:text-ink">
-          {formatUSD(first.total)}
+          {formatUSD(scenario.mode === "payment" ? r.loanAmount : first.total)}
         </p>
-        <p className="mt-1.5 text-[16px] text-on-dark-2 print:text-ink">
-          <strong className="text-white print:text-ink">{formatUSD(first.principalAndInterest)}</strong> principal and
-          interest on a {formatUSD(r.loanAmount)} loan.
-        </p>
+        {scenario.mode === "payment" ? (
+          <p className="mt-1.5 text-[16px] text-on-dark-2 print:text-ink">
+            paid off by <strong className="text-white print:text-ink">{formatUSDCents(scenario.payment)}</strong> a month over{" "}
+            {scenario.termYears} {scenario.termYears === 1 ? "year" : "years"} at {ratePercent(scenario.annualRate)}
+          </p>
+        ) : (
+          <p className="mt-1.5 text-[16px] text-on-dark-2 print:text-ink">
+            <strong className="text-white print:text-ink">{formatUSD(first.principalAndInterest)}</strong> principal and
+            interest on a {formatUSD(r.loanAmount)} loan.
+          </p>
+        )}
         {r.extra.amount > 0 && (
           <p className="mt-1.5 text-[14px] text-on-dark-2 print:text-ink">
             Plus {formatUSD(r.extra.amount)} extra principal{" "}
@@ -59,10 +109,12 @@ export function MortgageResults({ result: r, start, disclaimer }: {
         )}
         {needsPmiPrompt && (
           <p className="mt-1.5 text-[14px] text-on-dark-2 print:text-ink">
-            With less than 20% down, most conventional loans add mortgage insurance. Add it under Add detail.
+            {scenario.mode === "refinance" ? "With a loan above 80% of the home value" : "With less than 20% down"}, most conventional loans add mortgage insurance. Add it under Add detail.
           </p>
         )}
       </div>
+
+      {scenario.mode === "payment" && <p className="mx-1 text-[15px] font-semibold text-ink">{NOT_A_LENDING_AMOUNT}</p>}
 
       <PaymentBreakdown result={r} start={start} />
 

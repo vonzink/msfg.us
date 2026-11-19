@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { downPaymentField, switchDownUnit } from "../shared/fields";
 import {
-  blank, BLANK, DETAIL_FIELDS, detailFields, exampleValues, FRONT_FIELDS, frontFields, inputFault, MODE_FIELD, switchMode, TERM_YEARS, toInput,
+  blank, BLANK, DETAIL_FIELDS, detailFields, exampleValues, FRONT_FIELDS, frontFields, inputFault, MODE_FIELD, scenarioOf, switchMode, TERM_YEARS, toInput,
   type Mode,
 } from "./fields";
 import golden from "./golden.json";
@@ -29,10 +29,10 @@ describe("mortgage fields", () => {
     expect(toInput({ ...example, downUnit: "pct", downPayment: "10" }, start).downPayment).toBe(40000);
   });
 
-  it("clears to empty fields but keeps the choices", () => {
+  it("clears to empty fields but keeps the choices and a 30-year term", () => {
     expect(BLANK.homePrice).toBe("");
     expect(BLANK.rate).toBe("");
-    expect(BLANK.termYears).toBe(""); // a typed box since the term became any whole year from 1 to 30
+    expect(BLANK.termYears).toBe("30"); // a typed box, but an empty term is never what a visitor means
     expect(BLANK.downUnit).toBe("pct");
     expect(BLANK.extraFrequency).toBe("monthly");
   });
@@ -157,10 +157,10 @@ describe("the three modes", () => {
     expect(Math.round(calc(exampleValues(6.5, "payment"))!.loanAmount)).toBe(320000);
   });
 
-  it.each(MODES)("clears to empty boxes and stays in %s mode", (mode) => {
+  it.each(MODES)("clears to empty boxes, a 30-year term, and stays in %s mode", (mode) => {
     const cleared = blank(mode);
     expect(cleared.mode).toBe(mode);
-    expect(cleared).toMatchObject({ homePrice: "", loanAmount: "", homeValue: "", payment: "", rate: "", termYears: "", downUnit: "pct", extraFrequency: "monthly" });
+    expect(cleared).toMatchObject({ homePrice: "", loanAmount: "", homeValue: "", payment: "", rate: "", termYears: "30", downUnit: "pct", extraFrequency: "monthly" });
     expect(calc(cleared)).toBeNull();
     expect(BLANK).toEqual(blank("purchase"));
   });
@@ -292,7 +292,8 @@ describe("what is wrong in purchase mode, for the prompt to name", () => {
   it("names the first box at fault in page order", () => {
     expect(inputFault(BLANK)!.field.id).toBe("homePrice");
     expect(inputFault({ ...BLANK, homePrice: "400,000" })!.field.id).toBe("rate");
-    expect(inputFault({ ...BLANK, homePrice: "400,000", rate: "7" })!.field.id).toBe("termYears");
+    expect(inputFault({ ...BLANK, homePrice: "400,000", rate: "7", termYears: "" })!.field.id).toBe("termYears");
+    expect(inputFault({ ...BLANK, homePrice: "400,000", rate: "7" })).toBeNull(); // Clear leaves the term at 30
   });
 });
 
@@ -374,5 +375,23 @@ describe("switching modes keeps what carries over", () => {
     const round = switchMode(switchMode(switchMode(edited, "refinance", 7), "payment", 7), "purchase", 7);
     expect(round).toMatchObject({ mode: "purchase", homePrice: "500,000", downPayment: "10", downUnit: "pct", ...kept });
     expect(calc(round)!.first).toEqual(calc(edited)!.first);
+  });
+});
+
+describe("what the results are told about the mode", () => {
+  it("is a purchase by default", () => {
+    expect(scenarioOf(exampleValues(7))).toEqual({ mode: "purchase" });
+    expect(scenarioOf({})).toEqual({ mode: "purchase" });
+  });
+
+  it("says whether a refinance has a home value to measure the loan against", () => {
+    expect(scenarioOf(exampleValues(7, "refinance"))).toEqual({ mode: "refinance", homeValueKnown: true });
+    expect(scenarioOf({ ...exampleValues(7, "refinance"), homeValue: "" })).toEqual({ mode: "refinance", homeValueKnown: false });
+    expect(scenarioOf({ ...exampleValues(7, "refinance"), homeValue: "abc" })).toEqual({ mode: "refinance", homeValueKnown: false });
+  });
+
+  it("carries the payment as typed, with the rate and the term, in payment mode", () => {
+    expect(scenarioOf(exampleValues(7, "payment"))).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30 });
+    expect(scenarioOf({ ...exampleValues(7, "payment"), payment: "1,500", termYears: "7" })).toMatchObject({ payment: 1500, termYears: 7 });
   });
 });
