@@ -20,6 +20,24 @@ import BreakevenPage from "./refinance-breakeven/page";
 import RentVsBuyPage from "./rent-vs-buy/page";
 import InvestmentPage from "./investment/page";
 import LandingPage from "./page";
+import { InvestmentCalculator } from "@/calculators/investment/InvestmentCalculator";
+import { HOW_IT_WORKS as INVESTMENT_HOW, INTRO as INVESTMENT_INTRO, QUESTIONS as INVESTMENT_QUESTIONS } from "@/calculators/investment/content";
+import { CalculatorPage } from "@/calculators/shared/CalculatorPage";
+
+type Node = string | number | null | undefined | boolean | Node[] | { type: unknown; props: Record<string, unknown> & { children?: Node } };
+/** Every piece of text written straight into an element tree, in order, without running its components. */
+const texts = (node: Node): string[] => {
+  if (typeof node === "string") return [node];
+  if (Array.isArray(node)) return node.flatMap(texts);
+  if (node && typeof node === "object") return texts(node.props.children);
+  return [];
+};
+/** Every element of one component type in an element tree. */
+const elementsOf = (node: Node, type: unknown): { props: Record<string, unknown> }[] => {
+  if (Array.isArray(node)) return node.flatMap((n) => elementsOf(n, type));
+  if (!node || typeof node !== "object") return [];
+  return [...(node.type === type ? [node] : []), ...elementsOf(node.props.children, type)];
+};
 
 const NOT_FOUND = /NEXT_HTTP_ERROR_FALLBACK;404|NEXT_NOT_FOUND/;
 const outcome = (page: () => Promise<unknown>) =>
@@ -82,6 +100,45 @@ describe("switched-off calculators", () => {
     expect(await outcome(RentVsBuyPage)).toBe("not found");
     expect(await outcome(MortgagePage)).toBe("renders");
     expect(await outcome(LandingPage)).toBe("renders");
+  });
+
+  it("makes a switched-off investment calculator not found", async () => {
+    expect(await outcome(InvestmentPage)).toBe("renders");
+    settings.disabled = ["investment"];
+    expect(await outcome(InvestmentPage)).toBe("not found");
+    expect(await outcome(MortgagePage)).toBe("renders");
+    expect(await outcome(LandingPage)).toBe("renders");
+  });
+
+  it("puts the investment page on the shared calculator page, with the settings from tenant config", async () => {
+    const page = (await InvestmentPage()) as { type: unknown; props: Record<string, unknown> & { entry: { slug: string }; children: { type: unknown; props: Record<string, unknown> } } };
+    expect(page.type).toBe(CalculatorPage);
+    expect(page.props.entry.slug).toBe("investment");
+    expect(page.props.intro).toBe(INVESTMENT_INTRO);
+    expect(page.props.howItWorks).toBe(INVESTMENT_HOW);
+    expect(page.props.questions).toBe(INVESTMENT_QUESTIONS);
+    expect(page.props.children.type).toBe(InvestmentCalculator);
+    expect(page.props.children.props).toEqual({
+      exampleRatePct: DEFAULT_TENANT_CONFIG.calculators.exampleRatePct,
+      exampleRateNote: DEFAULT_TENANT_CONFIG.legal.exampleRateNote,
+      disclaimer: DEFAULT_TENANT_CONFIG.legal.calculatorDisclaimer,
+    });
+  });
+
+  it("shows the investment page's heading, intro, calculator, How this works and questions", async () => {
+    const page = (await InvestmentPage()) as { props: Parameters<typeof CalculatorPage>[0] };
+    const tree = CalculatorPage(page.props) as Node;
+    const shown = texts(tree);
+    expect(shown.filter((t) => t === "Will this rental pay off?")).toHaveLength(1);
+    expect(shown).toContain(INVESTMENT_INTRO);
+    expect(shown).toContain("How this works");
+    expect(shown).toContain("Common questions");
+    for (const p of INVESTMENT_HOW) expect(shown, p).toContain(p);
+    for (const { q, a } of INVESTMENT_QUESTIONS) {
+      expect(shown, q).toContain(q);
+      expect(shown, a).toContain(a);
+    }
+    expect(elementsOf(tree, InvestmentCalculator)).toHaveLength(1);
   });
 
   it("makes a switched-off refinance breakeven calculator not found", async () => {
