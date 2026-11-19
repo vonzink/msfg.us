@@ -1,4 +1,4 @@
-import { downPaymentField, parseNumber, parseRate, switchDownUnit, type FieldDef, type Values } from "../shared/fields";
+import { downPaymentField, parseNumber, parseRate, typedAmount, type FieldDef, type Values } from "../shared/fields";
 import type { RentVsBuyInput } from "./math";
 
 /**
@@ -7,11 +7,19 @@ import type { RentVsBuyInput } from "./math";
  * Rent is monthly dollars; closing costs are one total; property tax, insurance and maintenance
  * are yearly dollars; mortgage insurance and HOA dues are monthly dollars. Mortgage insurance, HOA
  * dues and the income tax rate are optional and start empty: empty means none.
+ *
+ * In the down payment, the closing costs and the three yearly costs a typed 0 is an answer (zero
+ * down, no property tax), so those boxes are marked `keepZero` and the shared money box leaves a
+ * typed 0 in place.
  */
+
+/** The down payment box in the given unit ("pct" or "usd"). Zero down is an answer. */
+export const downPaymentBox = (unit: string): FieldDef => ({ ...downPaymentField(unit), keepZero: true });
+
 export const FRONT_FIELDS: FieldDef[] = [
   { id: "monthlyRent", label: "Monthly rent", type: "money", example: "2,400", hint: "Per month." },
   { id: "homePrice", label: "Home price", type: "money", example: "400,000" },
-  downPaymentField("pct"),
+  downPaymentBox("pct"),
   {
     id: "downUnit", label: "Down payment as", type: "choice", example: "pct",
     options: [{ value: "pct", label: "Percent of price" }, { value: "usd", label: "Dollars" }],
@@ -26,12 +34,12 @@ export const DETAIL_FIELDS: FieldDef[] = [
     id: "termYears", label: "Loan term", type: "choice", example: "30",
     options: [10, 15, 20, 25, 30].map((y) => ({ value: String(y), label: `${y} yr` })),
   },
-  { id: "closingCosts", label: "Closing costs", type: "money", example: "8,000", hint: "The buyer's costs on the purchase, as one total." },
-  { id: "yearlyTax", label: "Property tax", type: "money", example: "4,800", hint: "Per year." },
-  { id: "yearlyInsurance", label: "Homeowners insurance", type: "money", example: "1,800", hint: "Per year." },
+  { id: "closingCosts", label: "Closing costs", type: "money", example: "8,000", keepZero: true, hint: "The buyer's costs on the purchase, as one total." },
+  { id: "yearlyTax", label: "Property tax", type: "money", example: "4,800", keepZero: true, hint: "Per year." },
+  { id: "yearlyInsurance", label: "Homeowners insurance", type: "money", example: "1,800", keepZero: true, hint: "Per year." },
   { id: "monthlyMi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month. Common with less than 20% down." },
   { id: "monthlyHoa", label: "HOA dues", type: "money", example: "", hint: "Per month." },
-  { id: "yearlyMaintenance", label: "Maintenance", type: "money", example: "4,000", hint: "Per year. About 1% of the home price is a common rule of thumb." },
+  { id: "yearlyMaintenance", label: "Maintenance", type: "money", example: "4,000", keepZero: true, hint: "Per year. About 1% of the home price is a common rule of thumb." },
   { id: "appreciation", label: "Home value rises", type: "pct", example: "3", hint: "Per year." },
   { id: "rentIncrease", label: "Rent rises", type: "pct", example: "3", hint: "Per year." },
   { id: "sellingCosts", label: "Selling costs", type: "pct", example: "6", hint: "Of the sale price." },
@@ -64,41 +72,10 @@ export const BLANK: Values = Object.fromEntries(
 /** Years typed as text, rounded to a whole year. Empty or junk is NaN, meaning "not entered". */
 const wholeYears = (text: string | undefined): number => (/\d/.test(text ?? "") ? Math.round(parseNumber(text)) : Number.NaN);
 
-/**
- * An amount where 0 is an answer: the down payment, the closing costs and the three yearly costs. "$", "%", commas
- * and spaces are dropped; what is left must be one number. Empty or anything else ("2..5", "abc")
- * is NaN, meaning "not entered", and is never read as 0.
- */
-const typedAmount = (text: string | undefined): number => {
-  const cleaned = String(text ?? "").replace(/[$%,\s]/g, "");
-  return /^-?(\d+\.?\d*|\.\d+)$/.test(cleaned) ? Number(cleaned) : Number.NaN;
-};
-
 /** An optional box: empty is 0 ("none"). Anything typed must be one number, or it is NaN. */
 const isEmpty = (text: string | undefined): boolean => String(text ?? "").trim() === "";
 const optionalAmount = (text: string | undefined): number => (isEmpty(text) ? 0 : typedAmount(text));
 const optionalRate = (text: string | undefined): number => (isEmpty(text) ? 0 : parseRate(text));
-
-/** The boxes in which a typed 0 is an answer and has to stay in the box. */
-const ZERO_IS_AN_ANSWER = ["downPayment", "closingCosts", "yearlyTax", "yearlyInsurance", "yearlyMaintenance"];
-
-/**
- * The shared money box empties itself when focus leaves it holding 0. In the boxes above, 0 is an
- * answer, so the calculator passes that change through here: `before` is what the box held,
- * `after` what the box wants to become. An emptied typed 0 stays "0"; all else goes through.
- */
-export function keepTypedZero(id: string, before: string | undefined, after: string): string {
-  return after === "" && ZERO_IS_AN_ANSWER.includes(id) && typedAmount(before) === 0 ? "0" : after;
-}
-
-/**
- * Changes the down payment unit. The shared switch clears a box that holds 0, which here would
- * turn "zero down" into "not entered"; zero down is zero in either unit, so it stays.
- */
-export function switchUnitKeepingZero(values: Values, unit: string): Values {
-  const next = switchDownUnit(values, unit);
-  return next !== values && typedAmount(values.downPayment) === 0 ? { ...next, downPayment: "0" } : next;
-}
 
 /** Turns what was typed into the model's input. */
 export function toInput(values: Values): RentVsBuyInput {

@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { AddDetail } from "../shared/AddDetail";
 import { CalculatorShell } from "../shared/CalculatorShell";
 import { Field } from "../shared/Field";
-import { downPaymentField, parseNumber, type FieldDef, type Numbers, type Values } from "../shared/fields";
-import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, keepTypedZero, switchUnitKeepingZero, toInput } from "./fields";
+import { parseNumber, switchDownUnit, type FieldDef, type Numbers, type Values } from "../shared/fields";
+import { BLANK, DETAIL_FIELDS, downPaymentBox, exampleValues, FRONT_FIELDS, toInput } from "./fields";
 import { calculateRentVsBuy } from "./math";
 import { RentVsBuyPrintDetails, RentVsBuyPrintSummary } from "./PrintSummary";
 import { headlineText, MI_NOT_COUNTED, mortgageInsuranceIgnored, RentVsBuyResults, yearsText } from "./Results";
@@ -29,12 +29,9 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
   disclaimer: string;
 }) {
   const [values, setValues] = useState<Values>(() => exampleValues(exampleRatePct));
-  // True while focus is leaving a box. The shared money box empties itself on the way out when it
-  // holds 0; here a typed 0 is an answer (zero down, no property tax), so that one change is undone.
-  const leaving = useRef(false);
+  // Zero down is an answer here, so a typed 0 stays in the box when the unit changes.
   const onChange = (id: string, value: string) => {
-    const fromBlur = leaving.current;
-    setValues((v) => (id === "downUnit" ? switchUnitKeepingZero(v, value) : { ...v, [id]: fromBlur ? keepTypedZero(id, v[id], value) : value }));
+    setValues((v) => (id === "downUnit" ? switchDownUnit(v, value, true) : { ...v, [id]: value }));
   };
 
   const numbers = useMemo<Numbers>(
@@ -46,7 +43,7 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
   const result = useMemo(() => calculateRentVsBuy(input), [input]);
 
   const front: FieldDef[] = FRONT_FIELDS.map((f) =>
-    f.id === "downPayment" ? downPaymentField(values.downUnit) : f.id === "rate" ? { ...f, hint: exampleRateNote } : f,
+    f.id === "downPayment" ? downPaymentBox(values.downUnit) : f.id === "rate" ? { ...f, hint: exampleRateNote } : f,
   );
   // Mortgage insurance typed with 20% or more down is not charged: say so under the box.
   const detail: FieldDef[] = DETAIL_FIELDS.map((f) =>
@@ -64,7 +61,7 @@ export function RentVsBuyCalculator({ exampleRatePct, exampleRateNote, disclaime
       onExample={() => setValues(exampleValues(exampleRatePct))}
       onClear={() => setValues(BLANK)}
       form={
-        <div className="contents" onBlurCapture={() => { leaving.current = true; }} onBlur={() => { leaving.current = false; }}>
+        <div className="contents">
           {CARDS.map(({ heading, ids }) => (
             <section key={heading} className={card}>
               <h2 className="px-5 py-4 text-[17px] font-bold max-[600px]:px-4">{heading}</h2>

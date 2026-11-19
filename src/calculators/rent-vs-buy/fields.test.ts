@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { switchDownUnit } from "../shared/fields";
-import { BLANK, DETAIL_FIELDS, exampleValues, FRONT_FIELDS, keepTypedZero, switchUnitKeepingZero, toInput } from "./fields";
+import { BLANK, DETAIL_FIELDS, downPaymentBox, exampleValues, FRONT_FIELDS, toInput } from "./fields";
 import golden from "./golden.json";
 import { calculateRentVsBuy } from "./math";
 
@@ -121,16 +121,11 @@ describe("rent vs buy fields", () => {
     }
   });
 
-  it("keeps a typed 0 when the money box would empty it on leaving the field", () => {
-    for (const id of ["downPayment", ...COSTS]) {
-      expect(keepTypedZero(id, "0", ""), id).toBe("0");
-      expect(keepTypedZero(id, "0.00", ""), id).toBe("0");
-      expect(keepTypedZero(id, "", ""), id).toBe("");
-      expect(keepTypedZero(id, "abc", ""), id).toBe("");
-      expect(keepTypedZero(id, "4800", "4,800"), id).toBe("4,800");
-    }
-    expect(keepTypedZero("homePrice", "0", "")).toBe("");
-    expect(keepTypedZero("monthlyRent", "0", "")).toBe("");
+  it("marks the boxes in which a typed 0 is an answer, so the shared money box keeps it on leaving the field", () => {
+    const kept = [...FRONT_FIELDS, ...DETAIL_FIELDS].filter((f) => f.keepZero).map((f) => f.id);
+    expect(kept).toEqual(["downPayment", ...COSTS]);
+    expect(downPaymentBox("usd")).toEqual({ id: "downPayment", label: "Down payment", type: "money", example: "80,000", keepZero: true });
+    expect(downPaymentBox("pct")).toEqual({ id: "downPayment", label: "Down payment", type: "pct", example: "20", keepZero: true });
   });
 });
 
@@ -186,12 +181,12 @@ describe("nothing to compare gives no result, never a crash", () => {
 
   it("F2: keeps a typed 0 down when the unit changes, and converts everything else as before", () => {
     const zero = { ...example, downPayment: "0" };
-    expect(switchUnitKeepingZero(zero, "usd")).toMatchObject({ downUnit: "usd", downPayment: "0" });
-    expect(switchUnitKeepingZero({ ...zero, downUnit: "usd" }, "pct")).toMatchObject({ downUnit: "pct", downPayment: "0" });
-    expect(result(switchUnitKeepingZero(zero, "usd"))!.loanAmount).toBe(400000);
-    expect(switchUnitKeepingZero(example, "usd")).toEqual(switchDownUnit(example, "usd"));
-    expect(switchUnitKeepingZero(example, "pct")).toBe(example);
-    expect(switchUnitKeepingZero({ ...example, downPayment: "" }, "usd").downPayment).toBe("");
+    expect(switchDownUnit(zero, "usd", true)).toMatchObject({ downUnit: "usd", downPayment: "0" });
+    expect(switchDownUnit({ ...zero, downUnit: "usd" }, "pct", true)).toMatchObject({ downUnit: "pct", downPayment: "0" });
+    expect(result(switchDownUnit(zero, "usd", true))!.loanAmount).toBe(400000);
+    expect(switchDownUnit(example, "usd", true)).toEqual(switchDownUnit(example, "usd"));
+    expect(switchDownUnit(example, "pct", true)).toBe(example);
+    expect(switchDownUnit({ ...example, downPayment: "" }, "usd", true).downPayment).toBe("");
   });
 
   it("mortgage insurance and HOA dues are optional: empty is none, a number is monthly dollars, anything else is unreadable", () => {

@@ -18,6 +18,11 @@ export type FieldDef = {
   slider?: { min: number; max: number; step: number };
   options?: { value: string; label: string }[];
   wide?: boolean;
+  /**
+   * For a money box in which 0 is an answer ("no debts", "zero down"). The box normally empties
+   * itself when focus leaves it holding 0; with this set a typed 0 stays in the box as "0".
+   */
+  keepZero?: boolean;
 };
 
 export type Numbers = Record<string, number>;
@@ -38,6 +43,26 @@ export function parseRate(v: string | undefined): number {
 }
 
 /**
+ * An amount where 0 is an answer and empty is "not entered". "$", "%", commas and spaces are
+ * dropped; what is left must be one number. Empty or anything else ("2..5", "abc") is NaN and is
+ * never read as 0.
+ */
+export function typedAmount(text: string | undefined): number {
+  const cleaned = String(text ?? "").replace(/[$%,\s]/g, "");
+  return /^-?(\d+\.?\d*|\.\d+)$/.test(cleaned) ? Number(cleaned) : Number.NaN;
+}
+
+/**
+ * What a money box holds once focus has left it: the amount with its digits grouped, or empty
+ * when it is 0 or unreadable. With `keepZero` (see FieldDef) a typed 0 stays as "0".
+ */
+export function moneyOnBlur(text: string, keepZero = false): string {
+  const n = parseNumber(text);
+  if (n) return n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return keepZero && typedAmount(text) === 0 ? "0" : "";
+}
+
+/**
  * The down payment box changes between dollars and percent with the unit switch beside it.
  * A calculator that uses it has the fields `homePrice`, `downPayment` and `downUnit` ("pct" or "usd").
  */
@@ -50,8 +75,10 @@ export function downPaymentField(unit: string): FieldDef {
 /**
  * Changes the down payment unit and converts what is in the box, so 20% of a $400,000 home
  * becomes $80,000 and back. Without a price there is nothing to convert against, so the box clears.
+ * A box holding 0 clears as well, unless `keepZero` is set: where zero down is an answer, a typed
+ * 0 is zero in either unit and stays.
  */
-export function switchDownUnit(values: Values, unit: string): Values {
+export function switchDownUnit(values: Values, unit: string, keepZero = false): Values {
   if (unit === values.downUnit) return values;
   const price = parseNumber(values.homePrice);
   const typed = parseNumber(values.downPayment);
@@ -61,6 +88,8 @@ export function switchDownUnit(values: Values, unit: string): Values {
       unit === "usd"
         ? Math.round((price * typed) / 100).toLocaleString("en-US")
         : String(Math.round((typed / price) * 10000) / 100);
+  } else if (keepZero && typedAmount(values.downPayment) === 0) {
+    downPayment = "0";
   }
   return { ...values, downUnit: unit, downPayment };
 }

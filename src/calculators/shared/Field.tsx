@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
-import { parseNumber, type FieldDef, type Numbers, type Values } from "./fields";
+import { moneyOnBlur, parseNumber, type FieldDef, type Numbers, type Values } from "./fields";
 
 /**
  * One input: money, percent, number or text as a labelled text box (with an optional slider), or a
@@ -76,9 +76,7 @@ export function Field({ def, idPrefix, values, numbers, onChange, disabled = fal
           aria-describedby={describedBy}
           onChange={(e) => onChange(def.id, e.target.value)}
           onBlur={() => {
-            if (def.type !== "money") return;
-            const n = parseNumber(value);
-            onChange(def.id, n ? n.toLocaleString("en-US", { maximumFractionDigits: 2 }) : "");
+            if (def.type === "money") onChange(def.id, moneyOnBlur(value, def.keepZero));
           }}
           className="w-full min-w-0 flex-1 border-0 bg-transparent px-2.5 py-2.5 text-[16px] font-semibold tabular-nums text-ink outline-none placeholder:font-normal placeholder:text-muted/60 disabled:cursor-not-allowed"
         />
