@@ -255,6 +255,16 @@ describe("no result", () => {
     expect(calc(changes)).toBeNull();
   });
 
+  it("fees that leave so little financed that the solver stops at its 100% ceiling", () => {
+    // 1,000 financed against payments of 2,128.97 a month is far above 100% a year: no figure to show.
+    expect(calc({ lenderFees: 319000, prepaidInterest: 0 })).toBeNull();
+    expect(calc({ lenderFees: 300000, prepaidInterest: 0 })).toBeNull();
+    // 120,000 financed against the same payments solves at about 21%.
+    const r = calc({ lenderFees: 200000, prepaidInterest: 0 })!;
+    expect(r.apr).toBeGreaterThan(0.2);
+    expect(r.apr).toBeLessThan(0.22);
+  });
+
   it("the edges that do give a result", () => {
     expect(calc({ rate: 0 })).not.toBeNull();
     expect(calc({ rate: 0.2999 })).not.toBeNull();

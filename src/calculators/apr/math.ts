@@ -54,7 +54,12 @@
  *   - Odd first periods and the Regulation Z tolerances. This is an estimate; the official APR is
  *     the one on the Loan Estimate.
  *   - Below an interest rate of 0.01% the solver's lower bound is the answer whenever there are
- *     fees, and an APR above 100% comes back as 100%.
+ *     fees.
+ *
+ * One more difference from the dashboard
+ *   - The solver's range ends at 100%, so on the dashboard an APR above that comes back as 100%.
+ *     Here a solved APR at that ceiling gives no result: the fees are too large for the loan
+ *     amount, and 100% would be a made-up figure.
  */
 import { monthlyPayment, roundCents } from "@/lib/finance";
 
@@ -67,6 +72,8 @@ export const RATE_LIMIT = { low: 0, high: 0.3 } as const;
 export const POINTS_LIMIT = { low: 0, high: 0.1 } as const;
 /** The longest term taken, 40 years. */
 export const MAX_TERM_MONTHS = 480;
+/** The solver's range ends at 100%. An APR solved at or above this is the range, not an answer. */
+const SOLVER_CEILING = 0.9999;
 
 export type AprInput = {
   loanAmount: number;
@@ -151,8 +158,8 @@ function solveApr(payments: number[], amountFinanced: number): number {
 
 /**
  * null when the loan amount is not above zero, the rate or term is unusable, a figure is negative
- * or NaN where a number is required, mortgage insurance is entered without a home value, or the
- * fees leave nothing financed.
+ * or NaN where a number is required, mortgage insurance is entered without a home value, the fees
+ * leave nothing financed, or they leave so little that the APR is at the solver's 100% ceiling.
  */
 export function calculateApr(input: AprInput): AprResult | null {
   const { loanAmount, rate, termMonths, lenderFees, points, lenderCredit, monthlyMi, homeValue } = input;
@@ -184,6 +191,7 @@ export function calculateApr(input: AprInput): AprResult | null {
   // Decision 4: with nothing counted the APR is the rate itself; otherwise it is never below it.
   const nothingCounted = feesTotal === 0 && miMonths === 0;
   const apr = nothingCounted ? rate : Math.max(rate, solveApr(payments, amountFinanced));
+  if (apr >= SOLVER_CEILING) return null;
 
   return {
     apr,
