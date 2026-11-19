@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { GaugeDial } from "./Gauge";
+import { GaugeDial, GaugeRating } from "./Gauge";
 import type { Scale } from "./gaugeScale";
 
 const s: Scale = { min: 0, fair: 10, good: 20, max: 40 };
@@ -8,6 +8,17 @@ const dial = (value: number, props: { mirror?: boolean; edgeLabels?: [string, st
   renderToStaticMarkup(<GaugeDial value={value} scale={s} {...props} />);
 const zones = (html: string) => [...html.matchAll(/<path d="M([\d.]+),[^"]*"[^>]*class="([^"]*)"/g)].map((m) => ({ x: Number(m[1]), cls: m[2] }));
 const angle = (html: string) => Number(html.match(/rotate\((-?[\d.]+)deg\)/)![1]);
+
+describe("the word under a dial", () => {
+  const word = (value: number) => renderToStaticMarkup(<GaugeRating value={value} scale={s} />).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+
+  it("names the zone as Lower, Middle or Higher, and never as a grade", () => {
+    expect(word(5)).toBe("Rating: Lower");
+    expect(word(15)).toBe("Rating: Middle");
+    expect(word(25)).toBe("Rating: Higher");
+    expect(word(Number.NaN)).toBe("");
+  });
+});
 
 describe("the dial as every calculator has had it", () => {
   it("draws poor, fair, good from left to right, with no text on it", () => {

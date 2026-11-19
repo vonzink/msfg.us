@@ -220,8 +220,8 @@ export function verdict(n: Numbers, r: ReoResult): string {
   const monthly = r.cashFlow[0] / 12;
   const first =
     monthly >= 0
-      ? `The rent covers the bills with about ${formatUSD(monthly)} a month left over in year 1.`
-      : `You would add about ${formatUSD(-monthly)} a month out of pocket in year 1.`;
+      ? `On these assumptions, the rent covers the bills with about ${formatUSD(monthly)} a month left over in year 1.`
+      : `On these assumptions, you would add about ${formatUSD(-monthly)} a month out of pocket in year 1.`;
   return first + payback(r) + beatsAlt(n, r);
 }
 

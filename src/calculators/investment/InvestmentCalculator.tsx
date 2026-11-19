@@ -251,23 +251,23 @@ export function InvestmentCalculator({ exampleRatePct, exampleRateNote, disclaim
             <Stat
               label="Monthly cash flow" value={formatUSD(monthlyCf)} sub="Year 1 average, before taxes" loss={monthlyCf < -0.5}
               gauge={{ value: numbers.grossRents > 0 ? monthlyCf / numbers.grossRents : NaN, scale: SCALES.cashFlowShare }}
-              tip="Rent collected minus expenses and the mortgage payment, averaged over year 1, before income tax. Dial: Good keeps 10% or more of the rent, Fair keeps less than that, Poor loses money."
+              tip="Rent collected minus expenses and the mortgage payment, averaged over year 1, before income tax. Dial: Higher keeps 10% or more of the rent, Middle keeps less than that, Lower loses money."
             />
             <Stat
               label="Cash-on-cash" value={pct(r.cashOnCash[0])} sub="Year 1" loss={r.cashOnCash[0] < 0}
               gauge={{ value: r.cashInvested > 0 ? r.cashOnCash[0] : NaN, scale: SCALES.cashOnCash }}
-              tip="Year-1 cash flow divided by the cash you put in. It ignores appreciation and loan paydown. Dial: Good is 8% or more, Fair 4% to 8%, Poor under 4%, less than a savings account might pay."
+              tip="Year-1 cash flow divided by the cash you put in. It ignores appreciation and loan paydown. Dial: Higher is 8% or more, Middle 4% to 8%, Lower under 4%."
             />
             <Stat
               label="Cap rate" value={pct(r.capRate[0])} sub="Year 1, on purchase price" loss={r.capRate[0] < 0}
               gauge={{ value: numbers.purchasePrice > 0 ? r.capRate[0] : NaN, scale: SCALES.capRate }}
-              tip="A full rented year of net operating income divided by the purchase price. It measures the property itself, ignoring the loan. Dial: Good is 7% or more, Fair 5% to 7%, Poor under 5%. What's normal varies by market."
+              tip="A full rented year of net operating income divided by the purchase price. It measures the property itself, ignoring the loan. Dial: Higher is 7% or more, Middle 5% to 7%, Lower under 5%. What's normal varies by market."
             />
             <Stat
               label="Debt coverage" value={hasLoan ? ratio(r.dcr[1]) : "No loan"}
               sub={hasLoan ? "Year 2, first full year" : "Paying all cash"} loss={hasLoan && r.dcr[1] < 1}
               gauge={{ value: hasLoan ? r.dcr[1] : NaN, scale: SCALES.dcr }}
-              tip="Net operating income divided by the yearly mortgage payments. Dial: Good is 1.25 or more, what most lenders want; Fair is 1.00 to 1.25; Poor is under 1.00, where the rent doesn't cover the loan."
+              tip="Net operating income divided by the yearly mortgage payments. Dial: Higher is 1.25 or more; Middle is 1.00 to 1.25; Lower is under 1.00, where the rent doesn't cover the loan."
             />
           </div>
 

@@ -20,7 +20,8 @@ export type Scale = {
   max: number;
 };
 
-export const RATING_LABEL: Record<Rating, string> = { poor: "Poor", fair: "Fair", good: "Good" };
+/** The word shown under a dial. It names the zone the figure is in; it is not a grade. */
+export const RATING_LABEL: Record<Rating, string> = { poor: "Lower", fair: "Middle", good: "Higher" };
 
 /** Which zone a value falls in. A value exactly on a cutoff gets the better zone. */
 export function rate(value: number, s: Scale): Rating {

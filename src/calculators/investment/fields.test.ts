@@ -33,7 +33,7 @@ describe("default deal", () => {
 
   it("explains the result in plain words", () => {
     expect(verdict(n, r)).toBe(
-      "The rent covers the bills with about $2,166 a month left over in year 1. " +
+      "On these assumptions, the rent covers the bills with about $2,166 a month left over in year 1. " +
         "Selling after year 2 would get back more than you put in. It would beat 4% a year after year 3.",
     );
   });
@@ -71,6 +71,22 @@ describe("value after renovation warning", () => {
 });
 
 describe("verdict", () => {
+  it("O1: starts a result with the assumptions, whichever way the cash flow goes", () => {
+    const financed = project({ ...EXAMPLE, amortType: "pi", grossRents: "2,000" });
+    expect(financed.r.cashFlow[0]).toBeLessThan(0);
+    expect(verdict(financed.n, financed.r)).toMatch(/^On these assumptions, you would add about \$[\d,]+ a month out of pocket in year 1\. /);
+    const cash = project(EXAMPLE);
+    expect(verdict(cash.n, cash.r)).toMatch(/^On these assumptions, the rent covers the bills with about \$2,166 a month left over in year 1\. Selling after year 2 /);
+    expect(verdict(cash.n, cash.r).match(/On these assumptions/g)).toHaveLength(1);
+  });
+
+  it("O1: leaves the two prompts as they were", () => {
+    const empty = project(BLANK);
+    expect(verdict(empty.n, empty.r)).toBe("Enter a purchase price and monthly rent to see your numbers, or load the example.");
+    const noRent = project({ ...EXAMPLE, grossRents: "" });
+    expect(verdict(noRent.n, noRent.r)).toBe("Add the monthly rent to see cash flow.");
+  });
+
   it("says when the property never beats the comparison", () => {
     const values = { ...EXAMPLE, altReturn: "9" };
     const { n, r } = project(values);

@@ -140,6 +140,33 @@ describe("R3: the printout's title", () => {
   });
 });
 
+describe("O2: the four gauges", () => {
+  const TIPS = [
+    "Rent collected minus expenses and the mortgage payment, averaged over year 1, before income tax. Dial: Higher keeps 10% or more of the rent, Middle keeps less than that, Lower loses money.",
+    "Year-1 cash flow divided by the cash you put in. It ignores appreciation and loan paydown. Dial: Higher is 8% or more, Middle 4% to 8%, Lower under 4%.",
+    "A full rented year of net operating income divided by the purchase price. It measures the property itself, ignoring the loan. Dial: Higher is 7% or more, Middle 5% to 7%, Lower under 5%. What's normal varies by market.",
+    "Net operating income divided by the yearly mortgage payments. Dial: Higher is 1.25 or more; Middle is 1.00 to 1.25; Lower is under 1.00, where the rent doesn't cover the loan.",
+  ];
+
+  it("explains each dial with its definition and its band edges, in neutral words", () => {
+    render(calculator);
+    expect(screen.getAllByRole("tooltip", { hidden: true }).map((t) => t.textContent)).toEqual(TIPS);
+    const labels = ["Monthly cash flow", "Cash-on-cash", "Cap rate", "Debt coverage"];
+    labels.forEach((label, i) => expect(screen.getByRole("button", { name: `${label}: ${TIPS[i]}` })).toBeTruthy());
+  });
+
+  it("names the worked example's zones Higher, Middle and Middle, with no dial for a cash purchase's debt coverage", () => {
+    render(calculator);
+    const results = document.getElementById("reo-results")!;
+    expect(Array.from(results.querySelectorAll("span.sr-only")).map((s) => s.parentElement!.textContent)).toEqual(["Rating:Higher", "Rating:Middle", "Rating:Middle"]);
+  });
+
+  it("uses no grade word and no lender or savings comparison anywhere on the page", () => {
+    const html = page();
+    expect(html).not.toMatch(/\b(Good|Fair|Poor)\b|most lenders|savings account/);
+  });
+});
+
 describe("the interest rate field", () => {
   const hint = () => document.getElementById("reo-rate-hint")?.textContent;
 

@@ -155,11 +155,12 @@ describe("switched-off calculators", () => {
     expect(await href()).toBeNull();
   });
 
-  it("B8: only the home budget and APR pages word their call to action differently", async () => {
+  it("B8: only the home budget, APR and investment pages word their call to action differently", async () => {
     const title = async (page: () => Promise<unknown>) => ((await page()) as { props: { ctaTitle?: string } }).props.ctaTitle;
     expect(await title(BudgetPage)).toBe("Want to go through your numbers with someone?");
     expect(await title(AprPage)).toBe("Want to go through your numbers with someone?");
-    for (const page of [MortgagePage, BuydownPage, BlendedRatePage, BreakevenPage, RentVsBuyPage, InvestmentPage]) expect(await title(page)).toBeUndefined();
+    expect(await title(InvestmentPage)).toBe("Want to go through your numbers with someone?");
+    for (const page of [MortgagePage, BuydownPage, BlendedRatePage, BreakevenPage, RentVsBuyPage]) expect(await title(page)).toBeUndefined();
   });
 
   it("makes a switched-off blended rate calculator not found", async () => {
