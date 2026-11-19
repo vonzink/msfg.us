@@ -6,9 +6,9 @@
  * to the cent and to two decimals of a percent. Keep the two in step and say so when one changes.
  *
  * What is worked out, all per month
- *   - Housing as a share of income: `housing / grossIncome` (the dashboard's frontDTI).
- *   - Housing and debts as a share of income: `(housing + debts) / grossIncome` (backDTI).
- *   - Left after housing and debts: `grossIncome - housing - debts` (residualAfterDTI). This is
+ *   - Housing as a share of income: `housing / grossIncome` (the dashboard's front ratio).
+ *   - Housing and debts as a share of income: `(housing + debts) / grossIncome` (its back ratio).
+ *   - Left after housing and debts: `grossIncome - housing - debts` (its residual after both). This is
  *     before tax and before living costs.
  *   - Tax and savings are each a share of gross income: `grossIncome x taxRate` and
  *     `grossIncome x savingsRate`. Spendable income is gross income minus both.
@@ -26,13 +26,13 @@
  *     income is then negative.
  *   - Bands: a ratio at or under `comfortable` is "comfortable", at or under `stretching` is
  *     "stretching", above it "high". A ratio exactly on an edge is in the band below it, as in the
- *     dashboard's `pct <= guideline` tests. They are a way to read a share of income, nothing more.
+ *     dashboard's own `<=` tests. They are a way to read a share of income, nothing more.
  *   - Sums are kept unrounded, as on the dashboard, and each reported amount is rounded to cents
  *     on its own. Ratios are not rounded.
  *
  * The deliberate differences from the dashboard
- *   - One income figure. The dashboard splits "qualifying" income (its employment rows), which
- *     the two ratios and the residual use, from total household income (qualifying plus
+ *   - One income figure. The dashboard splits the income of its employment rows, which
+ *     the two ratios and the residual use, from total household income (employment plus
  *     additional), which tax, savings and cash flow use. Here there is one gross monthly household
  *     income, used everywhere. The two agree when there is no additional income, which is how
  *     every golden case is recorded.
