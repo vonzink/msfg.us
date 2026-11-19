@@ -1,0 +1,277 @@
+{
+  "source": "msfg-calc a1f25e4",
+  "generatedBy": "scripts/calculators/golden-apr.mjs",
+  "lenderFeesIn": "origination_fee",
+  "cases": [
+    {
+      "name": "example",
+      "input": {
+        "loanAmount": 320000,
+        "rate": 0.07,
+        "termMonths": 360,
+        "lenderFees": 4000,
+        "points": 0,
+        "lenderCredit": 0,
+        "monthlyMi": 0,
+        "homeValue": 0,
+        "prepaidInterest": null
+      },
+      "expected": {
+        "aprPct": 7.154,
+        "noteRatePct": 7,
+        "spreadPct": 0.154,
+        "spreadText": "+0.154%",
+        "principalAndInterest": 2128.97,
+        "amountFinanced": 315079.45,
+        "financeCharge": 451349.02,
+        "feesTotal": 4920.55,
+        "prepaidInterest": 920.55,
+        "totalOfPayments": 766428.47,
+        "miMonths": 0
+      }
+    },
+    {
+      "name": "no-fees",
+      "input": {
+        "loanAmount": 320000,
+        "rate": 0.07,
+        "termMonths": 360,
+        "lenderFees": 0,
+        "points": 0,
+        "lenderCredit": 0,
+        "monthlyMi": 0,
+        "homeValue": 0,
+        "prepaidInterest": 0
+      },
+      "expected": {
+        "aprPct": 7,
+        "noteRatePct": 7,
+        "spreadPct": 0,
+        "spreadText": "-0.000%",
+        "principalAndInterest": 2128.97,
+        "amountFinanced": 320000,
+        "financeCharge": 446428.47,
+        "feesTotal": 0,
+        "prepaidInterest": 0,
+        "totalOfPayments": 766428.47,
+        "miMonths": 0
+      }
+    },
+    {
+      "name": "points",
+      "input": {
+        "loanAmount": 320000,
+        "rate": 0.07,
+        "termMonths": 360,
+        "lenderFees": 4000,
+        "points": 0.01,
+        "lenderCredit": 0,
+        "monthlyMi": 0,
+        "homeValue": 0,
+        "prepaidInterest": null
+      },
+      "expected": {
+        "aprPct": 7.257,
+        "noteRatePct": 7,
+        "spreadPct": 0.257,
+        "spreadText": "+0.257%",
+        "principalAndInterest": 2128.97,
+        "amountFinanced": 311879.45,
+        "financeCharge": 454549.02,
+        "feesTotal": 8120.55,
+        "prepaidInterest": 920.55,
+        "totalOfPayments": 766428.47,
+        "miMonths": 0
+      }
+    },
+    {
+      "name": "credit-smaller",
+      "input": {
+        "loanAmount": 320000,
+        "rate": 0.07,
+        "termMonths": 360,
+        "lenderFees": 4000,
+        "points": 0,
+        "lenderCredit": 1500,
+        "monthlyMi": 0,
+        "homeValue": 0,
+        "prepaidInterest": null
+      },
+      "expected": {
+        "aprPct": 7.107,
+        "noteRatePct": 7,
+        "spreadPct": 0.107,
+        "spreadText": "+0.107%",
+        "principalAndInterest": 2128.97,
+        "amountFinanced": 316579.45,
+        "financeCharge": 449849.02,
+        "feesTotal": 3420.55,
+        "prepaidInterest": 920.55,
+        "totalOfPayments": 766428.47,
+        "miMonths": 0
+      }
+    },
+    {
+      "name": "credit-larger",
+      "input": {
+        "loanAmount": 320000,
+        "rate": 0.07,
+        "termMonths": 360,
+        "lenderFees": 4000,
+        "points": 0,
+        "lenderCredit": 9000,
+        "monthlyMi": 0,
+        "homeValue": 0,
+        "prepaidInterest": null
+      },
+      "expected": {
+        "aprPct": 7,
+        "noteRatePct": 7,
+        "spreadPct": 0,
+        "spreadText": "-0.000%",
+        "principalAndInterest": 2128.97,
+        "amountFinanced": 320000,
+        "financeCharge": 446428.47,
+        "feesTotal": 0,
+        "prepaidInterest": 920.55,
+        "totalOfPayments": 766428.47,
+        "miMonths": 0
+      }
+    },
+    {
+      "name": "with-mi",
+      "input": {
+        "loanAmount": 380000,
+        "rate": 0.0675,
+        "termMonths": 360,
+        "lenderFees": 3500,
+        "points": 0,
+        "lenderCredit": 0,
+        "monthlyMi": 160,
+        "homeValue": 400000,
+        "prepaidInterest": null
+      },
+      "expected": {
+        "aprPct": 7.274,
+        "noteRatePct": 6.75,
+        "spreadPct": 0.524,
+        "spreadText": "+0.524%",
+        "principalAndInterest": 2464.67,
+        "amountFinanced": 375445.89,
+        "financeCharge": 534076.31,
+        "feesTotal": 4554.11,
+        "prepaidInterest": 1054.11,
+        "totalOfPayments": 909522.2,
+        "miMonths": 139
+      }
+    },
+    {
+      "name": "mi-not-needed",
+      "input": {
+        "loanAmount": 300000,
+        "rate": 0.0675,
+        "termMonths": 360,
+        "lenderFees": 3500,
+        "points": 0,
+        "lenderCredit": 0,
+        "monthlyMi": 160,
+        "homeValue": 400000,
+        "prepaidInterest": null
+      },
+      "expected": {
+        "aprPct": 6.893,
+        "noteRatePct": 6.75,
+        "spreadPct": 0.143,
+        "spreadText": "+0.143%",
+        "principalAndInterest": 1945.79,
+        "amountFinanced": 295667.81,
+        "financeCharge": 404818.13,
+        "feesTotal": 4332.19,
+        "prepaidInterest": 832.19,
+        "totalOfPayments": 700485.94,
+        "miMonths": 0
+      }
+    },
+    {
+      "name": "fifteen-year",
+      "input": {
+        "loanAmount": 250000,
+        "rate": 0.0625,
+        "termMonths": 180,
+        "lenderFees": 3000,
+        "points": 0.005,
+        "lenderCredit": 0,
+        "monthlyMi": 0,
+        "homeValue": 0,
+        "prepaidInterest": null
+      },
+      "expected": {
+        "aprPct": 6.562,
+        "noteRatePct": 6.25,
+        "spreadPct": 0.312,
+        "spreadText": "+0.312%",
+        "principalAndInterest": 2143.56,
+        "amountFinanced": 245107.88,
+        "financeCharge": 140732.41,
+        "feesTotal": 4892.12,
+        "prepaidInterest": 642.12,
+        "totalOfPayments": 385840.29,
+        "miMonths": 0
+      }
+    },
+    {
+      "name": "prepaid-typed",
+      "input": {
+        "loanAmount": 320000,
+        "rate": 0.07,
+        "termMonths": 360,
+        "lenderFees": 4000,
+        "points": 0,
+        "lenderCredit": 0,
+        "monthlyMi": 0,
+        "homeValue": 0,
+        "prepaidInterest": 1800
+      },
+      "expected": {
+        "aprPct": 7.182,
+        "noteRatePct": 7,
+        "spreadPct": 0.182,
+        "spreadText": "+0.182%",
+        "principalAndInterest": 2128.97,
+        "amountFinanced": 314200,
+        "financeCharge": 452228.47,
+        "feesTotal": 5800,
+        "prepaidInterest": 1800,
+        "totalOfPayments": 766428.47,
+        "miMonths": 0
+      }
+    },
+    {
+      "name": "zero-rate",
+      "input": {
+        "loanAmount": 200000,
+        "rate": 0,
+        "termMonths": 360,
+        "lenderFees": 2000,
+        "points": 0,
+        "lenderCredit": 0,
+        "monthlyMi": 0,
+        "homeValue": 0,
+        "prepaidInterest": null
+      },
+      "expected": {
+        "aprPct": 0.067,
+        "noteRatePct": 0,
+        "spreadPct": 0.067,
+        "spreadText": "+0.067%",
+        "principalAndInterest": 555.56,
+        "amountFinanced": 198000,
+        "financeCharge": 2000,
+        "feesTotal": 2000,
+        "prepaidInterest": 0,
+        "totalOfPayments": 200000,
+        "miMonths": 0
+      }
+    }
+  ]
+}
