@@ -111,3 +111,7 @@ Behaviour:
 - A payment that pays off less than $1,000 gives a prompt; no balance chart under two years; clearer prompts for the down payment and the home value; Refinance back to Purchase keeps the percent unit; Payment to Refinance fills the home value from the price.
 
 **Deferred minors:** carrying a rounded payment between modes can show a loan $1 off the one just on screen; the example payment gives $320,000.30, so with a $400,000 home value typed in Payment mode it sits thirty cents above 80% and mortgage insurance counts; chart x labels may overlap at some terms and the term slider sits at an end while the box holds invalid text (both shared); the call to action's button goes to the purchase application in every mode; with extra principal the sub line says "over N years" while "Paid off" shows the earlier date.
+
+## Amendment 2: no home value in Payment mode (2026-11-18)
+
+Zachary: the home value box in Payment mode "is not relevant"; the visitor can just type mortgage insurance. It was the builder's addition in Amendment 1 and is removed (commit `4452bf6`). Mortgage insurance in Payment mode is counted as typed, as if nothing were put down: it ends when the balance reaches 78% of the loan amount or at the loan's midpoint (payment 162 on the example). A home value typed in Refinance stays in Refinance and is never read in Payment mode. This also removes the thirty-cent quirk listed above.
