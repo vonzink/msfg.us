@@ -212,13 +212,21 @@ describe("itemizing a group", () => {
     expect(calculateBudget(toInput(on, noRows))).toMatchObject({ totalExpenses: 4100, residual: 7400 }); // 1,000 + 600 + 2,500
   });
 
-  it("with every line empty is not entered, and gives no result", () => {
-    for (const group of ["housing", "debts", "living"] as const) {
+  it("C1: housing with every line empty is not entered, and gives no result", () => {
+    const on = { ...example, housingMode: "itemized" };
+    expect(Number.isNaN(toInput(on, noRows).housing)).toBe(true);
+    expect(Number.isNaN(groupTotal(on, noRows, "housing"))).toBe(true);
+    expect(calculateBudget(toInput(on, noRows))).toBeNull();
+  });
+
+  it("C1: debts or living costs with every line empty count as $0", () => {
+    for (const group of ["debts", "living"] as const) {
       const on = { ...example, [`${group}Mode`]: "itemized" };
-      expect(Number.isNaN(toInput(on, noRows)[group]), group).toBe(true);
-      expect(Number.isNaN(groupTotal(on, noRows, group)), group).toBe(true);
-      expect(calculateBudget(toInput(on, noRows)), group).toBeNull();
+      expect(toInput(on, noRows)[group], group).toBe(0);
+      expect(groupTotal(on, noRows, group), group).toBe(0);
     }
+    expect(calculateBudget(toInput({ ...example, debtsMode: "itemized" }, noRows))).toMatchObject({ totalExpenses: 5200, cashFlow: 1820 });
+    expect(calculateBudget(toInput({ ...example, livingMode: "itemized" }, noRows))).toMatchObject({ totalExpenses: 3300, cashFlow: 3720 });
   });
 
   it("counts an empty line beside a filled one as nothing, and a typed 0 as entered", () => {
@@ -250,9 +258,19 @@ describe("nothing to work out gives no result", () => {
     expect(calculateBudget(toInput(BLANK, blankRows()))).toBeNull();
   });
 
-  it.each(FRONT_FIELDS.map((f) => f.id))("the example with %s emptied", (id) => {
+  it.each(["grossIncome", "housing"])("the example with %s emptied", (id) => {
     expect(result({ [id]: "" })).toBeNull();
     expect(result({ [id]: " " })).toBeNull();
+  });
+
+  it("C1: an empty tax rate, debts or living costs box counts as 0, the same as a typed 0", () => {
+    for (const id of ["taxRate", "debts", "living"]) {
+      expect(result({ [id]: "" }), id).toEqual(result({ [id]: "0" }));
+      expect(result({ [id]: "  " }), id).toEqual(result({ [id]: "0" }));
+      expect(toInput({ ...example, [id]: "" }, noRows)[id as "taxRate"], id).toBe(0);
+    }
+    expect(result({ taxRate: "" })).toMatchObject({ taxAmount: 0, spendable: 9000, cashFlow: 3200 });
+    expect(result({ taxRate: "", debts: "", living: "" })).toMatchObject({ totalExpenses: 2700, cashFlow: 6300, residual: 6300 });
   });
 
   it.each(FRONT_FIELDS.map((f) => f.id))("the example with something unreadable in %s", (id) => {
@@ -263,10 +281,13 @@ describe("nothing to work out gives no result", () => {
     expect(result({ grossIncome: "0" })).toBeNull();
   });
 
-  it("after Clear, four of the five example numbers are not enough; the fifth gives the example again", () => {
-    const five = { grossIncome: "9000", taxRate: "22", housing: "2700", debts: "600", living: "2500" };
-    for (const id of Object.keys(five)) expect(calculateBudget(toInput({ ...BLANK, ...five, [id]: "" }, blankRows())), id).toBeNull();
-    expect(calculateBudget(toInput({ ...BLANK, ...five }, blankRows()))).toEqual(result());
+  it("C1: after Clear, the income and the housing payment are enough; the other three give the example again", () => {
+    const two = { grossIncome: "9000", housing: "2700" };
+    for (const id of Object.keys(two)) expect(calculateBudget(toInput({ ...BLANK, ...two, [id]: "" }, blankRows())), id).toBeNull();
+    expect(calculateBudget(toInput({ ...BLANK, ...two }, blankRows()))).toMatchObject({
+      frontRatio: 0.3, backRatio: 0.3, residual: 6300, taxAmount: 0, spendable: 9000, totalExpenses: 2700, cashFlow: 6300,
+    });
+    expect(calculateBudget(toInput({ ...BLANK, ...two, taxRate: "22", debts: "600", living: "2500" }, blankRows()))).toEqual(result());
   });
 
   it("but a typed 0 in the tax rate, the debts and the living costs is an answer", () => {
@@ -284,9 +305,16 @@ describe("percents", () => {
     expect(toInput({ ...example, taxRate: "0", savingsRate: "0" }, noRows)).toMatchObject({ taxRate: 0, savingsRate: 0 });
   });
 
-  it("are NaN, never 0, when empty or unreadable", () => {
+  it("are NaN, never 0, when unreadable", () => {
     for (const id of ["taxRate", "savingsRate"] as const) {
-      for (const junk of ["", " ", ".", "abc", "2..2", "1-2"]) expect(Number.isNaN(toInput({ ...example, [id]: junk }, noRows)[id]), `${id} ${JSON.stringify(junk)}`).toBe(true);
+      for (const junk of [".", "abc", "2..2", "1-2"]) expect(Number.isNaN(toInput({ ...example, [id]: junk }, noRows)[id]), `${id} ${JSON.stringify(junk)}`).toBe(true);
+    }
+  });
+
+  it("C1: an empty tax rate is 0; an empty savings rate stays not entered, which the model counts as none", () => {
+    for (const empty of ["", " "]) {
+      expect(toInput({ ...example, taxRate: empty }, noRows).taxRate).toBe(0);
+      expect(Number.isNaN(toInput({ ...example, savingsRate: empty }, noRows).savingsRate)).toBe(true);
     }
   });
 

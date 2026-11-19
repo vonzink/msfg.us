@@ -13,9 +13,13 @@ import { rowName, type Row } from "./rows";
  * them. `groupTotal` is the one place that decides which is used, so the box on the page and the
  * math always agree.
  *
- * Empty is "not entered", never $0 or 0%. A typed 0 is an answer in the tax rate and in every
- * amount but the income, so those money boxes are marked `keepZero` and keep a typed 0 on leaving
- * the field.
+ * Only the income and the housing payment have to be entered. An empty tax rate, debts or living
+ * costs box counts as 0, the same as a typed 0: an empty box shows a grey "0", and a visitor reads
+ * that as zero. An itemized debts or living costs group with no line entered is $0 as well.
+ * Empty and unreadable are told apart here, at the field boundary: something typed that is not a
+ * number ("abc", "2..5") is NaN in every box, which the model turns down and the page names. It is
+ * never counted as 0. A typed 0 is an answer in every amount but the income, so those money boxes
+ * are marked `keepZero` and keep a typed 0 on leaving the field.
  */
 export const FRONT_FIELDS: FieldDef[] = [
   { id: "grossIncome", label: "Gross monthly household income", type: "money", example: "9,000", hint: "Before tax." },
@@ -99,14 +103,18 @@ export const BLANK: Values = Object.fromEntries(ALL.map((f) => [f.id, f.type ===
 
 const isEmpty = (text: string | undefined): boolean => String(text ?? "").trim() === "";
 
+/** An amount that may be left out: empty is 0, a number is itself, anything else is NaN. */
+const optionalAmount = (text: string | undefined): number => (isEmpty(text) ? 0 : typedAmount(text));
+
 /**
- * Adds up a set of boxes of which any may be left empty. NaN, meaning "not entered", when every
- * box is empty, and also when one holds something unreadable: a sum is never shown with a line
- * silently left out. A typed 0 is an entry.
+ * Adds up a set of boxes of which any may be left empty. When every box is empty the sum is
+ * `whenEmpty`: NaN, meaning "not entered", unless the caller counts nothing entered as 0. It is
+ * NaN whenever one box holds something unreadable: a sum is never shown with a line silently left
+ * out. A typed 0 is an entry.
  */
-function sumEntered(texts: (string | undefined)[]): number {
+function sumEntered(texts: (string | undefined)[], whenEmpty = Number.NaN): number {
   const typed = texts.filter((t) => !isEmpty(t));
-  if (typed.length === 0) return Number.NaN;
+  if (typed.length === 0) return whenEmpty;
   return roundCents(typed.reduce((sum, t) => sum + typedAmount(t), 0));
 }
 
@@ -116,13 +124,16 @@ export function isItemized(values: Values, group: Group): boolean {
 
 /**
  * The monthly amount of a group as the math uses it: the sum of its lines (for debts, of the
- * rows' payments) when the group is itemized, otherwise the total typed in its front box. NaN when
- * that is not entered. The page shows this in the front box while the group is itemized.
+ * rows' payments) when the group is itemized, otherwise the total typed in its front box. Housing
+ * has to be entered: NaN when its box is empty, or itemized with no line. Debts and living costs
+ * with nothing entered are 0. Anything unreadable is NaN in all three. The page shows this in the
+ * front box while the group is itemized.
  */
 export function groupTotal(values: Values, debtRows: Row[], group: Group): number {
-  if (!isItemized(values, group)) return typedAmount(values[group]);
-  if (group === "debts") return sumEntered(debtRows.map((r) => r.payment));
-  return sumEntered((group === "housing" ? HOUSING_LINES : LIVING_LINES).map((f) => values[f.id]));
+  if (!isItemized(values, group)) return group === "housing" ? typedAmount(values.housing) : optionalAmount(values[group]);
+  if (group === "debts") return sumEntered(debtRows.map((r) => r.payment), 0);
+  if (group === "living") return sumEntered(LIVING_LINES.map((f) => values[f.id]), 0);
+  return sumEntered(HOUSING_LINES.map((f) => values[f.id]));
 }
 
 /** The account balances added up. NaN when none is entered or one is unreadable. */
@@ -175,8 +186,8 @@ export function toInput(values: Values, debtRows: Row[]): BudgetInput {
   return {
     // Empty or unreadable is "not entered" (NaN), which the model turns down.
     grossIncome: typedAmount(values.grossIncome),
-    // A rate that is not one number is NaN. A typed 0 is a real 0%.
-    taxRate: parseRate(values.taxRate),
+    // Empty is 0%, the same as a typed 0. Something typed that is not one number is NaN.
+    taxRate: isEmpty(values.taxRate) ? 0 : parseRate(values.taxRate),
     // Optional: NaN here is "not entered", which the model counts as 0.
     savingsRate: parseRate(values.savingsRate),
     housing: groupTotal(values, debtRows, "housing"),

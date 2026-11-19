@@ -27,20 +27,27 @@ const LIVING = "Monthly living costs";
 const SAVINGS = "Share of income set aside as savings";
 
 describe("Clear, then the example's five numbers", () => {
-  it("shows no figure until all five are in, then the example's result", () => {
+  it("C1: shows no figure until the income and the housing payment are in; the rest count as 0 until typed", () => {
     open();
     expect(results()).toContain(EXAMPLE);
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
-    expect(status()).toContain("Enter the gross monthly household income, the estimated tax rate");
+    expect(status()).toBe("Enter the gross monthly household income and the monthly housing payment to see what is left each month.");
     expect(results()).not.toContain("$");
     type(INCOME, "9000");
-    type(TAX, "22");
-    type(HOUSING, "2700");
-    type(DEBTS, "600");
-    expect(status()).toBe("Enter the monthly living costs to see what is left each month. Enter 0 for any cost that does not apply.");
+    expect(status()).toBe("Enter the monthly housing payment to see what is left each month.");
     expect(results()).not.toContain("$");
     expect(results()).not.toContain("%");
     expect(document.body.textContent).not.toContain("Home budget estimate");
+    type(HOUSING, "2700");
+    expect(status()).toBeNull();
+    expect(results()).toContain("$6,300 left each month");
+    expect(results()).toContain("after housing");
+    expect(results()).not.toContain("after housing,");
+    expect(results()).toContain("30.00%");
+    for (const label of [TAX, DEBTS, LIVING]) expect(box(label).value, label).toBe("");
+    type(TAX, "22");
+    expect(results()).toContain("$4,320 left each month");
+    type(DEBTS, "600");
     type(LIVING, "2500");
     expect(status()).toBeNull();
     expect(results()).toContain(EXAMPLE);
@@ -71,10 +78,16 @@ describe("Clear, then the example's five numbers", () => {
     expect(status()).toBeNull();
     expect(results()).toContain("$9,000 left each month");
     expect(results()).toContain("0.00%");
-    // Deleting the 0 by hand empties the box again, and the figure goes.
+    // C1: deleting the 0 by hand empties the box again, and an empty box still counts as 0.
     type(DEBTS, "");
     expect(box(DEBTS).value).toBe("");
-    expect(status()).toBe("Enter the monthly debt payments to see what is left each month. Enter 0 for any cost that does not apply.");
+    expect(status()).toBeNull();
+    expect(results()).toContain("$9,000 left each month");
+    // Something that is not a number is named, never counted as 0.
+    fireEvent.change(box(TAX), { target: { value: "2..2" } });
+    expect(status()).toBe("Enter a number for the estimated tax rate, or leave it empty.");
+    type(TAX, "");
+    expect(status()).toBeNull();
     // The income is the one box where 0 is not an answer.
     type(DEBTS, "0");
     type(INCOME, "0");
@@ -139,7 +152,10 @@ describe("one total or the lines, never both", () => {
   it("itemizing living costs works the same way", () => {
     open();
     mode("Enter living costs as", "Itemize");
-    expect(status()).toBe("Enter at least one living cost, or switch back to one total.");
+    // C1: no lines yet is $0 of living costs.
+    expect(status()).toBeNull();
+    expect(box(LIVING).value).toBe("0");
+    expect(results()).toContain("$3,720 left each month");
     type("Groceries", "900");
     type("Insurance", "350");
     expect(box(LIVING).readOnly).toBe(true);
@@ -154,7 +170,10 @@ describe("one total or the lines, never both", () => {
     open();
     expect(screen.queryByRole("button", { name: "Add another debt" })).toBeNull();
     mode("Enter debts as", "Itemize");
-    expect(status()).toBe("Enter at least one debt, or switch back to one total.");
+    // C1: no debts yet is $0 of debts.
+    expect(status()).toBeNull();
+    expect(box(DEBTS).value).toBe("0");
+    expect(results()).toContain("$1,820 left each month");
     expect(screen.getAllByLabelText("What is it?")).toHaveLength(2);
 
     fireEvent.change(screen.getAllByLabelText("What is it?")[0], { target: { value: "Car loan" } });

@@ -18,9 +18,11 @@
  *
  * Conventions
  *   - Rates and ratios are decimals (0.22 = 22%). The dashboard works in percents.
- *   - Income has to be above zero. The tax rate, housing, debts and living costs must each be
- *     entered: NaN means "not entered" and gives no result, so a figure is never shown with a
- *     cost silently left out. A 0 is an entry. A negative amount gives no result.
+ *   - Income has to be above zero. The tax rate, housing, debts and living costs must each be a
+ *     number: NaN gives no result, so a figure is never shown with a cost silently left out. A
+ *     negative amount gives no result. What NaN stands for is decided at the field boundary
+ *     (`toInput`): an empty income or housing box, and anything typed that cannot be read. An
+ *     empty tax rate, debts or living costs box arrives here as 0, the same as a typed 0.
  *   - The savings rate is optional: NaN means not entered and counts as 0.
  *   - Each rate must be within RATE_RANGE, 0 to 100%. The two together may pass 100%; spendable
  *     income is then negative.
@@ -118,7 +120,11 @@ const cents = (n: number): number => roundCents(n) + 0;
 const entered = (amount: number): boolean => Number.isFinite(amount) && amount >= 0;
 const inRange = (rate: number): boolean => rate >= RATE_RANGE.low && rate <= RATE_RANGE.high;
 
-/** null when income is not above zero, or tax rate, housing, debts or living is NaN or negative, or a rate is outside 0 to 100%. An empty savings rate is 0. */
+/**
+ * null when income is not above zero, or tax rate, housing, debts or living is NaN or negative, or
+ * a rate is outside 0 to 100%. A NaN savings rate is 0. The page passes 0, not NaN, for a tax
+ * rate, debts or living costs box left empty; NaN there means something unreadable was typed.
+ */
 export function calculateBudget(input: BudgetInput): BudgetResult | null {
   const { grossIncome, taxRate, housing, debts, living, balances } = input;
   const savingsRate = Number.isNaN(input.savingsRate) ? 0 : input.savingsRate;

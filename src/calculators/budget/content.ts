@@ -9,7 +9,7 @@ export const INTRO =
   "This page adds up a month of income, tax, housing, debts and living costs to show what is left, as a way to look at your own numbers and not as a loan decision.";
 
 export const HOW_IT_WORKS: string[] = [
-  "Enter a month of income and costs. The page shows what is left at the end of the month, and how much of the income goes to housing and to debts.",
+  "Enter a month of income and costs. The page shows what is left at the end of the month, and how much of the income goes to housing and to debts. Only the income and the housing payment have to be entered. The tax rate, the debts and the living costs count as zero while they are empty.",
   "The two ratios are shares of gross income, which is income before tax. The first is the housing payment on its own. The second is the housing payment and the debt payments together. Living costs are not in either one.",
   "Left after housing and debts is gross income less those two payments. Tax, savings and living costs have not been taken off at that point, so it is not spending money.",
   "Monthly cash flow is what remains after everything entered: tax, any savings set aside, housing, debts and living costs. When the costs come to more than the income, the page says how far the month falls short.",

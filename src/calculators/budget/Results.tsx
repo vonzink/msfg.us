@@ -23,9 +23,35 @@ export const shareText = (ratio: number) => `${(roundShare(ratio) * 100).toFixed
 /** A part of the income bar to one decimal. A part of nothing is "0.0%", never "-0.0%". */
 const partShareText = (share: number) => `${(Math.max(0, share) * 100).toFixed(1)}%`;
 const RESERVES_NOTE = "A lender counts reserves in its own way, so this is not that figure.";
-/** Under the two shares when the month is short: they can read well while the month does not add up. */
-export const shortNote = (taxRate: number) =>
-  `These shares are of income before tax. On these numbers the month still falls short once ${taxRate > 0 ? "tax and " : ""}living costs are counted.`;
+const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+const listText = (items: string[]) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
+
+/** What comes off the income, in the order of the form: only the parts above zero. */
+function partsTaken(input: BudgetInput, r: BudgetResult): string[] {
+  const parts: [string, number][] = [
+    ["tax", r.taxAmount], ["savings", r.savingsAmount], ["housing", input.housing], ["debts", input.debts], ["living costs", input.living],
+  ];
+  return parts.filter(([, amount]) => amount > 0).map(([name]) => name);
+}
+/** The line under the headline: "after tax, housing, debts and living costs", naming only what was taken off. */
+export function afterText(input: BudgetInput, r: BudgetResult): string {
+  const parts = partsTaken(input, r);
+  return parts.length > 0 ? `after ${listText(parts)}` : "with nothing taken off";
+}
+/**
+ * Under the two shares when the month is short: they can read well while the month does not add
+ * up. It names what the shares leave out, tax, savings and living costs, where those are above zero.
+ */
+export function shortNote(input: BudgetInput, r: BudgetResult): string {
+  const outside = partsTaken(input, r).filter((part) => part !== "housing" && part !== "debts");
+  const start = "These shares are of income before tax. On these numbers the month";
+  return outside.length > 0 ? `${start} still falls short once ${listText(outside)} are counted.` : `${start} falls short.`;
+}
+/** After the amount the month is short by: what comes to more than the income. */
+export function shortfallCause(input: BudgetInput, r: BudgetResult): string {
+  const parts = partsTaken(input, r);
+  return `${capitalized(listText(parts))} ${parts.length === 1 ? "comes" : "come"} to more than the income.`;
+}
 /** A rate or a band edge without trailing zeros: 0.22 is "22%". */
 export const percentText = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 
@@ -72,26 +98,24 @@ export type FormState = {
 };
 const PLAIN_FORM: FormState = { itemized: [], savingsUnreadable: false };
 
-/** The five front boxes as the prompts name them, in the order of the form. */
-const FRONT: { id: "grossIncome" | "taxRate" | Group; name: string }[] = [
-  { id: "grossIncome", name: "the gross monthly household income" },
-  { id: "taxRate", name: "the estimated tax rate" },
-  { id: "housing", name: "the monthly housing payment" },
-  { id: "debts", name: "the monthly debt payments" },
-  { id: "living", name: "the monthly living costs" },
-];
-const EMPTY_GROUP: Record<Group, string> = {
-  housing: "Enter at least one housing line, or switch back to one total.",
-  debts: "Enter at least one debt, or switch back to one total.",
-  living: "Enter at least one living cost, or switch back to one total.",
-};
+/** The front boxes as the prompts name them. */
+const NAME = {
+  grossIncome: "the gross monthly household income",
+  taxRate: "the estimated tax rate",
+  housing: "the monthly housing payment",
+  debts: "the monthly debt payments",
+  living: "the monthly living costs",
+} as const;
+/** The two boxes that have to be entered. The other three count as 0 while they are empty. */
+const REQUIRED = ["grossIncome", "housing"] as const;
+const OPTIONAL = ["taxRate", "debts", "living"] as const;
+const EMPTY_HOUSING = "Enter at least one housing line, or switch back to one total.";
 const UNREADABLE_GROUP: Record<Group, string> = {
   housing: "One of the housing lines is not a number.",
   debts: "One of the debts is not a number.",
   living: "One of the living costs is not a number.",
 };
 const frontLabel = (id: string) => FRONT_FIELDS.find((f) => f.id === id)!.label;
-const listText = (items: string[]) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
 const rateRangeText = `between ${percentText(RATE_RANGE.low)} and ${percentText(RATE_RANGE.high)}`;
 
 /**
@@ -101,16 +125,15 @@ const rateRangeText = `between ${percentText(RATE_RANGE.low)} and ${percentText(
  */
 export function promptText(input: BudgetInput, form: FormState = PLAIN_FORM): string {
   const isItemized = (id: string) => (form.itemized as string[]).includes(id);
-  // Empty or unreadable front boxes. An itemized group is not typed there, so it is named below.
-  const missing = FRONT.filter(({ id }) => Number.isNaN(input[id]) && !isItemized(id));
-  if (missing.length > 0) {
-    const zeroAllowed = missing.some(({ id }) => id !== "grossIncome");
-    return `Enter ${listText(missing.map((m) => m.name))} to see what is left each month.${zeroAllowed ? " Enter 0 for any cost that does not apply." : ""}`;
-  }
+  // The two boxes that must be entered. Itemized housing is not typed there, so it is named below.
+  const missing = REQUIRED.filter((id) => Number.isNaN(input[id]) && !isItemized(id));
+  if (missing.length > 0) return `Enter ${listText(missing.map((id) => NAME[id]))} to see what is left each month.`;
+  // Empty counts as 0 in the other three, so NaN there is something typed that is not a number.
+  const junk = OPTIONAL.find((id) => Number.isNaN(input[id]) && !isItemized(id));
+  if (junk) return `Enter a number for ${NAME[junk]}, or leave it empty.`;
   if (form.negative) return `${form.negative} must be $0 or more.`;
   if (form.unreadable) return UNREADABLE_GROUP[form.unreadable];
-  const emptyGroup = form.itemized.find((group) => Number.isNaN(input[group]));
-  if (emptyGroup) return EMPTY_GROUP[emptyGroup];
+  if (isItemized("housing") && Number.isNaN(input.housing)) return EMPTY_HOUSING;
   if (!(input.grossIncome > 0) || !Number.isFinite(input.grossIncome)) return `${frontLabel("grossIncome")} must be above $0.`;
   const negative = (["housing", "debts", "living"] as const).find((id) => !(input[id] >= 0) || !Number.isFinite(input[id]));
   if (negative) return `${frontLabel(negative)} must be $0 or more.`;
@@ -119,7 +142,7 @@ export function promptText(input: BudgetInput, form: FormState = PLAIN_FORM): st
   if (!Number.isNaN(input.savingsRate) && !(input.savingsRate >= RATE_RANGE.low && input.savingsRate <= RATE_RANGE.high)) {
     return `${SAVINGS_RATE_FIELD.label} must be ${rateRangeText}.`;
   }
-  return `Enter ${listText(FRONT.map((f) => f.name))} to see what is left each month. Enter 0 for any cost that does not apply.`;
+  return `Enter ${listText(REQUIRED.map((id) => NAME[id]))} to see what is left each month.`;
 }
 
 const box = "rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4";
@@ -221,7 +244,7 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
         <p aria-live="polite" className="mt-1 text-[clamp(28px,3.6vw,40px)] font-extrabold leading-[1.1] tracking-[-0.02em] tabular-nums text-white">
           {headlineText(r.cashFlow)}
         </p>
-        <p className="mt-1.5 text-[16px] text-on-dark-2">after tax, savings, housing, debts and living costs</p>
+        <p className="mt-1.5 text-[16px] text-on-dark-2">{afterText(input, r)}</p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 max-[600px]:grid-cols-1">
@@ -229,7 +252,7 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
         <ShareCard label="Housing and debts as a share of income" secondary="back-end ratio" ratio={r.backRatio} band={r.backBand} bands={BACK_BANDS} />
       </div>
 
-      {short && <p className="mx-1 text-[14px] font-semibold text-ink">{shortNote(input.taxRate)}</p>}
+      {short && <p className="mx-1 text-[14px] font-semibold text-ink">{shortNote(input, r)}</p>}
 
       <div className={cn("grid gap-3", r.reserveMonths !== null && "grid-cols-2 max-[600px]:grid-cols-1")}>
         <Stat
@@ -251,7 +274,7 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
 
       {short ? (
         <p className="mx-1 text-[16px] font-semibold text-ink">
-          On these numbers the month falls short by {formatUSD(-Math.round(r.cashFlow))}. Tax, savings, housing, debts and living costs come to more than the income.
+          On these numbers the month falls short by {formatUSD(-Math.round(r.cashFlow))}. {shortfallCause(input, r)}
         </p>
       ) : (
         <IncomeBar input={input} result={r} />

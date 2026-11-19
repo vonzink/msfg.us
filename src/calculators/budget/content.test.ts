@@ -43,6 +43,10 @@ describe("home budget page text", () => {
     expect(how).toContain("lenders look at more than these two ratios");
   });
 
+  it("C1: says which boxes have to be filled in, and that the rest count as zero when empty", () => {
+    expect(how).toContain("Only the income and the housing payment have to be entered. The tax rate, the debts and the living costs count as zero while they are empty.");
+  });
+
   it("says a group is its total or its lines, never both", () => {
     expect(how).toContain("A group uses its total or its lines, never both.");
   });

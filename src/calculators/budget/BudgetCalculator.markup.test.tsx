@@ -42,7 +42,7 @@ describe("home budget calculator page", () => {
     const html = page();
     expect(html).toContain("Estimated monthly cash flow");
     expect(html).toContain("$1,220 left each month");
-    expect(html).toContain("after tax, savings, housing, debts and living costs");
+    expect(html).toContain("after tax, housing, debts and living costs");
     expect(html).toContain("30.00%");
     expect(html).toContain("36.67%");
     expect(html).toContain("$5,700");
@@ -178,6 +178,13 @@ describe("home budget calculator page", () => {
     expect(page(null)).not.toContain("Work this out");
   });
 
+  it("C2: opens the Mortgage calculator in a new tab, and says so to a screen reader", () => {
+    const link = page().match(/<a[^>]*href="\/calculators\/mortgage"[^>]*>.*?<\/a>/)![0];
+    expect(link).toContain('target="_blank"');
+    expect(link).toContain('rel="noopener noreferrer"');
+    expect(link).toContain('Work this out<span class="sr-only"> with the mortgage calculator (opens in a new tab)</span>');
+  });
+
   it("has a pinned bar for a phone: Left each month over the figure", () => {
     const html = page();
     expect(html).toContain('href="#budget-results"');
@@ -271,22 +278,51 @@ describe("with no result", () => {
     expect(html).not.toContain(BAR_HEADING);
   });
 
-  it("names every front box still empty", () => {
+  it("C1: asks only for the income and the housing payment", () => {
     expect(promptText(toInput(BLANK, blankRows()))).toBe(
-      "Enter the gross monthly household income, the estimated tax rate, the monthly housing payment, the monthly debt payments and the monthly living costs to see what is left each month. Enter 0 for any cost that does not apply.",
+      "Enter the gross monthly household income and the monthly housing payment to see what is left each month.",
     );
     expect(prompt({ grossIncome: "" })).toBe("Enter the gross monthly household income to see what is left each month.");
-    expect(prompt({ taxRate: "" })).toBe("Enter the estimated tax rate to see what is left each month. Enter 0 for any cost that does not apply.");
-    expect(prompt({ taxRate: "2..2" })).toBe("Enter the estimated tax rate to see what is left each month. Enter 0 for any cost that does not apply.");
-    expect(prompt({ debts: "", living: "" })).toBe(
-      "Enter the monthly debt payments and the monthly living costs to see what is left each month. Enter 0 for any cost that does not apply.",
-    );
+    expect(prompt({ housing: "" })).toBe("Enter the monthly housing payment to see what is left each month.");
+    for (const html of [results(typed({ taxRate: "" })), results(typed({ debts: "", living: "" })), results(toInput({ ...BLANK, grossIncome: "9,000", housing: "2,700" }, blankRows()))]) {
+      expect(html).not.toContain('role="status"');
+      expect(html).toContain("left each month");
+    }
+    expect(results(toInput({ ...BLANK, grossIncome: "9,000", housing: "2,700" }, blankRows()))).toContain("$6,300 left each month");
   });
 
-  it("names an itemized group with no line entered", () => {
+  it("C1: something unreadable in the tax rate, debts or living costs is named, never counted as 0", () => {
+    expect(prompt({ taxRate: "2..2" })).toBe("Enter a number for the estimated tax rate, or leave it empty.");
+    expect(prompt({ taxRate: "abc" })).toBe("Enter a number for the estimated tax rate, or leave it empty.");
+    expect(prompt({ debts: "6oo" })).toBe("Enter a number for the monthly debt payments, or leave it empty.");
+    expect(prompt({ living: "2..5" })).toBe("Enter a number for the monthly living costs, or leave it empty.");
+    expect(results(typed({ living: "2..5" }))).toContain('role="status"');
+  });
+
+  it("C1: an itemized housing group with no line entered is named; debts and living costs with none count as $0", () => {
     expect(prompt({ housingMode: "itemized" }, { itemized: ["housing"], savingsUnreadable: false })).toBe("Enter at least one housing line, or switch back to one total.");
-    expect(prompt({ debtsMode: "itemized" }, { itemized: ["debts"], savingsUnreadable: false })).toBe("Enter at least one debt, or switch back to one total.");
-    expect(prompt({ livingMode: "itemized" }, { itemized: ["living"], savingsUnreadable: false })).toBe("Enter at least one living cost, or switch back to one total.");
+    expect(results(typed({ debtsMode: "itemized" }), { itemized: ["debts"], savingsUnreadable: false })).toContain("$1,820 left each month");
+    expect(results(typed({ livingMode: "itemized" }), { itemized: ["living"], savingsUnreadable: false })).toContain("$3,720 left each month");
+  });
+
+  it("C1: the line under the headline and the notes name only the parts above zero", () => {
+    const sub = (changes: Values) => results(typed(changes)).match(/text-on-dark-2">([^<]+)</)![1];
+    expect(sub({})).toBe("after tax, housing, debts and living costs");
+    expect(sub({ savingsRate: "10" })).toBe("after tax, savings, housing, debts and living costs");
+    expect(sub({ taxRate: "", debts: "", living: "" })).toBe("after housing");
+    expect(sub({ taxRate: "0", debts: "0" })).toBe("after housing and living costs");
+    expect(sub({ taxRate: "", housing: "0", debts: "", living: "" })).toBe("with nothing taken off");
+    // The month is short on housing and debts alone: no tax, no living costs.
+    const short = results(typed({ grossIncome: "3,000", taxRate: "", housing: "2,700", debts: "600", living: "" }));
+    expect(short).toContain("$300 short each month");
+    expect(short).toContain("after housing and debts");
+    expect(short).toContain("These shares are of income before tax. On these numbers the month falls short.");
+    expect(short).not.toContain("once");
+    expect(short).toContain("On these numbers the month falls short by $300. Housing and debts come to more than the income.");
+    const savings = results(typed({ grossIncome: "3,000", taxRate: "", savingsRate: "20", housing: "2,700", debts: "", living: "" }));
+    expect(savings).toContain("the month still falls short once savings are counted.");
+    expect(savings).toContain("Savings and housing come to more than the income.");
+    expect(results(goldenInput("high"))).toContain("On these numbers the month falls short by $750. Tax, housing, debts and living costs come to more than the income.");
   });
 
   it("names the field at fault and its range", () => {

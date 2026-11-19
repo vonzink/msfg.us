@@ -144,8 +144,8 @@ export function BudgetCalculator({ disclaimer, mortgageHref }: {
                 <div className="flex min-w-0 flex-col gap-1.5">
                   {groupBox("housing")}
                   {mortgageHref && (
-                    <Link href={mortgageHref} className="self-start text-[13px] font-semibold text-green-700 underline">
-                      Work this out<span className="sr-only"> with the mortgage calculator</span>
+                    <Link href={mortgageHref} target="_blank" rel="noopener noreferrer" className="self-start text-[13px] font-semibold text-green-700 underline">
+                      Work this out<span className="sr-only"> with the mortgage calculator (opens in a new tab)</span>
                     </Link>
                   )}
                 </div>
