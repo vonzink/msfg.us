@@ -1,0 +1,221 @@
+{
+  "source": "msfg-calc a1f25e4",
+  "generatedBy": "scripts/calculators/golden-budget.mjs",
+  "cases": [
+    {
+      "name": "example",
+      "input": {
+        "grossIncome": 9000,
+        "taxRate": 0.22,
+        "savingsRate": 0,
+        "housing": 2700,
+        "debts": 600,
+        "living": 2500,
+        "balances": 0
+      },
+      "lines": null,
+      "expected": {
+        "frontRatioPct": 30,
+        "backRatioPct": 36.67,
+        "frontStatus": "Within guideline (≤32%)",
+        "backStatus": "Within guideline (≤47%)",
+        "residual": 5700,
+        "spendable": 7020,
+        "totalExpenses": 5800,
+        "cashFlow": 1220,
+        "reserveMonths": 0
+      }
+    },
+    {
+      "name": "stretching",
+      "input": {
+        "grossIncome": 6000,
+        "taxRate": 0.18,
+        "savingsRate": 0,
+        "housing": 2400,
+        "debts": 700,
+        "living": 1800,
+        "balances": 0
+      },
+      "lines": null,
+      "expected": {
+        "frontRatioPct": 40,
+        "backRatioPct": 51.67,
+        "frontStatus": "Above 32% guideline, within 47% limit",
+        "backStatus": "Above 47% guideline, within 55% limit",
+        "residual": 2900,
+        "spendable": 4920,
+        "totalExpenses": 4900,
+        "cashFlow": 20,
+        "reserveMonths": 0
+      }
+    },
+    {
+      "name": "high",
+      "input": {
+        "grossIncome": 5000,
+        "taxRate": 0.15,
+        "savingsRate": 0,
+        "housing": 2600,
+        "debts": 900,
+        "living": 1500,
+        "balances": 0
+      },
+      "lines": null,
+      "expected": {
+        "frontRatioPct": 52,
+        "backRatioPct": 70,
+        "frontStatus": "Exceeds 47% limit",
+        "backStatus": "Exceeds 55% limit",
+        "residual": 1500,
+        "spendable": 4250,
+        "totalExpenses": 5000,
+        "cashFlow": -750,
+        "reserveMonths": 0
+      }
+    },
+    {
+      "name": "band-edges",
+      "input": {
+        "grossIncome": 10000,
+        "taxRate": 0,
+        "savingsRate": 0,
+        "housing": 3200,
+        "debts": 1500,
+        "living": 0,
+        "balances": 0
+      },
+      "lines": null,
+      "expected": {
+        "frontRatioPct": 32,
+        "backRatioPct": 47,
+        "frontStatus": "Within guideline (≤32%)",
+        "backStatus": "Within guideline (≤47%)",
+        "residual": 5300,
+        "spendable": 10000,
+        "totalExpenses": 4700,
+        "cashFlow": 5300,
+        "reserveMonths": 0
+      }
+    },
+    {
+      "name": "with-savings-and-balances",
+      "input": {
+        "grossIncome": 9000,
+        "taxRate": 0.22,
+        "savingsRate": 0.1,
+        "housing": 2700,
+        "debts": 600,
+        "living": 2500,
+        "balances": 25000
+      },
+      "lines": null,
+      "expected": {
+        "frontRatioPct": 30,
+        "backRatioPct": 36.67,
+        "frontStatus": "Within guideline (≤32%)",
+        "backStatus": "Within guideline (≤47%)",
+        "residual": 5700,
+        "spendable": 6120,
+        "totalExpenses": 5800,
+        "cashFlow": 320,
+        "reserveMonths": 9
+      }
+    },
+    {
+      "name": "no-debts-no-living",
+      "input": {
+        "grossIncome": 7000,
+        "taxRate": 0,
+        "savingsRate": 0,
+        "housing": 2000,
+        "debts": 0,
+        "living": 0,
+        "balances": 0
+      },
+      "lines": null,
+      "expected": {
+        "frontRatioPct": 28.57,
+        "backRatioPct": 28.57,
+        "frontStatus": "Within guideline (≤32%)",
+        "backStatus": "Within guideline (≤47%)",
+        "residual": 5000,
+        "spendable": 7000,
+        "totalExpenses": 2000,
+        "cashFlow": 5000,
+        "reserveMonths": 0
+      }
+    },
+    {
+      "name": "expenses-over-income",
+      "input": {
+        "grossIncome": 4000,
+        "taxRate": 0.2,
+        "savingsRate": 0,
+        "housing": 2500,
+        "debts": 1200,
+        "living": 1500,
+        "balances": 0
+      },
+      "lines": null,
+      "expected": {
+        "frontRatioPct": 62.5,
+        "backRatioPct": 92.5,
+        "frontStatus": "Exceeds 47% limit",
+        "backStatus": "Exceeds 55% limit",
+        "residual": 300,
+        "spendable": 3200,
+        "totalExpenses": 5200,
+        "cashFlow": -2000,
+        "reserveMonths": 0
+      }
+    },
+    {
+      "name": "itemized",
+      "input": {
+        "grossIncome": 9000,
+        "taxRate": 0.22,
+        "savingsRate": 0,
+        "housing": 2700,
+        "debts": 600,
+        "living": 2500,
+        "balances": 0
+      },
+      "lines": {
+        "housing": {
+          "housingPi": 1900,
+          "housingTax": 400,
+          "housingInsurance": 150,
+          "housingMi": 120,
+          "housingHoa": 130
+        },
+        "debts": [
+          350,
+          180,
+          70
+        ],
+        "living": {
+          "livingUtilities": 250,
+          "livingPhone": 150,
+          "livingGroceries": 800,
+          "livingTransport": 300,
+          "livingInsurance": 400,
+          "livingChildcare": 350,
+          "livingEntertainment": 100,
+          "livingOther": 150
+        }
+      },
+      "expected": {
+        "frontRatioPct": 30,
+        "backRatioPct": 36.67,
+        "frontStatus": "Within guideline (≤32%)",
+        "backStatus": "Within guideline (≤47%)",
+        "residual": 5700,
+        "spendable": 7020,
+        "totalExpenses": 5800,
+        "cashFlow": 1220,
+        "reserveMonths": 0
+      }
+    }
+  ]
+}
