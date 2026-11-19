@@ -58,3 +58,21 @@ Pinned values:
 - [ ] **Step 5: Verify on a local production build:** the page returns 200; desktop screenshot and print PDF with headless Chrome, both read and compared with the page on `main`.
 - [ ] **Step 6: Commit:** `feat(calculators): investment calculator page on the shared calculator page`.
 - [ ] **Step 7:** Final review by a fresh reviewer, one fix pass, then deploy to staging with `scripts/deploy-ec2.sh` (no arguments) for Zachary's test.
+
+---
+
+## Amendment 1: review fixes and Zachary's decisions (2026-11-18)
+
+**From the final review** (commit `f64845c`). The reviewer rendered the page from `main` and from the branch for 61 input sets; every figure was identical.
+
+- A muted line under the closed "Add detail" panel repeats the three moved panels' summaries ("3% appreciation, 24% bracket, vs 4% a year"), which used to show beside their titles. Hidden in print, where the panels open.
+- The printout has a title, "Investment property estimate". `CalculatorPage` hides the heading on paper, so decision 5 was not quite true.
+- "How this works" says the five-year return also takes off tax on the sale and is measured against the cash put in; cash-on-cash is before income tax; the third question names the control as it reads on the page.
+
+**Decided by Zachary** (commit `5ce9dc8`). These change text that predates the retrofit; no figure changes.
+
+- The verdict sentence starts "On these assumptions, ".
+- The gauges read Higher / Middle / Lower in place of Good / Fair / Poor (`RATING_LABEL` in `shared/gaugeScale.ts`; this calculator is its only user). The tips drop "what most lenders want" and "less than a savings account might pay".
+- The call to action reads "Want to go through your numbers with someone?".
+
+**Deferred minors:** with the panels open the printout runs to seven pages and breaks awkwardly (the shared `AddDetail` has `print:break-inside-avoid` around three panels that each have it); if a browser does not fire its print event the three panels print as the words "Add detail"; the page's own caution and the tenant disclaimer overlap in wording; the summary line repeats the inner summaries while "Add detail" is open; a screen reader still hears "Rating: Higher"; after Clear the page shows "$0 ahead of the same cash earning 4% a year".

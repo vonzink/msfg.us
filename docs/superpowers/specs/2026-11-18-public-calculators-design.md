@@ -160,6 +160,8 @@ Purpose: "After my house payment and bills, what is left each month?" Not an aff
 
 The deal and the rent stay up front. Growth and sale, income taxes and opportunity cost move behind "Add detail". No change to math or results.
 
+**As built (2026-11-18).** No figure changed. A line under the closed "Add detail" panel repeats the summaries of the three panels inside it. Zachary changed three pieces of existing wording when he saw the page under the letterhead: the verdict sentence starts "On these assumptions,"; the gauges read Higher / Middle / Lower, not Good / Fair / Poor, and their tips no longer say what lenders want; the call to action reads "Want to go through your numbers with someone?".
+
 ## Architecture
 
 - **Shared kit** in `src/calculators/shared/`, extracted from the investment calculator: the gauge, input fields, result cards, the "Add detail" expander, the page layout, and chart pieces that more than one calculator uses.
