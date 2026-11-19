@@ -13,9 +13,10 @@ import { calculateMortgage, loanAmountForPayment, RATE_LIMIT, type ExtraFrequenc
  *   - Payment: a monthly principal and interest payment in place of both. The loan is the amount
  *     that payment pays off (`loanAmountForPayment`). Property tax, homeowners insurance, HOA dues
  *     and mortgage insurance sit behind "Add detail" and are added on top: the payment typed stays
- *     principal and interest only, and the loan amount does not move. A home value, also optional,
- *     gives mortgage insurance the refinance rule; without one it is counted as if nothing were
- *     put down, the price being the loan amount, since there is no value to measure against.
+ *     principal and interest only, and the loan amount does not move. There is no home value in
+ *     this mode: mortgage insurance is counted as typed, as if nothing were put down (the price
+ *     being the loan amount), so it ends at 78% of the loan amount or the loan's midpoint. A home
+ *     value typed in Refinance stays in the form's values for the way back and is not read here.
  *
  * Property tax and insurance are yearly dollars; HOA dues and mortgage insurance are monthly.
  * Every public calculator uses those same units. The loan term is a typed whole number of years,
@@ -74,12 +75,8 @@ const REFINANCE_PMI: FieldDef = {
   id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "",
   hintFn: (n) => (n.homeValue > 0 ? PMI_WITH_VALUE : n.monthlyPmi > 0 ? "Per month. Not counted without a home value." : "Per month."),
 };
-// Without a home value payment mode counts it against the loan itself, so there is nothing to add.
-const PAYMENT_PMI: FieldDef = {
-  id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "",
-  hintFn: (n) => (n.homeValue > 0 ? PMI_WITH_VALUE : "Per month."),
-};
-const PAYMENT_HOME_VALUE: FieldDef = { id: "homeValue", label: "Home value", type: "money", example: "", hint: "Optional. Sets when mortgage insurance ends." };
+// Payment mode has no home value: the insurance is always counted, against the loan itself.
+const PAYMENT_PMI: FieldDef = { id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month." };
 const EXTRA: FieldDef[] = [
   { id: "extraAmount", label: "Extra principal", type: "money", example: "", hint: "Paid on top of the regular payment." },
   {
@@ -100,7 +97,7 @@ const FRONT: Record<Mode, FieldDef[]> = {
 const DETAIL: Record<Mode, FieldDef[]> = {
   purchase: [HOA, PMI, ...EXTRA],
   refinance: [HOA, REFINANCE_PMI, ...EXTRA],
-  payment: [TAX, INSURANCE, HOA, PAYMENT_PMI, PAYMENT_HOME_VALUE, ...EXTRA],
+  payment: [TAX, INSURANCE, HOA, PAYMENT_PMI, ...EXTRA],
 };
 
 /** The inputs always visible in a mode, in page order. */
@@ -154,7 +151,7 @@ function termOf(values: Values): number {
 }
 
 /**
- * The optional home value box of a refinance or of payment mode. Empty is "none", which is fine.
+ * The optional home value box of a refinance. Empty is "none", which is fine.
  * Anything typed has to be an amount above zero: junk and 0 or less are faults, never "none".
  */
 function homeValueOf(values: Values): { value: number; problem: "unreadable" | "not-positive" | null } {
@@ -205,12 +202,10 @@ export function toInput(values: Values, start: { month: number; year: number }):
       monthlyPmi = 0;
     }
   } else if (mode === "payment") {
-    const loan = paymentLoan(n("payment"), annualRate, termYears);
-    const { value } = homeValueOf(values);
-    // With a home value, the refinance rule. Without one the price is the loan itself, so mortgage
-    // insurance is counted as if nothing were put down. A home value that cannot be read gives no result.
-    homePrice = value > 0 ? value : Number.isNaN(value) ? value : loan;
-    downPayment = value > 0 ? roundCents(value - loan) : 0;
+    // The price is the loan itself, so mortgage insurance is counted as if nothing were put down.
+    // A home value left in the form by Refinance is not read.
+    homePrice = paymentLoan(n("payment"), annualRate, termYears);
+    downPayment = 0;
   } else {
     homePrice = n("homePrice");
     downPayment = values.downUnit === "usd" ? n("downPayment") : (homePrice * n("downPayment")) / 100;
@@ -297,11 +292,11 @@ export function inputFault(values: Values): InputFault | null {
       const loan = loanAmountForPayment(typed, input.annualRate, input.termYears);
       return loan !== null && loan < MIN_PAYMENT_LOAN ? { field: PAYMENT, problem: "too-small" } : null;
     };
-    // The loan the payment pays off needs the rate and the term, so its size and the home value come after them.
+    // The loan the payment pays off needs the rate and the term, so its size comes after them.
     return (
       amountFault(PAYMENT, values) ??
       (typed >= PAYMENT_LIMIT ? { field: PAYMENT, problem: "range", min: 0, max: PAYMENT_LIMIT } : null) ??
-      rateFault(values) ?? termFault(values) ?? tooSmall() ?? homeValueFault(PAYMENT_HOME_VALUE, values, input)
+      rateFault(values) ?? termFault(values) ?? tooSmall()
     );
   } else {
     first =
@@ -321,13 +316,12 @@ export function inputFault(values: Values): InputFault | null {
 export type Scenario =
   | { mode: "purchase" }
   | { mode: "refinance"; homeValueKnown: boolean }
-  | { mode: "payment"; homeValueKnown: boolean; payment: number; annualRate: number; termYears: number };
+  | { mode: "payment"; payment: number; annualRate: number; termYears: number };
 
 export function scenarioOf(values: Values): Scenario {
   const mode = modeOf(values);
-  const homeValueKnown = parseNumber(values.homeValue) > 0;
-  if (mode === "refinance") return { mode, homeValueKnown };
-  if (mode === "payment") return { mode, homeValueKnown, payment: parseNumber(values.payment), annualRate: parseRate(values.rate), termYears: termOf(values) };
+  if (mode === "refinance") return { mode, homeValueKnown: parseNumber(values.homeValue) > 0 };
+  if (mode === "payment") return { mode, payment: parseNumber(values.payment), annualRate: parseRate(values.rate), termYears: termOf(values) };
   return { mode };
 }
 

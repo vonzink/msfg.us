@@ -131,15 +131,16 @@ describe("the three modes", () => {
     expect(frontFields("refinance").map((f) => f.id)).toEqual(["loanAmount", "homeValue", "rate", "termYears", "yearlyTax", "yearlyInsurance"]);
     expect(detailFields("refinance").map((f) => f.id)).toEqual(["monthlyHoa", "monthlyPmi", "extraAmount", "extraFrequency"]);
     expect(frontFields("payment").map((f) => f.id)).toEqual(["payment", "rate", "termYears"]);
-    expect(detailFields("payment").map((f) => f.id)).toEqual(["yearlyTax", "yearlyInsurance", "monthlyHoa", "monthlyPmi", "homeValue", "extraAmount", "extraFrequency"]);
+    expect(detailFields("payment").map((f) => f.id)).toEqual(["yearlyTax", "yearlyInsurance", "monthlyHoa", "monthlyPmi", "extraAmount", "extraFrequency"]);
   });
 
-  it("gives payment mode the same tax, insurance and HOA boxes behind Add detail, and an optional home value", () => {
+  it("gives payment mode the same tax, insurance and HOA boxes behind Add detail, and no home value", () => {
     const byId = Object.fromEntries(detailFields("payment").map((f) => [f.id, f]));
     for (const id of ["yearlyTax", "yearlyInsurance"]) expect(byId[id], id).toBe(frontFields("refinance").find((f) => f.id === id));
     expect(byId.monthlyHoa).toBe(detailFields("refinance").find((f) => f.id === "monthlyHoa"));
-    expect(byId.monthlyPmi).toMatchObject({ label: "Mortgage insurance", type: "money", example: "" });
-    expect(byId.homeValue).toMatchObject({ label: "Home value", type: "money", hint: "Optional. Sets when mortgage insurance ends." });
+    expect(byId.monthlyPmi).toEqual({ id: "monthlyPmi", label: "Mortgage insurance", type: "money", example: "", hint: "Per month." });
+    expect(byId.homeValue).toBeUndefined();
+    expect([...frontFields("payment"), ...detailFields("payment")].some((f) => /home value/i.test(`${f.label} ${f.hint ?? ""}`))).toBe(false);
     expect(exampleValues(7, "payment")).toMatchObject({ yearlyTax: "", yearlyInsurance: "", monthlyHoa: "", monthlyPmi: "", homeValue: "" });
   });
 
@@ -285,26 +286,14 @@ describe("payment", () => {
     expect(r.totalCost).toBe(Math.round((calc(pay)!.totalCost + 161 * 150) * 100) / 100);
   });
 
-  it("with a home value, follows the refinance rule: counted above 80% of the value, until 78% of it", () => {
-    const values = { ...pay, monthlyPmi: "150", homeValue: "400,000" };
-    expect(toInput(values, start)).toMatchObject({ homePrice: 400000, downPayment: 79999.7, monthlyPmi: 150 });
+  it.each(["", "400,000", "500,000", "300,000", "abc", "0"])("ends the example's mortgage insurance at payment 162 whatever home value (%s) Refinance left behind", (homeValue) => {
+    const values = { ...pay, monthlyPmi: "150", homeValue };
+    expect(inputFault(values)).toBeNull();
+    expect(toInput(values, start)).toMatchObject({ homePrice: 320000.3, downPayment: 0, monthlyPmi: 150 });
     const r = calc(values)!;
-    expect(r.loanAmount).toBe(320000.3); // thirty cents above 80% of the value, so it is counted
-    expect(r.pmiEndPayment).toBe(29);
-    expect(r.schedule.filter((row) => row.pmi > 0)).toHaveLength(28);
-    expect(r.schedule[27].balance).toBeGreaterThan(312000);
-    expect(r.schedule[28].balance).toBeLessThanOrEqual(312000);
-    // At or under 80% of the value none is counted.
-    const under = calc({ ...values, homeValue: "500,000" })!;
-    expect(under.first.pmi).toBe(0);
-    expect(under.first.total).toBe(2128.97);
-    expect(under.loanAmount).toBe(320000.3);
-  });
-
-  it("gives no result for a home value below the loan the payment pays off, and names the home value", () => {
-    const values = { ...pay, homeValue: "300,000" };
-    expect(calc(values)).toBeNull();
-    expect(inputFault(values)).toMatchObject({ field: { id: "homeValue" }, problem: "below-loan" });
+    expect(r.pmiEndPayment).toBe(162);
+    expect(r.first.pmi).toBe(150);
+    expect(r).toEqual(calc({ ...pay, monthlyPmi: "150" }));
   });
 
   it("keeps extra principal and the start month", () => {
@@ -427,13 +416,15 @@ describe("switching modes keeps what carries over", () => {
     expect(switchMode({ ...refi, loanAmount: "300,000", homeValue: "" }, "purchase", 7)).toMatchObject({ homePrice: "", downPayment: "", downUnit: "pct" });
   });
 
-  it("carries tax, insurance, HOA dues and mortgage insurance into payment mode and back, and the home value between refinance and payment", () => {
+  it("carries tax, insurance, HOA dues and mortgage insurance into payment mode and back, and keeps the refinance home value for the way back", () => {
     const typed = { ...refi, loanAmount: "360,000", yearlyTax: "5,000", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150" };
     const inPayment = switchMode(typed, "payment", 7);
     expect(inPayment).toMatchObject({ mode: "payment", yearlyTax: "5,000", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150", homeValue: "400,000" });
     expect(calc(inPayment)!.first).toEqual(calc(typed)!.first);
-    const changed = { ...inPayment, homeValue: "450,000", yearlyTax: "5,500" };
-    expect(switchMode(changed, "refinance", 7)).toMatchObject({ mode: "refinance", loanAmount: "360,000", homeValue: "450,000", yearlyTax: "5,500", monthlyHoa: "75", monthlyPmi: "150" });
+    // The value is only stored: payment mode's model does not see it.
+    expect(toInput(inPayment, start)).toMatchObject({ homePrice: calc(inPayment)!.loanAmount, downPayment: 0 });
+    const changed = { ...inPayment, yearlyTax: "5,500" };
+    expect(switchMode(changed, "refinance", 7)).toMatchObject({ mode: "refinance", loanAmount: "360,000", homeValue: "400,000", yearlyTax: "5,500", monthlyHoa: "75", monthlyPmi: "150" });
     expect(switchMode(changed, "purchase", 7)).toMatchObject({ mode: "purchase", yearlyTax: "5,500", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150" });
   });
 
@@ -499,8 +490,9 @@ describe("what the results are told about the mode", () => {
   });
 
   it("carries the payment as typed, with the rate and the term, in payment mode", () => {
-    expect(scenarioOf(exampleValues(7, "payment"))).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30, homeValueKnown: false });
-    expect(scenarioOf({ ...exampleValues(7, "payment"), homeValue: "400,000" })).toMatchObject({ homeValueKnown: true });
+    expect(scenarioOf(exampleValues(7, "payment"))).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30 });
+    // A home value left over from Refinance is not part of payment mode.
+    expect(scenarioOf({ ...exampleValues(7, "payment"), homeValue: "400,000" })).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30 });
     expect(scenarioOf({ ...exampleValues(7, "payment"), payment: "1,500", termYears: "7" })).toMatchObject({ payment: 1500, termYears: 7 });
   });
 });
@@ -536,29 +528,24 @@ describe("an optional home value that cannot be used", () => {
     ["refinance", "4..5", "unreadable"],
     ["refinance", "0", "not-positive"],
     ["refinance", "-400,000", "not-positive"],
-    ["payment", "abc", "unreadable"],
-    ["payment", "0", "not-positive"],
-    ["payment", "-5", "not-positive"],
   ])("%s with a home value of %s: %s, and no result", (mode, homeValue, problem) => {
     const values = { ...exampleValues(7, mode), homeValue };
     expect(inputFault(values)).toMatchObject({ field: { id: "homeValue" }, problem });
     expect(calc(values)).toBeNull();
   });
 
-  it.each<Mode>(["refinance", "payment"])("an empty home value in %s is no fault", (mode) => {
-    expect(inputFault({ ...exampleValues(7, mode), homeValue: "" })).toBeNull();
-    expect(inputFault({ ...exampleValues(7, mode), homeValue: "  " })).toBeNull();
+  it("an empty home value in refinance is no fault", () => {
+    expect(inputFault({ ...refi, homeValue: "" })).toBeNull();
+    expect(inputFault({ ...refi, homeValue: "  " })).toBeNull();
+  });
+
+  it.each(["abc", "0", "-5", "300,000", "1"])("payment mode takes no notice of a home value of %s left in the form", (homeValue) => {
+    expect(inputFault({ ...pay, homeValue })).toBeNull();
+    expect(calc({ ...pay, homeValue })).toEqual(calc(pay));
   });
 
   it("does not trouble a purchase, which has no home value box", () => {
     expect(inputFault({ ...example, homeValue: "abc" })).toBeNull();
     expect(calc({ ...example, homeValue: "abc" })).not.toBeNull();
-  });
-
-  it("the mortgage insurance hint in payment mode follows the home value", () => {
-    const pmi = detailFields("payment").find((f) => f.id === "monthlyPmi")!;
-    expect(pmi.hint ?? pmi.hintFn!({ monthlyPmi: 150, homeValue: 0 })).toBe("Per month.");
-    expect(pmi.hintFn!({ monthlyPmi: 0, homeValue: 0 })).toBe("Per month.");
-    expect(pmi.hintFn!({ monthlyPmi: 150, homeValue: 400000 })).toBe("Per month. Counted only when the loan is above 80% of the home value.");
   });
 });

@@ -151,9 +151,6 @@ describe("the prompt when there is no result", () => {
     ["junk for the refinance home value", { homeValue: "abc" }, "refinance", "Enter a number for home value, or leave it empty."],
     ["a refinance home value of 0", { homeValue: "0" }, "refinance", "Home value must be above $0, or leave it empty."],
     ["a negative refinance home value", { homeValue: "-1" }, "refinance", "Home value must be above $0, or leave it empty."],
-    ["junk for the payment home value", { homeValue: "x" }, "payment", "Enter a number for home value, or leave it empty."],
-    ["a payment home value of 0", { homeValue: "0" }, "payment", "Home value must be above $0, or leave it empty."],
-    ["a payment home value below the loan", { homeValue: "300,000" }, "payment", "The home value is below the loan amount."],
     ["a payment of a million", { payment: "1,000,000" }, "payment", "Enter a payment under $1,000,000."],
     ["a payment of 6e11", { payment: "600000000000" }, "payment", "Enter a payment under $1,000,000."],
     ["a payment of a tenth of a cent", { payment: "0.001" }, "payment", "Enter a larger monthly payment."],
@@ -258,10 +255,14 @@ describe("payment mode results", () => {
     expect(text(results({ monthlyPmi: "150" }, "payment"))).toContain("$2,279principal, interest, mortgage insurance");
   });
 
-  it("with mortgage insurance typed but not counted, says tax and insurance are not included", () => {
-    const html = text(results({ monthlyPmi: "150", homeValue: "500,000" }, "payment"));
-    expect(html).toContain("at 7%. Tax and insurance are not included.");
-    expect(html).not.toContain("Full monthly payment");
+  it("takes no notice of a home value left over from Refinance: no prompt, and the insurance is counted", () => {
+    for (const homeValue of ["400,000", "500,000", "300,000", "abc"]) {
+      expect(text(results({ homeValue }, "payment")), homeValue).toBe(text(results({}, "payment")));
+      const html = text(results({ monthlyPmi: "150", homeValue }, "payment"));
+      expect(html, homeValue).toContain("Includes mortgage insurance until payment 162.");
+      expect(html, homeValue).toContain("$2,279principal, interest, mortgage insurance");
+      expect(html, homeValue).not.toMatch(/home value|most conventional loans/i);
+    }
   });
 
   it("does not draw the balance chart for a term under two years", () => {
@@ -328,7 +329,8 @@ describe("print summary by mode", () => {
 
   it("includes the costs entered in payment mode, as the other modes do", () => {
     const html = text(printed({ yearlyTax: "4,800", yearlyInsurance: "1,800", monthlyHoa: "100", monthlyPmi: "150", homeValue: "400,000" }, "payment"));
-    expect(html).toContain("Monthly payment (principal and interest)$2,128.97Home value$400,000Interest rate7%Loan term30 yearsFirst paymentJan 2027Property tax$4,800 a yearHomeowners insurance$1,800 a yearHOA dues$100 a monthMortgage insurance$150 a month, until payment 29");
+    expect(html).not.toContain("Home value");
+    expect(html).toContain("Monthly payment (principal and interest)$2,128.97Interest rate7%Loan term30 yearsFirst paymentJan 2027Property tax$4,800 a yearHomeowners insurance$1,800 a yearHOA dues$100 a monthMortgage insurance$150 a month, until payment 162");
     expect(html).toContain("The estimateEstimated loan amount$320,000Full monthly payment$2,929Property tax (monthly)$400Homeowners insurance (monthly)$150HOA dues (monthly)$100Mortgage insurance (monthly)$150Total interest");
     expect(html).not.toMatch(/Home price|Down payment/);
   });

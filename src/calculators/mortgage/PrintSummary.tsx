@@ -28,10 +28,7 @@ export function PrintSummary({ input, result: r, start, scenario = { mode: "purc
   const downPct = (input.downPayment / input.homePrice) * 100;
   const borrowed: Rows =
     scenario.mode === "payment"
-      ? [
-          { label: "Monthly payment (principal and interest)", value: formatUSDCents(scenario.payment) },
-          ...(scenario.homeValueKnown ? [{ label: "Home value", value: formatUSD(input.homePrice) }] : []),
-        ]
+      ? [{ label: "Monthly payment (principal and interest)", value: formatUSDCents(scenario.payment) }]
       : scenario.mode === "refinance"
         ? [
             { label: "Loan amount", value: formatUSD(r.loanAmount) },

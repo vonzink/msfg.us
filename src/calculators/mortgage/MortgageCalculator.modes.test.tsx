@@ -80,9 +80,10 @@ describe("the three modes", () => {
     expect(results()).toContain(`Estimated loan amount$320,000what $2,128.97 a month of principal and interest pays off over 30 years at 7%. Tax and insurance are not included.${NOT_A_LENDING_AMOUNT}Where each payment goes`);
     expect(phoneBar()).toContain("Estimated loan amount$320,000");
     for (const label of ["Home price", "Down payment", "Loan amount"]) expect(hasBox(label), label).toBe(false);
-    expect(detailLabels()).toEqual(["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Home value", "Extra principal", "Pay the extra", "First payment"]);
-    for (const label of ["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Home value", "Extra principal"]) expect(box(label).value, label).toBe("");
-    expect(form().textContent).toContain("Optional. Sets when mortgage insurance ends.");
+    expect(detailLabels()).toEqual(["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Extra principal", "Pay the extra", "First payment"]);
+    expect(hasBox("Home value")).toBe(false);
+    for (const label of ["Property tax", "Homeowners insurance", "HOA dues", "Mortgage insurance", "Extra principal"]) expect(box(label).value, label).toBe("");
+    expect(form().textContent).not.toMatch(/home value/i);
     expect(screen.getByLabelText("First payment month")).toBeTruthy();
     expect(`${results()}${printed()}`).not.toMatch(/Property tax|Homeowners|HOA|mortgage insurance|down payment|home value|home price|Full monthly payment/i);
     expect(printed()).toContain("Monthly payment (principal and interest)$2,128.97Interest rate7%Loan term30 yearsFirst paymentDec 2026");
@@ -135,29 +136,39 @@ describe("costs added on top in Payment mode", () => {
     const first = within(screen.getByRole("table")).getByText("Payment 1").closest("tr")!.textContent!;
     expect(first).toContain("$150.00"); // the mortgage insurance column
     expect(first).toContain("$2,928.97");
-    type("Home value", "400000");
-    expect(results()).toContain("Includes mortgage insurance until payment 29.");
-    expect(results()).toContain("Estimated loan amount$320,000");
-    expect(printed()).toContain("Home value$400,000");
-    type("Home value", "500000");
-    expect(results()).not.toContain("Includes mortgage insurance");
-    expect(results()).toContain("$2,779principal, interest, tax, insurance, HOA dues");
+    expect(document.body.textContent).not.toMatch(/home value/i);
     clean();
   });
 
-  it("keeps them, and the home value, on the way to Refinance and back", () => {
+  it("a home value typed in Refinance stays out of Payment mode and is there again on the way back", () => {
+    open();
+    mode("Refinance");
+    type("Home value", "500000");
+    type("Mortgage insurance", "150");
+    // $320,000 on $500,000 is under 80%, so Refinance does not count the insurance.
+    expect(results()).not.toContain("Includes mortgage insurance");
+    mode("Payment");
+    expect(hasBox("Home value")).toBe(false);
+    expect(box("Mortgage insurance").value).toBe("150");
+    expect(form().textContent).not.toMatch(/home value/i);
+    expect(results()).toContain("Includes mortgage insurance until payment 162.");
+    expect(`${results()}${printed()}`).not.toMatch(/home value|most conventional loans/i);
+    expect(printed()).toContain("Mortgage insurance$150 a month, until payment 162");
+    expect(status()).toBeNull();
+    mode("Refinance");
+    expect(box("Home value").value).toBe("500,000");
+    expect(results()).not.toContain("Includes mortgage insurance");
+  });
+
+  it("keeps them on the way to Refinance and back", () => {
     open();
     mode("Payment");
     type("Property tax", "5000");
     type("HOA dues", "75");
-    type("Home value", "450000");
     mode("Refinance");
     expect(box("Property tax").value).toBe("5,000");
     expect(box("HOA dues").value).toBe("75");
-    expect(box("Home value").value).toBe("450,000");
-    type("Home value", "460000");
     mode("Payment");
-    expect(box("Home value").value).toBe("460,000");
     expect(box("Property tax").value).toBe("5,000");
     mode("Purchase");
     expect(box("Property tax").value).toBe("5,000");
@@ -354,9 +365,9 @@ describe("refinance and the home value", () => {
     expect(printed()).toMatch(/Mortgage insurance\$150 a month, until payment \d+/);
   });
 
-  it("junk or nothing-or-less in the home value is named, in Refinance and in Payment", () => {
+  it("junk or nothing-or-less in the home value is named in Refinance", () => {
     open();
-    for (const name of ["Refinance", "Payment"] as const) {
+    for (const name of ["Refinance"] as const) {
       mode(name);
       fireEvent.change(box("Home value"), { target: { value: "abc" } });
       expect(status(), name).toBe("Enter a number for home value, or leave it empty.");
@@ -382,8 +393,6 @@ describe("refinance and the home value", () => {
     expect(form().textContent).not.toMatch(/Counted only when|Not counted/);
     type("Mortgage insurance", "150");
     expect(form().textContent).not.toMatch(/Counted only when|Not counted/);
-    type("Home value", "400000");
-    expect(form().textContent).toContain("Per month. Counted only when the loan is above 80% of the home value.");
   });
 
   it("with a home value below the loan: the box is named and there is no result", () => {

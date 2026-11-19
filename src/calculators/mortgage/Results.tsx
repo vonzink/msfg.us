@@ -76,7 +76,7 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
   const { first } = r;
   const hasExtra = r.extra.amount > 0;
   const hasPmi = first.pmi > 0;
-  const measured = scenario.mode === "purchase" || scenario.homeValueKnown;
+  const measured = scenario.mode === "purchase" || (scenario.mode === "refinance" && scenario.homeValueKnown);
   // Payment mode: what is counted on top of the principal and interest typed.
   const onTop = [first.tax > 0 && "tax", first.insurance > 0 && "insurance", first.hoa > 0 && "HOA dues", hasPmi && "mortgage insurance"].filter(Boolean);
   const needsPmiPrompt = measured && r.ltv > 80 && !hasPmi;
