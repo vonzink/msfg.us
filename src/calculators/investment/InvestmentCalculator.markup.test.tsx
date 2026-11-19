@@ -103,6 +103,43 @@ describe("Add detail", () => {
   });
 });
 
+describe("R1: the line under a closed Add detail", () => {
+  const line = () => {
+    const panels = Array.from(screen.getByRole("form", { name: "Deal details" }).querySelectorAll("details")).filter((d) => d.querySelector(":scope > summary > span")?.textContent === "Add detail");
+    expect(panels).toHaveLength(1);
+    return panels[0].nextElementSibling as HTMLElement;
+  };
+
+  it("joins the three panels' summaries for the worked example, and is left off the printout", () => {
+    render(calculator);
+    expect(line().tagName).toBe("P");
+    expect(line().textContent).toBe("3% appreciation, 24% bracket, vs 4% a year");
+    // The printout opens every panel, and each one prints its own summary beside its title.
+    expect(line().classList.contains("print:hidden")).toBe(true);
+    expect(line().classList.contains("text-muted")).toBe(true);
+  });
+
+  it("says Off when the comparison is switched off", () => {
+    render(calculator);
+    fireEvent.click(screen.getByLabelText("Off"));
+    expect(line().textContent).toBe("3% appreciation, 24% bracket, Off");
+  });
+
+  it("follows the form after Clear", () => {
+    render(calculator);
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(line().textContent).toBe("0% appreciation, 0% bracket, vs 4% a year");
+  });
+});
+
+describe("R3: the printout's title", () => {
+  it("is in the markup once, before the calculator, hidden on screen and shown in print", () => {
+    const html = page();
+    expect(count(textOf(html), "Investment property estimate")).toBe(1);
+    expect(html.startsWith('<h2 class="hidden text-[18px] font-extrabold tracking-[-0.01em] print:block">Investment property estimate</h2>')).toBe(true);
+  });
+});
+
 describe("the interest rate field", () => {
   const hint = () => document.getElementById("reo-rate-hint")?.textContent;
 

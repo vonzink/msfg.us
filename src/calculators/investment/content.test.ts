@@ -13,7 +13,7 @@ describe("investment page text", () => {
   it("explains the method in four or five short paragraphs and answers three questions", () => {
     expect(HOW_IT_WORKS.length).toBeGreaterThanOrEqual(4);
     expect(HOW_IT_WORKS.length).toBeLessThanOrEqual(5);
-    for (const p of HOW_IT_WORKS) expect(p.length, p).toBeLessThanOrEqual(320);
+    for (const p of HOW_IT_WORKS) expect(p.length, p).toBeLessThanOrEqual(360);
     expect(QUESTIONS).toHaveLength(3);
     for (const t of text) expect(t.trim().length, t).toBeGreaterThan(0);
     expect(new Set(text).size).toBe(text.length);
@@ -39,6 +39,20 @@ describe("investment page text", () => {
     }
   });
 
+  it("R4: says the five-year return takes off an estimate of the tax on the sale unless left out, and is measured against the cash put in", () => {
+    expect(HOW_IT_WORKS[1]).toContain('Selling costs are taken off, and so is an estimate of the tax on the sale unless that is switched to "Leave out".');
+    expect(HOW_IT_WORKS[1]).toContain("The return is measured against the cash you put in.");
+  });
+
+  it("R2: says the figures under Add detail count whether or not it is opened", () => {
+    expect(HOW_IT_WORKS[2]).toContain("the figures in it count whether or not you open it");
+    expect(how).not.toContain("starting figures");
+  });
+
+  it("R4: says cash-on-cash uses the cash flow before income tax", () => {
+    expect(answer("What do cash-on-cash and cap rate mean?")).toContain("Cash-on-cash is the first year's cash flow, before income tax, as a share of the cash you put in.");
+  });
+
   it("says growth, income tax and the comparison with another investment are assumptions under Add detail", () => {
     expect(how).toContain("are assumptions");
     expect(how).toContain("under Add detail");
@@ -53,12 +67,14 @@ describe("investment page text", () => {
     expect(QUESTIONS.map(({ q }) => q)).toEqual([
       "What do cash-on-cash and cap rate mean?",
       "Why can year 1 look worse than later years?",
-      'What does "hold the losses" mean?',
+      'What does "No, hold them" mean?',
     ]);
   });
 
   it("makes no tax claim beyond the page's own hints, and leaves the choice to a tax advisor", () => {
-    const a = answer('What does "hold the losses" mean?');
+    const a = answer('What does "No, hold them" mean?');
+    expect(a).toContain("under Add detail, in Income taxes");
+    expect(a).toContain("What is left at the sale is counted only when tax on the sale is counted.");
     expect(a).toContain("saves no tax that year");
     expect(a).toContain("tax advisor");
     for (const t of text) expect(t, t).not.toMatch(/\$|\bIRS\b|deductible|passive|1031|you can deduct|you will save/i);

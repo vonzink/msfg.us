@@ -197,6 +197,9 @@ export function InvestmentCalculator({ exampleRatePct, exampleRateNote, disclaim
   );
 
   return (
+    <>
+    {/* The printout's title, in the type of the shared PrintSummary heading. */}
+    <h2 className="hidden text-[18px] font-extrabold tracking-[-0.01em] print:block">Investment property estimate</h2>
     <CalculatorShell
       formLabel="Deal details"
       resultsId="reo-results"
@@ -208,6 +211,10 @@ export function InvestmentCalculator({ exampleRatePct, exampleRateNote, disclaim
           <AddDetail>
             <div className="grid gap-3.5">{GROUPS.filter((g) => g.detail).map(group)}</div>
           </AddDetail>
+          {/* What the three panels say beside their titles, readable while "Add detail" is closed. The printout opens them, so it is left off there. */}
+          <p className="mx-1 text-[13px] text-muted print:hidden">
+            {GROUPS.filter((g) => g.detail).map((g) => g.summary?.(numbers, r)).join(", ")}
+          </p>
         </>
       }
       results={
@@ -364,5 +371,6 @@ export function InvestmentCalculator({ exampleRatePct, exampleRateNote, disclaim
         </>
       }
     />
+    </>
   );
 }
