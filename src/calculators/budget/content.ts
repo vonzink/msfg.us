@@ -2,7 +2,7 @@
  * The words around the Home budget calculator. Drafted for review by the compliance sign-off.
  * Rules: plain language, no formulas, results are estimates, and nothing that reads as a loan
  * decision, a rate offer or advice. The two ratios are described as shares of income and read in
- * three words: Comfortable, Stretching, High. The band edges written here are checked against the
+ * three words: Lower, Middle, Higher. The band edges written here are checked against the
  * model's own in `content.test.ts`.
  */
 export const INTRO =
@@ -13,7 +13,7 @@ export const HOW_IT_WORKS: string[] = [
   "The two ratios are shares of gross income, which is income before tax. The first is the housing payment on its own. The second is the housing payment and the debt payments together. Living costs are not in either one.",
   "Left after housing and debts is gross income less those two payments. Tax, savings and living costs have not been taken off at that point, so it is not spending money.",
   "Monthly cash flow is what remains after everything entered: tax, any savings set aside, housing, debts and living costs. When the costs come to more than the income, the page says how far the month falls short.",
-  "Each share is read in three bands. For housing, up to 32% of gross income reads as Comfortable, above 32% and up to 47% as Stretching, and above 47% as High. For housing and debts together, the bands change at 47% and 55%. The bands are a general way to read a share of income. They are not a rule, and lenders look at more than these two ratios.",
+  "Each share is read in three bands. For housing, up to 32% of gross income reads as Lower, above 32% and up to 47% as Middle, and above 47% as Higher. For housing and debts together, the bands change at 47% and 55%. The bands are a general way to read a share of income. They are not a rule, and lenders look at more than these two ratios.",
   "Housing, debts and living costs can each be typed as one total or itemized line by line under Add detail. A group uses its total or its lines, never both. The total you typed is kept while the lines are in use, and it comes back when you switch back.",
   "Savings are optional. A share of income set aside is taken off before the bills. Account balances are only used to show how many whole months of the housing payment they would cover.",
   "Your numbers stay in this browser. They are not saved or sent anywhere. The result is an estimate based on what you entered.",

@@ -53,7 +53,8 @@ export function shortfallCause(input: BudgetInput, r: BudgetResult): string {
 /** A rate or a band edge without trailing zeros: 0.22 is "22%". */
 export const percentText = (rate: number) => `${Number((rate * 100).toFixed(3))}%`;
 
-export const BAND_LABEL: Record<Band, string> = { comfortable: "Comfortable", stretching: "Stretching", high: "High" };
+/** The word shown for each band. The words say where a share sits, not how it feels; the keys are the model's own. */
+export const BAND_LABEL: Record<Band, string> = { comfortable: "Lower", stretching: "Middle", high: "Higher" };
 const BAND_DOT: Record<Band, string> = { comfortable: "bg-chart-3", stretching: "bg-chart-4", high: "bg-loss" };
 type Bands = { comfortable: number; stretching: number };
 

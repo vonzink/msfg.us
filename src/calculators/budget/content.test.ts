@@ -20,6 +20,10 @@ describe("home budget page text", () => {
     for (const t of text) expect(t, t).not.toMatch(/qualif|approved|eligible|your rate|should|guideline|limit|DTI/i);
   });
 
+  it("does not name a band as comfort or strain", () => {
+    for (const t of text) expect(t, t).not.toMatch(/Comfortable|Stretching|comfort|stretch|strain/i);
+  });
+
   it("is plain text: no formulas and no dashes used as punctuation", () => {
     for (const t of text) expect(t, t).not.toMatch(/[—–=^×÷/*+]| x | - /);
   });
@@ -37,7 +41,7 @@ describe("home budget page text", () => {
 
   it("gives the band edges the model uses, and says the bands are only a way to read a share", () => {
     for (const edge of [FRONT_BANDS.comfortable, FRONT_BANDS.stretching, BACK_BANDS.comfortable, BACK_BANDS.stretching]) expect(how, pct(edge)).toContain(pct(edge));
-    expect(how).toContain("up to 32% of gross income reads as Comfortable, above 32% and up to 47% as Stretching, and above 47% as High");
+    expect(how).toContain("up to 32% of gross income reads as Lower, above 32% and up to 47% as Middle, and above 47% as Higher");
     expect(how).toContain("the bands change at 47% and 55%");
     expect(how).toContain("The bands are a general way to read a share of income.");
     expect(how).toContain("lenders look at more than these two ratios");

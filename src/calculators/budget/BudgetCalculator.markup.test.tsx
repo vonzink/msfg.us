@@ -32,13 +32,15 @@ const bandWords = (html: string) => [...html.matchAll(/data-band="(\w+)"/g)].map
 
 const BAD_OUTPUT = /NaN|Infinity|undefined|-\$0|-0\.0+%/;
 const BAD_WORDS = /qualif|approved|eligible|your rate|should|guideline|limit|DTI/i;
+/** The band words this page used to show. Case matters: the model's own keys stay in lower case. */
+const OLD_BAND_WORDS = /Comfortable|Stretching/;
 const BAR_HEADING = "Where the income goes";
 const FOLDER = path.join(process.cwd(), "src", "calculators", "budget");
 /** The files that make the page: everything but the tests and the recorded golden cases. */
 const SOURCES = fs.readdirSync(FOLDER).filter((f) => /\.tsx?$/.test(f) && !/\.test\.tsx?$/.test(f));
 
 describe("home budget calculator page", () => {
-  it("opens on the example: $1,220 left each month, both shares comfortable", () => {
+  it("opens on the example: $1,220 left each month, both shares in the Lower band", () => {
     const html = page();
     expect(html).toContain("Estimated monthly cash flow");
     expect(html).toContain("$1,220 left each month");
@@ -57,7 +59,7 @@ describe("home budget calculator page", () => {
     expect(html).toContain(DISCLAIMER);
     const shown = results(goldenInput("example"));
     expect(bandWords(shown)).toEqual(["comfortable", "comfortable"]);
-    expect(count(shown, ">Comfortable<")).toBe(2);
+    expect(count(shown, ">Lower<")).toBe(2);
   });
 
   it("pins the sentences that keep the page from reading as a loan decision", () => {
@@ -85,6 +87,7 @@ describe("home budget calculator page", () => {
     for (const html of states) {
       expect(html).not.toMatch(BAD_OUTPUT);
       expect(html).not.toMatch(BAD_WORDS);
+      expect(html).not.toMatch(OLD_BAND_WORDS);
       expect(html).not.toMatch(/[—–]/);
     }
   });
@@ -94,8 +97,10 @@ describe("home budget calculator page", () => {
     for (const c of golden.cases) {
       expect(bandWords(results(c.input as BudgetInput)), c.name).toEqual([word(c.expected.frontStatus), word(c.expected.backStatus)]);
     }
-    expect(results(goldenInput("stretching"))).toContain(">Stretching<");
-    expect(results(goldenInput("high"))).toContain(">High<");
+    expect(results(goldenInput("example"))).toContain(">Lower<");
+    expect(results(goldenInput("stretching"))).toContain(">Middle<");
+    expect(results(goldenInput("high"))).toContain(">Higher<");
+    expect(results(goldenInput("high"))).not.toContain(">High<");
     // Exactly on an edge is the band below it.
     expect(bandWords(results(goldenInput("band-edges")))).toEqual(["comfortable", "comfortable"]);
   });
@@ -103,8 +108,8 @@ describe("home budget calculator page", () => {
   it("has no sentence of band ranges under the gauges, on screen or in print: the dial carries the edges", () => {
     for (const html of [page(), results(goldenInput("example")), results(goldenInput("high")), print(goldenInput("example"))]) {
       expect(html).not.toMatch(/Up to \d+% is|Above \d+%/);
-      expect(html).not.toContain("is Comfortable");
-      expect(html).not.toContain("is Stretching");
+      expect(html).not.toContain("is Lower");
+      expect(html).not.toContain("is Middle");
       expect(html).not.toContain("is High");
     }
     // The dial, its edge labels, the percent and the band word stay.
@@ -226,7 +231,7 @@ describe("review fixes", () => {
     expect(noTax).not.toContain("once tax and");
   });
 
-  it("B3: the dial runs from Comfortable on the left to High on the right, with the band edges written on it", () => {
+  it("B3: the dial runs from Lower on the left to Higher on the right, with the band edges written on it", () => {
     expect(dialScale(FRONT_BANDS)).toEqual({ min: -1, fair: -0.47, good: -0.32, max: 0 });
     const html = results(goldenInput("example"));
     const dials = html.split("<svg").slice(1).map((s) => s.slice(0, s.indexOf("</svg>")));
@@ -478,7 +483,7 @@ describe("the printed page", () => {
     for (const text of [
       "The month", "Gross monthly household income", "$9,000", "Estimated tax rate", "22%", "Monthly housing payment", "$2,700",
       "Monthly debt payments", "$600", "Monthly living costs", "$2,500", "Share of income set aside as savings", "10%",
-      "The estimate", "Left each month", "$320", "Housing as a share of income", "30.00%, Comfortable", "Housing and debts as a share of income", "36.67%, Comfortable",
+      "The estimate", "Left each month", "$320", "Housing as a share of income", "30.00%, Lower", "Housing and debts as a share of income", "36.67%, Lower",
       "Left after housing and debts", "$5,700", "After all expenses, before tax and savings", "$3,200", "Savings cover", "9 months of housing",
       "Housing, line by line", "Property tax", "$400",
       RATIO_NOTE, DISCLAIMER,
@@ -514,6 +519,7 @@ describe("the privacy line is true", () => {
     for (const file of SOURCES) {
       const source = fs.readFileSync(path.join(FOLDER, file), "utf8");
       expect(source, file).not.toMatch(BAD_WORDS);
+      expect(source, file).not.toMatch(OLD_BAND_WORDS);
       expect(source, file).not.toMatch(/[—–]/);
     }
   });
