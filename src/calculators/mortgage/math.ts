@@ -1,6 +1,6 @@
 /**
  * Payment and amortization model for the Mortgage calculator. Pure functions, no DOM.
- * Ported from msfg-calc `public/js/shared/amortization-math.js` (purchase, conventional only).
+ * Ported from msfg-calc `public/js/shared/amortization-math.js` (conventional only).
  * `golden.json` holds cases recorded from that code by `scripts/calculators/golden-mortgage.mjs`
  * and `math.test.ts` requires this file to reproduce them, so the public site and the dashboard
  * give the same numbers. When the dashboard math changes, rerun the script and read the diff.
@@ -9,6 +9,11 @@
  *   - Rates are decimals (0.07 = 7%). Money is in dollars.
  *   - A conventional loan is assumed. FHA, VA and USDA insurance and fees are not modelled.
  *   - The loan amount is the home price minus the down payment. Nothing is financed on top.
+ *   - A refinance is the same model: the home value goes in as the price and the value minus the
+ *     new loan as the down payment. That is the dashboard's refinance mode with no cash out
+ *     (its loan is `refiLoanAmount + cashOut`, its property value the appraised value), and the
+ *     refinance golden cases are recorded from that mode. Cash out is not a separate input.
+ *   - The term is whole years, 1 to 40, any of them. Nothing is special about 15 or 30.
  *   - Every scheduled row is rounded to cents, as a servicer would. The last payment absorbs the
  *     rounding and is capped at the payoff, so the balance always ends at exactly zero.
  *   - Mortgage insurance (PMI) is the monthly amount the visitor typed. It is charged only when
@@ -19,6 +24,11 @@
  *     or once. It is capped at the balance left.
  *   - Tax and insurance are the yearly amounts typed in, spread evenly over twelve months. They do
  *     not rise over time.
+ *   - `loanAmountForPayment` runs the payment formula backwards. It is not in the dashboard. It
+ *     gives the largest loan in whole cents whose principal and interest payment, before rounding,
+ *     is no more than the payment given, so the amount is rounded down and never up. To the cent,
+ *     that loan's payment is the payment given. It is arithmetic only: no income, debts, taxes or
+ *     insurance are looked at.
  */
 import { monthlyPayment, roundCents } from "@/lib/finance";
 
@@ -94,6 +104,14 @@ export type MortgageResult = {
   payoff: { month: number; year: number };
 };
 
+/** The rate must be from 0 to 25%. */
+export const RATE_LIMIT = { low: 0, high: 0.25 } as const;
+/** The term must be whole years from 1 to 40. */
+export const TERM_LIMIT = { low: 1, high: 40 } as const;
+
+const usableRate = (rate: number): boolean => Number.isFinite(rate) && rate >= RATE_LIMIT.low && rate <= RATE_LIMIT.high;
+const usableTerm = (years: number): boolean => Number.isInteger(years) && years >= TERM_LIMIT.low && years <= TERM_LIMIT.high;
+
 /** Junk or negative optional amounts count as zero. */
 const amount = (x: number): number => (Number.isFinite(x) && x > 0 ? x : 0);
 
@@ -106,8 +124,7 @@ export function calculateMortgage(input: MortgageInput): MortgageResult | null {
   const loanAmount = roundCents(homePrice - input.downPayment);
   if (
     !Number.isFinite(loanAmount) || loanAmount <= 0 || !(homePrice > 0) || input.downPayment < 0 ||
-    !Number.isFinite(annualRate) || annualRate < 0 || annualRate > 0.25 ||
-    !Number.isInteger(termYears) || termYears < 1 || termYears > 40
+    !usableRate(annualRate) || !usableTerm(termYears)
   ) return null;
 
   const months = termYears * 12;
@@ -186,6 +203,22 @@ export function calculateMortgage(input: MortgageInput): MortgageResult | null {
     pmiEndPayment,
     payoff: { month: last.month, year: last.year },
   };
+}
+
+/** Slack for floating point when two payments are compared. One cent of loan moves a payment by far more. */
+const PAYMENT_SLACK = 1e-9;
+
+/** The largest loan, to the cent, that a monthly principal and interest payment pays off. null when the payment, rate or term is unusable. */
+export function loanAmountForPayment(payment: number, annualRate: number, termYears: number): number | null {
+  if (!Number.isFinite(payment) || payment <= 0 || !usableRate(annualRate) || !usableTerm(termYears)) return null;
+  const months = termYears * 12;
+  const paymentOn = (cents: number): number => monthlyPayment(cents / 100, annualRate * 100, months);
+  // Closed form first: the payment on a loan is the loan times the payment on one dollar.
+  let cents = Math.floor((payment / monthlyPayment(1, annualRate * 100, months)) * 100);
+  // Then settle it to the cent against the payment formula itself.
+  while (paymentOn(cents + 1) <= payment + PAYMENT_SLACK) cents++;
+  while (cents > 0 && paymentOn(cents) > payment + PAYMENT_SLACK) cents--;
+  return cents > 0 ? cents / 100 : null;
 }
 
 export type PaymentPart = { key: "principal" | "interest" | "tax" | "insurance" | "hoa" | "pmi" | "extra"; label: string; value: number };

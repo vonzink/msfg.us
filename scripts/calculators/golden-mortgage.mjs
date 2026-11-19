@@ -5,9 +5,14 @@
  *
  *   node scripts/calculators/golden-mortgage.mjs [path-to-msfg-calc]
  *
- * It runs each case below through MSFG.AmortizationMath.calculate (purchase, conventional) and
- * writes inputs and outputs to src/calculators/mortgage/golden.json. math.test.ts then requires
- * math.ts to reproduce every number. Rerun this when the dashboard math changes and read the diff.
+ * It runs each case below through MSFG.AmortizationMath.calculate (conventional; purchase, or the
+ * dashboard's own refinance mode for the cases marked so) and writes inputs and outputs to
+ * src/calculators/mortgage/golden.json. math.test.ts then requires math.ts to reproduce every
+ * number. Rerun this when the dashboard math changes and read the diff.
+ *
+ * A refinance case is typed into the dashboard as a loan amount (refiLoanAmount, cashOut 0) and an
+ * appraised value. Its recorded public input is what the public model takes for the same loan:
+ * homePrice = the value, downPayment = the value minus the loan.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -38,6 +43,10 @@ const input = (changes) => ({
   extraAmount: 0, extraFrequency: "monthly", startMonth: 0, startYear: 2027,
   ...changes,
 });
+/** A refinance as the public model takes it: the home value as the price, the equity as the down payment. */
+function refinance({ loan, value, ...changes }) {
+  return input({ homePrice: value, downPayment: value - loan, ...changes });
+}
 const reference = { homePrice: 250000, downPayment: 50000, annualRate: 0.075, termYears: 30, yearlyTax: 2500, yearlyInsurance: 1500, monthlyHoa: 100 };
 
 const CASES = [
@@ -49,13 +58,21 @@ const CASES = [
   ["extra-annual", input({ ...reference, extraAmount: 1000, extraFrequency: "annually" })],
   ["one-time-huge", input({ ...reference, extraAmount: 500000, extraFrequency: "one-time" })],
   ["no-optionals", input({ homePrice: 400000, downPayment: 80000, annualRate: 0.07, termYears: 15 })],
+  ["refi-80", refinance({ loan: 320000, value: 400000, annualRate: 0.07, termYears: 30, yearlyTax: 4800, yearlyInsurance: 1800 }), "refinance"],
+  ["refi-with-mi", refinance({ loan: 360000, value: 400000, annualRate: 0.065, termYears: 30, monthlyPmi: 150 }), "refinance"],
+  ["refi-15-year", refinance({ loan: 250000, value: 500000, annualRate: 0.06, termYears: 15 }), "refinance"],
+  ["term-7", input({ homePrice: 300000, downPayment: 60000, annualRate: 0.0675, termYears: 7 })],
+  ["term-13-with-mi", input({ homePrice: 300000, downPayment: 15000, annualRate: 0.0675, termYears: 13, monthlyPmi: 120 })],
+  ["term-29", input({ homePrice: 400000, downPayment: 80000, annualRate: 0.07, termYears: 29 })],
+  ["term-1", input({ homePrice: 120000, downPayment: 60000, annualRate: 0.05, termYears: 1 })],
 ];
 
 /** The public inputs as the dashboard expects them. Extra payments start with the first payment. */
-const toDashboard = (i) => ({
-  mode: "purchase", program: "conventional",
-  homePrice: i.homePrice, downPayment: i.downPayment,
-  refiLoanAmount: 0, cashOut: 0, appraisedValue: i.homePrice,
+const toDashboard = (i, mode = "purchase") => ({
+  mode, program: "conventional",
+  ...(mode === "refinance"
+    ? { homePrice: 0, downPayment: 0, refiLoanAmount: i.homePrice - i.downPayment, cashOut: 0, appraisedValue: i.homePrice }
+    : { homePrice: i.homePrice, downPayment: i.downPayment, refiLoanAmount: 0, cashOut: 0, appraisedValue: i.homePrice }),
   annualRate: i.annualRate, termYears: i.termYears, startMonth: i.startMonth, startYear: i.startYear,
   monthlyTax: i.yearlyTax / 12, monthlyIns: i.yearlyInsurance / 12, monthlyHOA: i.monthlyHoa, monthlyPMI: i.monthlyPmi,
   extraAmount: i.extraAmount, extraFreq: i.extraFrequency, extraStartMonth: i.startMonth, extraStartYear: i.startYear,
@@ -67,12 +84,13 @@ const row = (r) => ({
   extra: r.extra, balance: r.balance, pmi: r.pmiThisMonth, totalMonthly: r.totalMonthly,
 });
 
-const cases = CASES.map(([name, i]) => {
-  const r = math.calculate(toDashboard(i));
+const cases = CASES.map(([name, i, mode]) => {
+  const r = math.calculate(toDashboard(i, mode));
   if (!r) throw new Error(`the dashboard rejected case "${name}"`);
   const s = r.schedule;
   return {
     name,
+    ...(mode ? { dashboardMode: mode } : {}),
     input: i,
     expected: {
       loanAmount: r.loan.principal, monthlyPI: r.monthlyPI, totalInterest: r.totalInterest, totalCost: r.totalCost,
