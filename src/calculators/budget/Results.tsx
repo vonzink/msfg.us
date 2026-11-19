@@ -20,8 +20,6 @@ export const usd = (x: number) => formatUSD(Math.round(x) === 0 ? 0 : x);
  * it to read the band, so the figure and the band word beside it always agree.
  */
 export const shareText = (ratio: number) => `${(roundShare(ratio) * 100).toFixed(2)}%`;
-/** A part of the income bar to one decimal. A part of nothing is "0.0%", never "-0.0%". */
-const partShareText = (share: number) => `${(Math.max(0, share) * 100).toFixed(1)}%`;
 const RESERVES_NOTE = "A lender counts reserves in its own way, so this is not that figure.";
 const capitalized = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 const listText = (items: string[]) => (items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`);
@@ -138,7 +136,6 @@ export function promptText(input: BudgetInput, form: FormState = PLAIN_FORM): st
   return `Enter ${listText(REQUIRED.map((id) => NAME[id]))} to see what is left each month.`;
 }
 
-const box = "rounded-xl border border-line bg-white p-5 shadow-card max-[600px]:p-4";
 
 /** The band in words with a matching dot, so the dial never rests on colour alone. */
 function BandWord({ band }: { band: Band }) {
@@ -257,47 +254,6 @@ export function cashFlowRows(input: BudgetInput, r: BudgetResult): MoneyRow[] {
   ];
 }
 
-type Part = { label: string; amount: number; swatch: string };
-
-/** The parts the income is split into, in the order of the form. A part of nothing is left off, except what is left over. */
-export function incomeParts(input: BudgetInput, r: BudgetResult): Part[] {
-  const parts: Part[] = [
-    { label: "Tax", amount: r.taxAmount, swatch: "bg-chart-axis" },
-    { label: "Savings", amount: r.savingsAmount, swatch: "bg-chart-1" },
-    { label: "Housing", amount: input.housing, swatch: "bg-green-800" },
-    { label: "Debts", amount: input.debts, swatch: "bg-chart-2" },
-    { label: "Living costs", amount: input.living, swatch: "bg-chart-4" },
-    { label: "Left over", amount: r.cashFlow, swatch: "bg-chart-3" },
-  ];
-  return parts.filter((p) => p.amount > 0 || p.label === "Left over");
-}
-
-/** The income as one bar, with every part listed beside its amount and share so it reads without colour. */
-function IncomeBar({ input, result }: { input: BudgetInput; result: BudgetResult }) {
-  const parts = incomeParts(input, result);
-  const share = (amount: number) => amount / input.grossIncome;
-  return (
-    <div className={box}>
-      <h2 className="text-[17px] font-bold">Where the income goes</h2>
-      <p className="mt-1 text-[14px] text-muted">Each part of {formatUSD(input.grossIncome)} of monthly income, before tax.</p>
-      <div aria-hidden="true" className="mt-3 flex h-3 overflow-hidden rounded-full bg-paper-2">
-        {parts.map((p) => <span key={p.label} className={p.swatch} style={{ width: `${Math.max(0, share(p.amount)) * 100}%` }} />)}
-      </div>
-      <ul className="m-0 mt-3 grid list-none gap-2 p-0 text-[14px]">
-        {parts.map((p) => (
-          <li key={p.label} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-            <i aria-hidden="true" className={cn("inline-block size-2.5 flex-none rounded-[2px]", p.swatch)} />
-            <span className="font-semibold">{p.label}</span>
-            <span className="ml-auto font-semibold tabular-nums">{usd(p.amount)}</span>
-            <span className="w-[52px] text-right tabular-nums text-muted">{partShareText(share(p.amount))}</span>
-          </li>
-        ))}
-      </ul>
-      <p className="mt-2.5 text-[12px] text-muted">Figures are rounded.</p>
-    </div>
-  );
-}
-
 /**
  * The results column of the Home budget calculator. `result` is null until the model has all it
  * needs; until then one sentence names what is missing or out of range. The two shares are bands
@@ -353,12 +309,10 @@ export function BudgetResults({ input, result: r, disclaimer, form = PLAIN_FORM 
         />
       )}
 
-      {short ? (
+      {short && (
         <p className="mx-1 text-[16px] font-semibold text-ink">
           On these numbers the month falls short by {formatUSD(-Math.round(r.cashFlow))}. {shortfallCause(input, r)}
         </p>
-      ) : (
-        <IncomeBar input={input} result={r} />
       )}
 
       <p className="mx-1 text-[14px] text-ink">{RATIO_NOTE}</p>

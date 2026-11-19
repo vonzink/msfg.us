@@ -133,18 +133,17 @@ describe("home budget calculator page", () => {
     expect(usd(-0.4)).toBe("$0");
   });
 
-  it("shows where the income goes, each part with its amount and share, when the month is not short", () => {
-    const html = results(goldenInput("with-savings-and-balances"));
-    expect(html).toContain(BAR_HEADING);
-    for (const part of ["Tax", "Savings", "Housing", "Debts", "Living costs", "Left over"]) expect(html, part).toContain(`>${part}<`);
-    expect(html).toContain("$1,980");
-    expect(html).toContain("22.0%");
-    expect(html).toContain("$900");
-    expect(html).toContain("10.0%");
-    expect(html).toContain("$320");
-    expect(html).toContain("3.6%");
-    // A part of nothing is left off: the example sets nothing aside.
-    expect(results(goldenInput("example"))).not.toContain(">Savings<");
+  it("has no income bar: not on the default page, with savings, in a short month or in print", () => {
+    for (const html of [page(), results(goldenInput("example")), results(goldenInput("with-savings-and-balances")), results(goldenInput("high")), print(goldenInput("example"))]) {
+      expect(html).not.toContain(BAR_HEADING);
+      expect(html).not.toContain("Figures are rounded.");
+      expect(html).not.toContain("Left over");
+      expect(html).not.toContain("Each part of");
+    }
+    // The four cards are followed by the note on the ratios and the disclaimer, and nothing else.
+    const html = results(goldenInput("example"));
+    const after = html.slice(html.lastIndexOf("</dl>")).replace(/<[^>]+>/g, "|").replace(/\|+/g, "|");
+    expect(after).toBe(`|${RATIO_NOTE}|${DISCLAIMER}|`);
   });
 
   it("colours a negative residual as a loss and keeps its label", () => {
@@ -266,14 +265,6 @@ describe("review fixes", () => {
     expect(page()).toContain("Enter what would be left after your down payment and closing costs.");
     expect(results(goldenInput("with-savings-and-balances"))).toContain("A lender counts reserves in its own way, so this is not that figure.");
   });
-
-  it("B7: never shows a negative share of nothing in the bar, and says the figures are rounded", () => {
-    const html = results({ ...goldenInput("example"), living: 2500 + 1220.4 });
-    expect(html).toContain(BAR_HEADING);
-    expect(html).not.toContain("-0.0%");
-    expect(html).toContain(">0.0%<");
-    expect(html).toContain("Figures are rounded.");
-  });
 });
 
 describe("D: the residual and the cash flow as gauge cards with tables", () => {
@@ -296,9 +287,8 @@ describe("D: the residual and the cash flow as gauge cards with tables", () => {
     expect(html).toContain(">monthly residual<");
     expect(html).toContain(">after tax, savings and all costs<");
     expect(html).not.toContain("Gross monthly income less the housing payment");
-    // The headline card and the bar stay.
+    // The headline card stays.
     expect(html).toContain("Estimated monthly cash flow");
-    expect(html).toContain(BAR_HEADING);
   });
 
   it("D1: the example's residual card, row by row", () => {
