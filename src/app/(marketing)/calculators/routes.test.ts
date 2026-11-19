@@ -12,6 +12,7 @@ vi.mock("@/server/tenant/config", () => ({
 }));
 
 import BlendedRatePage from "./blended-rate/page";
+import BudgetPage from "./budget/page";
 import BuydownPage from "./buydown/page";
 import MortgagePage from "./mortgage/page";
 import BreakevenPage from "./refinance-breakeven/page";
@@ -31,7 +32,24 @@ describe("switched-off calculators", () => {
     expect(await outcome(BuydownPage)).toBe("renders");
     expect(await outcome(InvestmentPage)).toBe("renders");
     expect(await outcome(RentVsBuyPage)).toBe("renders");
+    expect(await outcome(BudgetPage)).toBe("renders");
     expect(await outcome(LandingPage)).toBe("renders");
+  });
+
+  it("makes a switched-off home budget calculator not found", async () => {
+    expect(await outcome(BudgetPage)).toBe("renders");
+    settings.disabled = ["budget"];
+    expect(await outcome(BudgetPage)).toBe("not found");
+    expect(await outcome(MortgagePage)).toBe("renders");
+    expect(await outcome(LandingPage)).toBe("renders");
+  });
+
+  it("gives the home budget page a link to the Mortgage calculator only while that one is on", async () => {
+    const href = async () => ((await BudgetPage()) as { props: { children: { props: { mortgageHref: string | null } } } }).props.children.props.mortgageHref;
+    expect(await href()).toBe("/calculators/mortgage");
+    settings.disabled = ["mortgage"];
+    expect(await href()).toBeNull();
+    expect(await outcome(BudgetPage)).toBe("renders");
   });
 
   it("makes a switched-off rent vs buy calculator not found", async () => {
@@ -77,7 +95,7 @@ describe("switched-off calculators", () => {
   });
 
   it("makes the landing page not found when every calculator is off", async () => {
-    settings.disabled = ["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "investment"];
+    settings.disabled = ["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "budget", "investment"];
     expect(await outcome(LandingPage)).toBe("not found");
   });
 });

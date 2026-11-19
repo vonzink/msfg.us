@@ -20,7 +20,7 @@ describe("calculator registry", () => {
   });
 
   it("lists the calculators in menu order", () => {
-    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "investment"]);
+    expect(CALCULATORS.map((c) => c.slug)).toEqual(["mortgage", "buydown", "blended-rate", "refinance-breakeven", "rent-vs-buy", "budget", "investment"]);
   });
 
   it("lists the Rent vs buy calculator fifth, leading to the purchase application", () => {
@@ -32,6 +32,18 @@ describe("calculator registry", () => {
       description: "Compare the cost of renting with the cost of buying over the years you plan to stay, and see whether and when buying pulls ahead.",
       applyHref: "/apply/buy",
     });
+  });
+
+  it("lists the Home budget calculator sixth, before the Investment calculator, leading to the purchase application", () => {
+    expect(CALCULATORS[5]).toEqual({
+      slug: "budget",
+      path: "/calculators/budget",
+      label: "Home budget calculator",
+      question: "What is left each month after my house payment and bills?",
+      description: "See how much of your income goes to housing and debts, and what is left each month after your bills.",
+      applyHref: "/apply/buy",
+    });
+    expect(CALCULATORS[6].slug).toBe("investment");
   });
 
   it("leaves out switched-off calculators and ignores unknown slugs", () => {

@@ -62,6 +62,14 @@ export const CALCULATORS: CalculatorEntry[] = [
     applyHref: "/apply/buy",
   },
   {
+    slug: "budget",
+    path: "/calculators/budget",
+    label: "Home budget calculator",
+    question: "What is left each month after my house payment and bills?",
+    description: "See how much of your income goes to housing and debts, and what is left each month after your bills.",
+    applyHref: "/apply/buy",
+  },
+  {
     slug: "investment",
     path: "/calculators/investment",
     label: "Investment calculator",
