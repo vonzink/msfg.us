@@ -62,6 +62,7 @@ File names start with the date the document was written.
 | 2026-11-18 | [Rent vs Buy Calculator](plans/2026-11-18-calculator-rent-vs-buy.md) |
 | 2026-11-18 | [Home Budget Calculator](plans/2026-11-18-calculator-budget.md) |
 | 2026-11-18 | [APR Calculator](plans/2026-11-18-calculator-apr.md) |
+| 2026-11-18 | [Investment Calculator Retrofit](plans/2026-11-18-calculator-investment-retrofit.md) |
 
 ## Handoffs
 
