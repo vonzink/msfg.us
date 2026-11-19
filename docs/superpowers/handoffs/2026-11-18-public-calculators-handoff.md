@@ -73,6 +73,7 @@ One calculator at a time, each on its own branch from `main`:
 - **Investment wording Zachary set:** the verdict starts "On these assumptions,"; the gauges read Higher / Middle / Lower, never Good / Fair / Poor; the tips do not say what lenders want. A line under the closed "Add detail" panel repeats the summaries of the panels inside it.
 - **Mortgage modes:** the switch has no visible label. Payment mode's typed payment is the whole monthly payment; tax, insurance, HOA and counted mortgage insurance come off it before the loan amount is worked out (Zachary first chose "add on top", tested it, and reversed it); Payment mode has a down payment percent up top (default 20) and works the home price out itself; there is no home value box there (he had it removed as confusing). The page must keep the sentence "This is arithmetic on the payment entered. It is not the amount a lender would lend." The loan term is any whole year from 1 to 30 on this page only.
 - **The call to action is "Want to go through your numbers with someone?" on every calculator.** It is the shared default; do not bring back "Like these numbers?".
+- **Home budget bands read Lower / Middle / Higher**, never Comfortable / Stretching / High. **The LeadConnector chat widget must not run on `/calculators/budget`** (`NO_THIRD_PARTY_CHAT_PATHS` in `GhlChat.tsx`), because that page says nothing typed is saved or sent. Add a path there before putting a similar privacy line on another page.
 - **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block; Rent vs buy stops mortgage payments at the end of the loan, fixes cost inflation at 3%, and adds closing costs, mortgage insurance, HOA dues, the full monthly payment and an optional interest deduction; Home budget uses one income figure for everything and decides bands on the share rounded to a hundredth of a percent; APR takes one fee total, shows the rate itself when nothing is counted, needs a home value for mortgage insurance, solves from 0 and takes loans of $1,000 and up.
 
 ## Notes for the remaining calculators
@@ -95,8 +96,7 @@ None block anything. Zachary has seen all of them.
 
 ## Open with Zachary
 
-- **The word "Comfortable"** on Home budget can sit beside a month that falls short (income 5,000, tax 22%, housing 1,600, debts 750, living 1,700). A line under the gauges says so. Neutral words were offered; he has not chosen.
-- **The chat widget and the privacy line.** The root layout loads the LeadConnector chat widget on every page when `NEXT_PUBLIC_GHL_CHAT_WIDGET_ID` is set. Staging does not load it; the current production site does. Home budget says nothing typed is saved or sent. Settle this before production cutover.
+- **The compliance review of all eight pages before production cutover.** A checklist from an independent read-through is at `docs/superpowers/handoffs/2026-11-18-calculators-compliance-checklist.md`.
 
 ## Not verified by any session
 

@@ -143,10 +143,10 @@ Purpose: "After my house payment and bills, what is left each month?" Not an aff
   - Monthly residual = gross income − housing − debts. Card label "Left after housing and debts", with "monthly residual" as the secondary label.
   - Monthly cash flow = income after tax and savings − all expenses.
   - Months of reserves, only when balances are entered.
-- **Band wording:** "Comfortable", "Stretching", "High". Bands are the dashboard's and live in code.
+- **Band wording:** "Lower", "Middle", "Higher" (changed on 2026-11-18 from "Comfortable", "Stretching", "High": the edges are the dashboard's underwriting thresholds, and "Comfortable" could sit beside a month that falls short). Bands are the dashboard's and live in code.
 - **Privacy line:** a statement that the numbers stay in the browser and are not saved or sent. It must be true.
 - **As built (2026-11-18):** one gross household income is used for every figure (the dashboard uses only employment income for the ratios); bands compare the share rounded to a hundredth of a percent and the page shows two decimals; housing, debts and living costs each switch between one total and itemized lines; only the income and the housing payment must be entered, and an empty tax rate, debts or living costs box counts as 0 (Zachary, after testing on staging); balances are entered net of the down payment and closing costs; the call to action reads "Want to go through your numbers with someone?".
-- **Open before production cutover:** the site layout's chat widget (LeadConnector) loads on every page when configured. The privacy line is true on staging, where it is off. It must stay off calculator pages, or be shown not to read form fields, for the line to stay true.
+- **The chat widget does not run on this page.** The site layout's LeadConnector widget loads on every other page when configured. `GhlChat` renders nothing on `/calculators/budget`, and reloads the page once if a visitor arrives there after the widget loaded elsewhere, so the privacy line stays true. Limits: the page is on screen for a moment before that reload, and a copy of the widget added by something other than `GhlChat` (a tag manager) is not covered.
 
 ### APR
 
