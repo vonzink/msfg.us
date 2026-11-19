@@ -115,3 +115,9 @@ Behaviour:
 ## Amendment 2: no home value in Payment mode (2026-11-18)
 
 Zachary: the home value box in Payment mode "is not relevant"; the visitor can just type mortgage insurance. It was the builder's addition in Amendment 1 and is removed (commit `4452bf6`). Mortgage insurance in Payment mode is counted as typed, as if nothing were put down: it ends when the balance reaches 78% of the loan amount or at the loan's midpoint (payment 162 on the example). A home value typed in Refinance stays in Refinance and is never read in Payment mode. This also removes the thirty-cent quirk listed above.
+
+## Amendment 3: down payment and a worked-out home price in Payment mode (2026-11-18)
+
+Zachary, after Amendment 2: the hidden home value had left him with no visible result from typed mortgage insurance, and a value is hard for a visitor to know. His design (commit `ad9b0eb`): a "Down payment" percent in Payment mode's top card, default 20, and the page works the home price out itself (loan amount divided by one minus the down payment; the example is $400,000). The headline card adds "With 20% down, that is a home price of $400,000."
+
+Mortgage insurance in Payment mode follows the Purchase rule on that price: counted only under 20% down, ending at 78% of the price or the loan's midpoint. Typed insurance that is not counted shows "Not counted with 20% or more down." under its box. Hand-checked: 10% down with $150 gives a $355,556 price and insurance until payment 115. An empty down payment counts as nothing down. This supersedes Amendment 2's "as if nothing were put down" rule except when the box is empty or 0.
