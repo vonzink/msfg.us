@@ -1,4 +1,4 @@
-# Public calculators: handoff after five of eight
+# Public calculators: handoff after six of eight
 
 Date: 2026-11-18. Written at the end of a long session so the next one can start from files, not memory.
 
@@ -19,8 +19,8 @@ Date: 2026-11-18. Written at the end of a long session so the next one can start
 | 3 | Blended rate, `/calculators/blended-rate` | Done, on `main` |
 | 4 | Refinance breakeven, `/calculators/refinance-breakeven` | Done, on `main` |
 | 5 | Rent vs buy, `/calculators/rent-vs-buy` | Done, on `main` |
-| 6 | Home budget, `/calculators/budget` | **Next** |
-| 7 | APR, `/calculators/apr` | Not started |
+| 6 | Home budget, `/calculators/budget` | Done, on `main` |
+| 7 | APR, `/calculators/apr` | **Next** |
 | 8 | Investment retrofit | Not started |
 
 `main`, GitHub and staging (https://staging.msfg.us) hold the same code. Production (`msfg.us`) is still the old site and is not touched by any of this.
@@ -64,11 +64,13 @@ One calculator at a time, each on its own branch from `main`:
 - **No silent $0 for a cost that leans the answer** (Rent vs buy). After Clear, closing costs, property tax, insurance and maintenance must be entered before a comparison shows; a typed 0 counts. The first build counted empty as $0 and made buying look $81,000 better. The shared money box empties a typed 0 on blur; Rent vs buy works round that in `keepTypedZero`.
 - **Zachary removed the on-screen assumptions box from Rent vs buy** after testing it. Do not put it back. The printout keeps the list.
 - **A prompt names the field at fault and its range** (`promptText` in `rent-vs-buy/Results.tsx`), with limits exported from `math.ts`.
-- **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block; Rent vs buy stops mortgage payments at the end of the loan, fixes cost inflation at 3%, and adds closing costs, mortgage insurance, HOA dues, the full monthly payment and an optional interest deduction.
+- **An empty box shows a grey "0", and Zachary reads that as zero** (Home budget). There, an empty tax rate, debts or living costs box counts as 0 and the page calculates; only income and housing are required. Decide per calculator which empty boxes may count as 0, and never do it where it leans the answer (Rent vs buy keeps its rule). Junk text is never 0.
+- **Zachary cut explanatory text and extras on Home budget:** the band ranges sentence under the gauges and the "Where the income goes" bar. He asked for the dashboard's residual and cash flow cards as speedometers with tables. Expect him to prefer the dashboard's cards over new summaries.
+- **Shared kit options added for Home budget, all opt-in:** `keepZero` and `readOnly` on `Field`, `mirror`, `edgeLabels`, `twoZone` and `centerLabel` on `GaugeDial`, `ctaTitle` on `CalculatorPage`.
+- **Where the public page differs from the dashboard, say so in `math.ts`** and in the spec. Current deliberate differences: Mortgage headline excludes extra principal; Blended rate leaves out rows with no balance and adds monthly savings and cash back; Refinance breakeven stops net savings at the end of each loan, counts debt payments only when more is borrowed, and adds the balance and net block; Rent vs buy stops mortgage payments at the end of the loan, fixes cost inflation at 3%, and adds closing costs, mortgage insurance, HOA dues, the full monthly payment and an optional interest deduction; Home budget uses one income figure for everything and decides bands on the share rounded to a hundredth of a percent.
 
 ## Notes for the remaining calculators
 
-- **Home budget.** Source: `budget.ejs`, `budget.js` (about 1,100 lines, DOM-bound; expect to drive it with a stand-in page as Blended rate's golden script does). Four results are required: front-end ratio, back-end ratio, monthly residual, monthly cash flow. Gauges use the dashboard bands with the words "Comfortable", "Stretching", "High". Reuse `blended-rate/rows.ts` as the pattern for debt rows. It has a privacy line that must stay true.
 - **APR.** Source: `apr.ejs`, `apr.js` (913 lines). Conventional loan assumed; mortgage insurance ends at 78% of a home value field in detail; prepaid interest defaults to 15 days and is shown in the breakdown. The result must say the official APR is the one on the Loan Estimate.
 - **Investment retrofit.** Move growth and sale, income taxes and opportunity cost behind "Add detail"; put the page on `CalculatorPage`; add the config disclaimer and example-rate note. Its markup snapshot test will need a deliberate update.
 
@@ -82,6 +84,13 @@ None block anything. Zachary has seen all of them.
 - **Blended rate:** the fifth and sixth bar colours are close.
 - **Refinance breakeven:** an example rate of 0 in tenant config opens the page on the prompt; the printout does not say when monthly savings include debt payments or mortgage insurance.
 - **Rent vs buy:** the chart's two lines differ only by colour and a stay over 12 years has no keyboard route to the yearly figures; rent and price read "2.400" as $2.40; the mortgage insurance cutoff uses the unrounded balance and could differ from the Mortgage calculator by one payment; the call to action reads "Like these numbers?" under a result where renting is ahead (shared band, every calculator).
+- **Home budget:** the first result may not be announced by screen readers; an unreadable balance mid-typing hides the reserves card without a message; the band edges reach a screen reader only through "How this works".
+
+## Open with Zachary
+
+- **The word "Comfortable"** on Home budget can sit beside a month that falls short (income 5,000, tax 22%, housing 1,600, debts 750, living 1,700). A line under the gauges says so. Neutral words were offered; he has not chosen.
+- **The chat widget and the privacy line.** The root layout loads the LeadConnector chat widget on every page when `NEXT_PUBLIC_GHL_CHAT_WIDGET_ID` is set. Staging does not load it; the current production site does. Home budget says nothing typed is saved or sent. Settle this before production cutover.
+- **The call to action** reads "Like these numbers? Start your application" on every calculator but Home budget, including under results that are not good news.
 
 ## Not verified by any session
 
