@@ -379,3 +379,9 @@ Pinned values:
 - [ ] **Step 4: Print.** Print preview shows the results, the open detail section and the full schedule.
 - [ ] **Step 5: Dashboard comparison.** Enter the `reference` case on the page and confirm the headline principal and interest is $1,398 and the first payment total is $1,832.
 - [ ] **Step 6: Stop and ask Zachary** before deploying. With his OK: `scripts/deploy-ec2.sh` (no arguments), then repeat Step 1 against `https://staging.msfg.us`. Zachary then runs two scenarios of his own against the dashboard and reviews the page text.
+
+---
+
+## Later change: modes and any term (2026-11-18)
+
+Zachary asked for a Purchase / Refinance / Payment switch and a loan term of any whole number of years to 30. That work has its own plan: `2026-11-18-calculator-mortgage-modes.md`. Where it differs from this plan (the term as five choices, purchase only), the later plan wins.
