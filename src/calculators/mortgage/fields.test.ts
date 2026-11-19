@@ -201,7 +201,8 @@ describe("refinance", () => {
 
     const pmi = detailFields("refinance").find((f) => f.id === "monthlyPmi")!;
     expect(pmi.hintFn!({ monthlyPmi: 150, homeValue: 0 })).toBe("Per month. Not counted without a home value.");
-    expect(pmi.hintFn!({ monthlyPmi: 150, homeValue: 400000 })).toBe("Per month.");
+    expect(pmi.hintFn!({ monthlyPmi: 150, homeValue: 400000 })).toBe("Per month. Counted only when the loan is above 80% of the home value.");
+    expect(pmi.hintFn!({ monthlyPmi: 0, homeValue: 400000 })).toBe("Per month. Counted only when the loan is above 80% of the home value.");
     expect(pmi.hintFn!({ monthlyPmi: 0, homeValue: 0 })).toBe("Per month.");
   });
 
@@ -398,8 +399,10 @@ describe("switching modes keeps what carries over", () => {
 
     const fromRefi = switchMode({ ...refi, loanAmount: "250,000" }, "payment", 7);
     expect(fromRefi.payment).toBe("1,663.26"); // $250,000 at 7% for 30 years
-    // A payment typed earlier is replaced by the current loan's.
-    expect(switchMode({ ...refi, payment: "9,999" }, "payment", 7).payment).toBe("2,128.97");
+    // A payment typed earlier is kept: the box is filled only when it is empty, like the other modes' boxes.
+    expect(switchMode({ ...refi, yearlyTax: "5,000", payment: "9,999" }, "payment", 7).payment).toBe("9,999");
+    const there = { ...switchMode({ ...example, homePrice: "500,000" }, "payment", 7), payment: "1,800" };
+    expect(switchMode(switchMode(there, "purchase", 7), "payment", 7).payment).toBe("1,800");
   });
 
   it("entering payment without a loan keeps what the payment box held", () => {
@@ -434,6 +437,42 @@ describe("switching modes keeps what carries over", () => {
     expect(switchMode(changed, "purchase", 7)).toMatchObject({ mode: "purchase", yearlyTax: "5,500", yearlyInsurance: "1,200", monthlyHoa: "75", monthlyPmi: "150" });
   });
 
+  it("refinance to purchase keeps the unit the visitor had when a percent says the same thing", () => {
+    // The refinance example, touched: $320,000 on $400,000 is exactly 20% down.
+    const touched = { ...refi, yearlyTax: "5,000" };
+    expect(switchMode(touched, "purchase", 7)).toMatchObject({ homePrice: "400,000", downUnit: "pct", downPayment: "20" });
+    expect(calc(switchMode(touched, "purchase", 7))!.loanAmount).toBe(320000);
+    expect(switchMode({ ...touched, loanAmount: "385,000" }, "purchase", 7)).toMatchObject({ downUnit: "pct", downPayment: "3.75" });
+    // A percent that does not come back to the same loan is given in dollars.
+    expect(switchMode({ ...touched, loanAmount: "300,000", homeValue: "450,000" }, "purchase", 7)).toMatchObject({ downUnit: "usd", downPayment: "150,000" });
+    // A visitor who had dollars keeps dollars.
+    expect(switchMode({ ...touched, downUnit: "usd" }, "purchase", 7)).toMatchObject({ homePrice: "400,000", downUnit: "usd", downPayment: "80,000" });
+    // A loan for the whole value is nothing down, in the unit they had.
+    expect(switchMode({ ...touched, loanAmount: "400,000" }, "purchase", 7)).toMatchObject({ homePrice: "400,000", downUnit: "pct", downPayment: "" });
+  });
+
+  it("purchase to payment to refinance fills the home value from the price as well as the loan", () => {
+    const next = switchMode(switchMode(edited, "payment", 7), "refinance", 7);
+    expect(next.homeValue).toBe("500,000");
+    expect(Math.abs(Number(next.loanAmount.replace(/,/g, "")) - 450000)).toBeLessThan(1);
+    expect(calc(next)).not.toBeNull();
+    // Not when the payment was raised past what the price covers, or a home value is already there.
+    const raised = { ...switchMode(edited, "payment", 7), payment: "9,000" };
+    expect(switchMode(raised, "refinance", 7).homeValue).toBe("");
+    const valued = { ...switchMode(edited, "payment", 7), homeValue: "600,000" };
+    expect(switchMode(valued, "refinance", 7).homeValue).toBe("600,000");
+  });
+
+  it("does not hang on an absurd price switched to payment, and asks for a smaller payment", () => {
+    for (const homePrice of ["900,000,000,000,000", "9".repeat(25)]) {
+      const next = switchMode({ ...edited, homePrice }, "payment", 7);
+      expect(next.mode).toBe("payment");
+      expect(calc(next)).toBeNull();
+    }
+    const next = switchMode({ ...edited, homePrice: "900,000,000,000,000" }, "payment", 7);
+    expect(inputFault(next)).toMatchObject({ field: { id: "payment" }, problem: "range", max: 1000000 });
+  }, 1000);
+
   it("an untouched example becomes the other mode's example", () => {
     for (const from of MODES) for (const to of MODES) {
       expect(switchMode(exampleValues(7, from), to, 7), `${from} to ${to}`).toEqual(exampleValues(7, to));
@@ -463,5 +502,63 @@ describe("what the results are told about the mode", () => {
     expect(scenarioOf(exampleValues(7, "payment"))).toEqual({ mode: "payment", payment: 2128.97, annualRate: 0.07, termYears: 30, homeValueKnown: false });
     expect(scenarioOf({ ...exampleValues(7, "payment"), homeValue: "400,000" })).toMatchObject({ homeValueKnown: true });
     expect(scenarioOf({ ...exampleValues(7, "payment"), payment: "1,500", termYears: "7" })).toMatchObject({ payment: 1500, termYears: 7 });
+  });
+});
+
+describe("limits on the payment", () => {
+  it.each(["1,000,000", "1,000,000.01", "600,000,000,000", "1,000,000,000,000,000"])("a payment of %s is out of range and gives no result", (payment) => {
+    expect(inputFault({ ...pay, payment })).toMatchObject({ field: { id: "payment" }, problem: "range", max: 1000000 });
+    expect(calc({ ...pay, payment })).toBeNull();
+  }, 1000);
+
+  it("a payment just under the limit works", () => {
+    expect(inputFault({ ...pay, payment: "999,999.99" })).toBeNull();
+    expect(calc({ ...pay, payment: "999,999.99" })).not.toBeNull();
+  });
+
+  it.each(["0.001", "0.01", "5", "6.65"])("a payment of %s pays off under 1,000 dollars and gives no result", (payment) => {
+    expect(calc({ ...pay, payment })).toBeNull();
+    expect(inputFault({ ...pay, payment })).toMatchObject({ field: { id: "payment" }, problem: "too-small" });
+  });
+
+  it("the smallest loan shown is $1,000", () => {
+    // $1,000 at 7% for 30 years is $6.653 a month.
+    expect(calc({ ...pay, payment: "6.66" })!.loanAmount).toBeGreaterThanOrEqual(1000);
+    expect(inputFault({ ...pay, payment: "6.66" })).toBeNull();
+    // The rate or the term is named first: without them there is no loan to measure.
+    expect(inputFault({ ...pay, payment: "5", rate: "" })).toMatchObject({ field: { id: "rate" } });
+  });
+});
+
+describe("an optional home value that cannot be used", () => {
+  it.each<[Mode, string, string]>([
+    ["refinance", "abc", "unreadable"],
+    ["refinance", "4..5", "unreadable"],
+    ["refinance", "0", "not-positive"],
+    ["refinance", "-400,000", "not-positive"],
+    ["payment", "abc", "unreadable"],
+    ["payment", "0", "not-positive"],
+    ["payment", "-5", "not-positive"],
+  ])("%s with a home value of %s: %s, and no result", (mode, homeValue, problem) => {
+    const values = { ...exampleValues(7, mode), homeValue };
+    expect(inputFault(values)).toMatchObject({ field: { id: "homeValue" }, problem });
+    expect(calc(values)).toBeNull();
+  });
+
+  it.each<Mode>(["refinance", "payment"])("an empty home value in %s is no fault", (mode) => {
+    expect(inputFault({ ...exampleValues(7, mode), homeValue: "" })).toBeNull();
+    expect(inputFault({ ...exampleValues(7, mode), homeValue: "  " })).toBeNull();
+  });
+
+  it("does not trouble a purchase, which has no home value box", () => {
+    expect(inputFault({ ...example, homeValue: "abc" })).toBeNull();
+    expect(calc({ ...example, homeValue: "abc" })).not.toBeNull();
+  });
+
+  it("the mortgage insurance hint in payment mode follows the home value", () => {
+    const pmi = detailFields("payment").find((f) => f.id === "monthlyPmi")!;
+    expect(pmi.hint ?? pmi.hintFn!({ monthlyPmi: 150, homeValue: 0 })).toBe("Per month.");
+    expect(pmi.hintFn!({ monthlyPmi: 0, homeValue: 0 })).toBe("Per month.");
+    expect(pmi.hintFn!({ monthlyPmi: 150, homeValue: 400000 })).toBe("Per month. Counted only when the loan is above 80% of the home value.");
   });
 });

@@ -263,3 +263,18 @@ describe("the loan amount a payment pays off", () => {
     expect(loanAmountForPayment(2000, 0.25, 40)).not.toBeNull();
   });
 });
+
+describe("loanAmountForPayment with a payment too large to count in cents", () => {
+  it.each([600000000000, 1e15, 1e300, Number.MAX_VALUE])("returns at once, with no amount, for %d", (payment) => {
+    expect(loanAmountForPayment(payment, 0.07, 30)).toBeNull();
+    // A year at 0% is a much smaller loan; either way the call comes back.
+    const short = loanAmountForPayment(payment, 0, 1);
+    expect(short === null || short === payment * 12).toBe(true);
+  }, 1000);
+
+  it("still answers for a very large payment whose loan is a safe number of cents", () => {
+    const loan = loanAmountForPayment(1e9, 0.07, 30)!;
+    expect(monthlyPayment(loan, 7, 360)).toBeLessThanOrEqual(1e9 + 1e-6);
+    expect(monthlyPayment(loan + 0.01, 7, 360)).toBeGreaterThan(1e9);
+  }, 1000);
+});

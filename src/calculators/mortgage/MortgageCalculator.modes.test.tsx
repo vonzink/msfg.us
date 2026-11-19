@@ -9,7 +9,7 @@ vi.setSystemTime(new Date(2026, 10, 18));
 
 afterEach(cleanup);
 
-const NOT_A_LENDING_AMOUNT = "This is arithmetic on the payment you typed. It is not the amount a lender would lend.";
+const NOT_A_LENDING_AMOUNT = "This is arithmetic on the payment entered. It is not the amount a lender would lend.";
 const BAD_OUTPUT = /NaN|Infinity|undefined|-\$0|\$-/;
 const BAD_WORDS = /qualif|approved|eligible|your rate|afford|should/i;
 const DASHES = /[\u2013\u2014]/;
@@ -246,6 +246,49 @@ describe("switching modes keeps what carries over", () => {
     expect(results()).not.toContain("Estimated loan amount");
   });
 
+  it("a payment typed in Payment mode survives a trip to Purchase and back", () => {
+    open();
+    type("Home price", "500000");
+    mode("Payment");
+    expect(box("Monthly payment").value).toBe("2,661.21");
+    type("Monthly payment", "1800");
+    mode("Purchase");
+    expect(box("Home price").value).toBe("500,000");
+    mode("Payment");
+    expect(box("Monthly payment").value).toBe("1,800");
+    expect(results()).toContain("what $1,800.00 a month of principal and interest pays off");
+  });
+
+  it("an absurd price switched to Payment does not hang, and the payment is asked for", () => {
+    open();
+    type("Home price", "900000000000000");
+    mode("Payment");
+    expect(chosen("Payment")).toBe(true);
+    expect(status()).toBe("Enter a payment under $1,000,000.");
+    type("Monthly payment", "600000000000");
+    expect(status()).toBe("Enter a payment under $1,000,000.");
+    // While it is being typed. On leaving the box a tenth of a cent becomes 0, which is asked for as a payment of 0 is.
+    fireEvent.change(box("Monthly payment"), { target: { value: "0.001" } });
+    expect(status()).toBe("Enter a larger monthly payment.");
+    expect(results()).not.toContain("$0");
+    type("Monthly payment", "5");
+    expect(status()).toBe("Enter a larger monthly payment.");
+    expect(document.querySelector("table")).toBeNull();
+    type("Monthly payment", "2128.97");
+    expect(status()).toBeNull();
+    clean();
+  }, 2000);
+
+  it("the refinance example, touched, comes back to Purchase as 20 percent of the price", () => {
+    open();
+    mode("Refinance");
+    type("Property tax", "5000");
+    mode("Purchase");
+    expect(box("Home price").value).toBe("400,000");
+    expect(box("Down payment").value).toBe("20");
+    expect(chosen("Percent of price")).toBe(true);
+  });
+
   it("Payment to Refinance fills an empty loan amount with the loan the payment pays off", () => {
     open();
     mode("Payment");
@@ -309,6 +352,38 @@ describe("refinance and the home value", () => {
     type("Mortgage insurance", "150");
     expect(results()).toMatch(/Includes mortgage insurance until payment \d+\./);
     expect(printed()).toMatch(/Mortgage insurance\$150 a month, until payment \d+/);
+  });
+
+  it("junk or nothing-or-less in the home value is named, in Refinance and in Payment", () => {
+    open();
+    for (const name of ["Refinance", "Payment"] as const) {
+      mode(name);
+      fireEvent.change(box("Home value"), { target: { value: "abc" } });
+      expect(status(), name).toBe("Enter a number for home value, or leave it empty.");
+      fireEvent.change(box("Home value"), { target: { value: "0" } });
+      expect(status(), name).toBe("Home value must be above $0, or leave it empty.");
+      type("Home value", "-400000");
+      expect(status(), name).toBe("Home value must be above $0, or leave it empty.");
+      type("Home value", "");
+      expect(status(), name).toBeNull();
+    }
+  });
+
+  it("the mortgage insurance hint follows the home value", () => {
+    open();
+    mode("Refinance");
+    expect(form().textContent).toContain("Per month. Counted only when the loan is above 80% of the home value.");
+    type("Home value", "");
+    expect(form().textContent).not.toContain("Counted only when");
+    type("Mortgage insurance", "150");
+    expect(form().textContent).toContain("Per month. Not counted without a home value.");
+    press("Load example");
+    mode("Payment");
+    expect(form().textContent).not.toMatch(/Counted only when|Not counted/);
+    type("Mortgage insurance", "150");
+    expect(form().textContent).not.toMatch(/Counted only when|Not counted/);
+    type("Home value", "400000");
+    expect(form().textContent).toContain("Per month. Counted only when the loan is above 80% of the home value.");
   });
 
   it("with a home value below the loan: the box is named and there is no result", () => {

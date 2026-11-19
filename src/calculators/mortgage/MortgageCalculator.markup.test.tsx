@@ -32,7 +32,7 @@ const text = (html: string) => html.replace(/<[^>]+>/g, "");
 const BAD_OUTPUT = /NaN|Infinity|\$-|-\$0|undefined/;
 const BAD_WORDS = /qualif|approved|eligible|your rate|afford|should/i;
 const DASHES = /[\u2013\u2014]/;
-const NOT_A_LENDING_AMOUNT = "This is arithmetic on the payment you typed. It is not the amount a lender would lend.";
+const NOT_A_LENDING_AMOUNT = "This is arithmetic on the payment entered. It is not the amount a lender would lend.";
 
 describe("mortgage calculator page", () => {
   it("opens on the worked example with the config note and disclaimer", () => {
@@ -145,8 +145,19 @@ describe("the prompt when there is no result", () => {
     ["an empty home price", { homePrice: "" }, "purchase", "Enter the home price."],
     ["a home price of 0", { homePrice: "0" }, "purchase", "Enter the home price."],
     ["letters for the home price", { homePrice: "abc" }, "purchase", "Enter a number for home price."],
-    ["a down payment of the whole price", { downPayment: "100" }, "purchase", "The down payment is more than the home price."],
-    ["a down payment above the price", { downUnit: "usd", downPayment: "500,000" }, "purchase", "The down payment is more than the home price."],
+    ["a down payment of the whole price", { downPayment: "100" }, "purchase", "Enter a down payment smaller than the home price."],
+    ["a down payment above the price", { downUnit: "usd", downPayment: "500,000" }, "purchase", "Enter a down payment smaller than the home price."],
+    ["a negative down payment", { downPayment: "-5" }, "purchase", "Enter a down payment smaller than the home price."],
+    ["junk for the refinance home value", { homeValue: "abc" }, "refinance", "Enter a number for home value, or leave it empty."],
+    ["a refinance home value of 0", { homeValue: "0" }, "refinance", "Home value must be above $0, or leave it empty."],
+    ["a negative refinance home value", { homeValue: "-1" }, "refinance", "Home value must be above $0, or leave it empty."],
+    ["junk for the payment home value", { homeValue: "x" }, "payment", "Enter a number for home value, or leave it empty."],
+    ["a payment home value of 0", { homeValue: "0" }, "payment", "Home value must be above $0, or leave it empty."],
+    ["a payment home value below the loan", { homeValue: "300,000" }, "payment", "The home value is below the loan amount."],
+    ["a payment of a million", { payment: "1,000,000" }, "payment", "Enter a payment under $1,000,000."],
+    ["a payment of 6e11", { payment: "600000000000" }, "payment", "Enter a payment under $1,000,000."],
+    ["a payment of a tenth of a cent", { payment: "0.001" }, "payment", "Enter a larger monthly payment."],
+    ["a payment of $5", { payment: "5" }, "payment", "Enter a larger monthly payment."],
     ["an empty rate", { rate: "" }, "purchase", "Enter the interest rate."],
     ["a rate mid-typing", { rate: "7.." }, "purchase", "Enter a number for interest rate."],
     ["a rate above the limit", { rate: "26" }, "purchase", "Enter an interest rate from 0% to 25%."],
@@ -253,6 +264,16 @@ describe("payment mode results", () => {
     expect(html).not.toContain("Full monthly payment");
   });
 
+  it("does not draw the balance chart for a term under two years", () => {
+    for (const mode of ["purchase", "refinance", "payment"] as const) {
+      expect(results({ termYears: "1" }, mode), mode).not.toContain("Loan balance at the end of each year");
+      expect(results({ termYears: "1" }, mode), mode).toContain("Total interest");
+      expect(results({ termYears: "2" }, mode), mode).toContain("Loan balance at the end of each year");
+    }
+    // Paid off inside the first year by extra principal: one point again.
+    expect(results({ termYears: "2", extraAmount: "300,000", extraFrequency: "one-time" })).not.toContain("Loan balance at the end of each year");
+  });
+
   it("names a one-year term in the singular and keeps the rate as typed", () => {
     expect(text(results({ termYears: "1", rate: "6.125" }, "payment"))).toContain("pays off over 1 year at 6.125%.");
   });
@@ -334,10 +355,16 @@ describe("the words of the mortgage calculator", () => {
     const about = HOW_IT_WORKS.filter((p) => /Refinance/.test(p));
     expect(about).toHaveLength(1);
     expect(about[0]).toMatch(/Purchase/);
-    expect(about[0]).toMatch(/Payment/);
-    expect(about[0].split(/[.!?](?:\s|$)/).filter(Boolean).length).toBeLessThanOrEqual(3);
+    expect(about[0]).toMatch(/Payment starts from a monthly principal and interest payment and gives the loan amount that payment pays off/);
+    expect(about[0]).toContain("Tax, insurance and other costs can be added under Add detail to see the full payment.");
+    expect(about[0]).toContain(NOT_A_LENDING_AMOUNT);
+    expect(HOW_IT_WORKS.join(" ")).not.toContain("you typed. It is not");
     expect(HOW_IT_WORKS).toHaveLength(5);
     const all = [...HOW_IT_WORKS, ...QUESTIONS.flatMap((x) => [x.q, x.a])].join(" ");
+    // True in every mode: no box named that may not be on screen.
+    expect(all).toContain("reach 78% of the home price or home value, then drops it.");
+    expect(all).not.toContain("Change the down payment above");
+    expect(all).not.toMatch(/78% of the home price(?! or home value)/);
     expect(all).not.toMatch(BAD_WORDS);
     expect(all).not.toMatch(DASHES);
   });

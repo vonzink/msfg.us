@@ -4,10 +4,10 @@
  * decision or a rate offer.
  */
 export const HOW_IT_WORKS: string[] = [
-  "Purchase starts from a home price and a down payment. Refinance starts from a loan amount and, if you enter one, the home value. Payment starts from a monthly principal and interest payment and gives the loan amount that payment pays off at the rate and term entered, which is arithmetic and not the amount a lender would lend.",
+  "Purchase starts from a home price and a down payment. Refinance starts from a loan amount and, if you enter one, the home value. Payment starts from a monthly principal and interest payment and gives the loan amount that payment pays off at the rate and term entered. Tax, insurance and other costs can be added under Add detail to see the full payment. This is arithmetic on the payment entered. It is not the amount a lender would lend.",
   "The payment has two parts. Principal and interest is what you pay the lender, and it stays the same every month on a fixed-rate loan. Property tax and homeowners insurance are added on top, using the yearly amounts you typed, spread over twelve months.",
   "This calculator assumes a conventional loan. FHA, VA and USDA loans have their own insurance and fees, so their payments will differ from what you see here.",
-  "With less than 20% down, a conventional loan usually adds mortgage insurance. If you enter a monthly amount under Add detail, the calculator includes it until your balance is scheduled to reach 78% of the home price, then drops it.",
+  "With less than 20% down, a conventional loan usually adds mortgage insurance. If you enter a monthly amount under Add detail, the calculator includes it until your balance is scheduled to reach 78% of the home price or home value, then drops it.",
   "Early in the loan most of each payment is interest. The year-by-year schedule shows how that shifts toward principal over time, and how extra principal shortens the loan.",
 ];
 
@@ -18,7 +18,7 @@ export const QUESTIONS: { q: string; a: string }[] = [
   },
   {
     q: "How much difference does a larger down payment make?",
-    a: "A larger down payment lowers the amount you borrow, which lowers both the monthly payment and the total interest. Reaching 20% down on a conventional loan also avoids mortgage insurance. Change the down payment above to compare.",
+    a: "A larger down payment lowers the amount you borrow, which lowers both the monthly payment and the total interest. Reaching 20% down on a conventional loan also avoids mortgage insurance. Change the numbers above to compare.",
   },
   {
     q: "Is a 15-year loan better than a 30-year loan?",

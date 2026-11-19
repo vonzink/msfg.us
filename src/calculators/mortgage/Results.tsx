@@ -7,7 +7,7 @@ import { duration, MONTHS } from "./dates";
 import { PaymentBreakdown } from "./PaymentBreakdown";
 
 /** Payment mode says this straight under its headline, and again in print. */
-export const NOT_A_LENDING_AMOUNT = "This is arithmetic on the payment you typed. It is not the amount a lender would lend.";
+export const NOT_A_LENDING_AMOUNT = "This is arithmetic on the payment entered. It is not the amount a lender would lend.";
 
 const GENERAL_PROMPT = "Enter the numbers above to see the estimate.";
 
@@ -18,18 +18,24 @@ const GENERAL_PROMPT = "Enter the numbers above to see the estimate.";
 export function promptText(fault: InputFault | null): string {
   if (!fault) return GENERAL_PROMPT;
   const label = fault.field.label.toLowerCase();
+  // The home value may be left empty in the modes that have it.
+  const optional = fault.field.id === "homeValue";
   switch (fault.problem) {
     case "unreadable":
-      return `Enter a number for ${label}.`;
+      return `Enter a number for ${label}${optional ? ", or leave it empty" : ""}.`;
     case "range":
+      if (fault.field.id === "payment") return `Enter a payment under ${formatUSD(fault.max)}.`;
       return fault.field.id === "rate"
         ? `Enter an interest rate from ${fault.min}% to ${fault.max}%.`
         : `Enter a loan term from ${fault.min} to ${fault.max} years.`;
     case "not-below-price":
-      return "The down payment is more than the home price.";
+      return "Enter a down payment smaller than the home price.";
+    case "too-small":
+      return "Enter a larger monthly payment.";
     case "below-loan":
       return "The home value is below the loan amount.";
     case "not-positive":
+      if (optional) return `${fault.field.label} must be above $0, or leave it empty.`;
       // A price or a loan amount of 0 is asked for like an empty one.
       return fault.field.id === "payment" ? "Enter a payment large enough to pay off a loan at this rate." : `Enter the ${label}.`;
     case "empty":
@@ -162,11 +168,14 @@ export function MortgageResults({ result: r, start, disclaimer, scenario = { mod
         )}
       </div>
 
-      <SeriesChart
-        kind="lines"
-        title="Loan balance at the end of each year"
-        series={[{ label: "Balance", data: r.years.map((y) => y.endBalance) }]}
-      />
+      {/* One year is one point, which is no chart. */}
+      {r.years.length >= 2 && (
+        <SeriesChart
+          kind="lines"
+          title="Loan balance at the end of each year"
+          series={[{ label: "Balance", data: r.years.map((y) => y.endBalance) }]}
+        />
+      )}
 
       <p className="mx-1 text-[13px] text-muted">{disclaimer}</p>
     </>

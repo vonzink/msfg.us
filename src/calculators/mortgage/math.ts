@@ -28,7 +28,8 @@
  *     gives the largest loan in whole cents whose principal and interest payment, before rounding,
  *     is no more than the payment given, so the amount is rounded down and never up. To the cent,
  *     that loan's payment is the payment given. It is arithmetic only: no income, debts, taxes or
- *     insurance are looked at.
+ *     insurance are looked at. A payment so large that its loan cannot be counted in whole cents
+ *     (about $90 trillion of loan) gives no amount, and the search for the cent is bounded.
  */
 import { monthlyPayment, roundCents } from "@/lib/finance";
 
@@ -208,17 +209,28 @@ export function calculateMortgage(input: MortgageInput): MortgageResult | null {
 /** Slack for floating point when two payments are compared. One cent of loan moves a payment by far more. */
 const PAYMENT_SLACK = 1e-9;
 
-/** The largest loan, to the cent, that a monthly principal and interest payment pays off. null when the payment, rate or term is unusable. */
+/** The closed form lands within a cent or two of the answer; this many one-cent steps is far more than it needs. */
+const SETTLE_STEPS = 1000;
+
+/**
+ * The largest loan, to the cent, that a monthly principal and interest payment pays off. null when
+ * the payment, rate or term is unusable, and when the loan would be too large to count in whole
+ * cents (past 2^53 cents a one-cent step no longer changes the number, so there is no answer to
+ * the cent to give).
+ */
 export function loanAmountForPayment(payment: number, annualRate: number, termYears: number): number | null {
   if (!Number.isFinite(payment) || payment <= 0 || !usableRate(annualRate) || !usableTerm(termYears)) return null;
   const months = termYears * 12;
   const paymentOn = (cents: number): number => monthlyPayment(cents / 100, annualRate * 100, months);
+  const covered = (cents: number): boolean => paymentOn(cents) <= payment + PAYMENT_SLACK;
   // Closed form first: the payment on a loan is the loan times the payment on one dollar.
   let cents = Math.floor((payment / monthlyPayment(1, annualRate * 100, months)) * 100);
-  // Then settle it to the cent against the payment formula itself.
-  while (paymentOn(cents + 1) <= payment + PAYMENT_SLACK) cents++;
-  while (cents > 0 && paymentOn(cents) > payment + PAYMENT_SLACK) cents--;
-  return cents > 0 ? cents / 100 : null;
+  if (!Number.isSafeInteger(cents) || !Number.isSafeInteger(cents + SETTLE_STEPS)) return null;
+  // Then settle it to the cent against the payment formula itself, in a bounded number of steps.
+  for (let step = 0; step < SETTLE_STEPS && covered(cents + 1); step++) cents++;
+  for (let step = 0; step < SETTLE_STEPS && cents > 0 && !covered(cents); step++) cents--;
+  if (cents <= 0 || !covered(cents) || covered(cents + 1)) return null;
+  return cents / 100;
 }
 
 export type PaymentPart = { key: "principal" | "interest" | "tax" | "insurance" | "hoa" | "pmi" | "extra"; label: string; value: number };
