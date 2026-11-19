@@ -146,3 +146,22 @@ Pinned values:
 - [ ] **Step 5: Verify on a local production build:** the page returns 200 with the headline; the landing page has seven cards; desktop screenshot and print PDF with headless Chrome, both read. HTTP checks use `ctx_execute` with `fetch`, not `curl`.
 - [ ] **Step 6: Commit:** `feat(calculators): home budget page and registry entry`.
 - [ ] **Step 7:** Final review by a fresh reviewer, one fix pass, then deploy to staging with `scripts/deploy-ec2.sh` (no arguments) for Zachary's test.
+
+---
+
+## Amendment 1: review fixes (2026-11-18)
+
+From the final review, each fixed test-first (commit `e1471a0`):
+
+- **Band and figure always agree.** Bands compare the share rounded to a hundredth of a percent (`roundShare`), and the page shows two decimals. Decision 2's difference from the dashboard is now: a share within a hundredth of a percent of an edge reads as the lower band.
+- **When the month is short**, a line under the gauges says the shares are of income before tax and the month still falls short. The three band words are unchanged; whether "Comfortable" is the right word at 47% of gross income is with Zachary.
+- **The dials run left to right**, Comfortable to High, with the band edges written on them (`mirror` and `edgeLabels`, opt-in on the shared `GaugeDial`).
+- **The itemized total is read-only, not disabled** (`readOnly` on the shared `Field`).
+- **Negative or unreadable itemized lines, debt payments and balances** get a prompt naming the box (`entryFaults`).
+- **Reserves:** balances are "what would be left after your down payment and closing costs", and the page says a lender counts reserves in its own way.
+- **Call to action** on this page reads "Want to go through your numbers with someone?" (`ctaTitle` on the shared `CalculatorPage`; other calculators unchanged).
+- The income bar never shows "-0.0%" and says figures are rounded. The privacy line is on screen only, not on the printout.
+
+**Open, for Zachary before production cutover:** the root layout loads the LeadConnector chat widget on every page when `NEXT_PUBLIC_GHL_CHAT_WIDGET_ID` is set. It is not loaded on staging; the current production site does load it. The privacy line is only true if that widget stays off calculator pages or is shown not to read form fields.
+
+**Deferred minors:** money boxes read "9.000" as $9 and "1e4" as $14 (shared `parseNumber`); the first result may not be announced by screen readers; Clear then Print gives a letterhead-only page; an unreadable balance mid-typing hides the reserves card without a message; the bar's swatch colours match the band dots.

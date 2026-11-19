@@ -142,6 +142,8 @@ Purpose: "After my house payment and bills, what is left each month?" Not an aff
   - Months of reserves, only when balances are entered.
 - **Band wording:** "Comfortable", "Stretching", "High". Bands are the dashboard's and live in code.
 - **Privacy line:** a statement that the numbers stay in the browser and are not saved or sent. It must be true.
+- **As built (2026-11-18):** one gross household income is used for every figure (the dashboard uses only employment income for the ratios); bands compare the share rounded to a hundredth of a percent and the page shows two decimals; housing, debts and living costs each switch between one total and itemized lines; no result until all five front inputs are entered, where a typed 0 counts; balances are entered net of the down payment and closing costs; the call to action reads "Want to go through your numbers with someone?".
+- **Open before production cutover:** the site layout's chat widget (LeadConnector) loads on every page when configured. The privacy line is true on staging, where it is off. It must stay off calculator pages, or be shown not to read form fields, for the line to stay true.
 
 ### APR
 
